@@ -3,299 +3,339 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>7A Net Games Tracker</title>
+<title>Net Games · Class 7A</title>
 <style>
-  :root {
-    --bg: #1a1a2e;
-    --card: #16213e;
-    --accent: #0f3460;
-    --text: #e6e6e6;
-    --muted: #8899aa;
-    --bar0: #2d2d3d;
-    --bar1: #e74c3c;
-    --bar2: #f39c12;
-    --bar3: #2ecc71;
-    --bar4: #3498db;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    padding: 8px;
-    -webkit-tap-highlight-color: transparent;
-  }
-  header {
-    text-align: center;
-    padding: 12px 0 8px;
-  }
-  header h1 { font-size: 1.4rem; font-weight: 700; }
-  header .subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+:root {
+  --bg: #f7f3ee;
+  --card: #ffffff;
+  --text: #1a1a1a;
+  --muted: #888888;
+  --border: #e8e4df;
+  --bar-empty: #eae6e1;
+  --bar-fill: #2c3e6b;
+  --green-bg: #e8f5e9;
+  --green-text: #2e7d32;
+  --green-accent: #43a047;
+  --coral-bg: #fce4ec;
+  --coral-text: #c62828;
+  --coral-accent: #ef5350;
+  --purple-bg: #f3e5f5;
+  --purple-text: #6a1b9a;
+  --purple-accent: #ab47bc;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  min-height: 100vh;
+}
 
-  /* Loading overlay */
-  #loading {
-    position: fixed; inset: 0;
-    background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000; font-size: 1.2rem;
-  }
-  #loading .spinner {
-    width: 40px; height: 40px;
-    border: 4px solid var(--accent);
-    border-top-color: var(--bar4);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin-right: 12px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* ── Loading ── */
+#loading {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2000; font-size: 1rem; color: var(--muted);
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--bar-fill);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Error banner */
-  .error-banner {
-    background: #e74c3c; color: #fff;
-    padding: 10px; text-align: center;
-    border-radius: 8px; margin-bottom: 8px;
-    display: none; font-size: 0.85rem;
-  }
+.error-banner {
+  background: #e74c3c; color: #fff;
+  padding: 10px 16px; text-align: center;
+  font-size: 0.85rem; display: none;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1500;
+}
 
-  /* Student cards */
-  .student-card {
-    background: var(--card);
-    border-radius: 10px;
-    margin-bottom: 8px;
-    overflow: hidden;
-  }
-  .student-header {
-    padding: 10px 14px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    user-select: none;
-  }
-  .student-header .chevron {
-    transition: transform 0.2s;
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
-  .student-card.open .chevron { transform: rotate(90deg); }
-  .student-body {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-  }
-  .student-card.open .student-body {
-    max-height: 800px;
-  }
-  .student-body-inner {
-    padding: 0 14px 12px;
-  }
+/* ── ROSTER VIEW ── */
+#view-roster { padding: 20px 24px; max-width: 960px; margin: 0 auto; }
 
-  /* Section labels */
-  .section-label {
-    font-size: 0.65rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--muted);
-    margin: 10px 0 4px;
-  }
+.roster-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 20px;
+}
+.roster-header h1 { font-size: 1.6rem; font-weight: 700; }
+.roster-header .subtitle { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+.teacher-btn {
+  padding: 8px 16px; border: 1.5px solid var(--border);
+  background: var(--card); border-radius: 8px;
+  font-size: 0.85rem; color: var(--text); cursor: pointer;
+  white-space: nowrap; flex-shrink: 0; margin-top: 4px;
+}
+.teacher-btn:active { background: #f0ece7; }
 
-  /* Skill row */
-  .skill-row {
-    display: flex;
-    align-items: center;
-    margin: 5px 0;
-  }
-  .skill-label {
-    width: 72px;
-    font-size: 0.75rem;
-    color: var(--muted);
-    flex-shrink: 0;
-  }
-  .skill-bars {
-    display: flex;
-    gap: 4px;
-    flex: 1;
-  }
-  .skill-bar {
-    flex: 1;
-    height: 28px;
-    border-radius: 4px;
-    background: var(--bar0);
-    cursor: pointer;
-    transition: background 0.15s;
-    position: relative;
-  }
-  .skill-bar.filled { background: var(--bar1); }
-  .skill-bar.level-1 { background: var(--bar1); }
-  .skill-bar.level-2 { background: var(--bar2); }
-  .skill-bar.level-3 { background: var(--bar3); }
-  .skill-bar.level-4 { background: var(--bar4); }
+.student-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 700px) { .student-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 440px) { .student-grid { grid-template-columns: 1fr; } }
 
-  /* Saving indicator */
-  .skill-bar.saving::after {
-    content: '';
-    position: absolute; inset: 0;
-    border-radius: 4px;
-    background: rgba(255,255,255,0.15);
-    animation: pulse 0.6s ease-in-out;
-  }
-  @keyframes pulse { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
+.roster-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex; align-items: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: box-shadow 0.15s;
+  user-select: none;
+}
+.roster-card:active { box-shadow: 0 1px 6px rgba(0,0,0,0.12); }
 
-  /* Teacher panel */
-  .teacher-btn {
-    display: block;
-    margin: 16px auto;
-    padding: 10px 24px;
-    background: var(--accent);
-    border: none;
-    color: var(--text);
-    border-radius: 8px;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-  #teacher-panel {
-    display: none;
-    background: var(--card);
-    border-radius: 10px;
-    padding: 14px;
-    margin-bottom: 12px;
-  }
-  #teacher-panel h3 {
-    font-size: 0.95rem;
-    margin-bottom: 10px;
-  }
-  #teacher-panel label {
-    font-size: 0.8rem;
-    color: var(--muted);
-    display: block;
-    margin-top: 8px;
-  }
-  #teacher-panel select,
-  #teacher-panel input {
-    width: 100%;
-    padding: 8px;
-    margin-top: 4px;
-    border-radius: 6px;
-    border: 1px solid var(--accent);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 0.9rem;
-  }
-  #teacher-panel .save-agility-btn {
-    margin-top: 12px;
-    padding: 8px 20px;
-    background: var(--bar4);
-    border: none;
-    border-radius: 6px;
-    color: #fff;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-  #teacher-panel .save-agility-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-  #teacher-panel .agility-status {
-    font-size: 0.8rem;
-    margin-top: 6px;
-    min-height: 1.2em;
-  }
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700;
+  flex-shrink: 0; margin-right: 12px;
+}
+.roster-card .name {
+  flex: 1; font-size: 0.9rem; font-weight: 500;
+}
+.roster-card .dash {
+  color: var(--muted); font-size: 1rem; margin-left: 8px;
+}
 
-  /* PIN modal */
-  .pin-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    display: none; align-items: center; justify-content: center;
-    z-index: 999;
-  }
-  .pin-overlay.active { display: flex; }
-  .pin-box {
-    background: var(--card);
-    padding: 24px;
-    border-radius: 12px;
-    text-align: center;
-    width: 260px;
-  }
-  .pin-box h3 { margin-bottom: 12px; font-size: 1rem; }
-  .pin-box input {
-    width: 140px;
-    padding: 10px;
-    text-align: center;
-    font-size: 1.2rem;
-    letter-spacing: 8px;
-    border: 2px solid var(--accent);
-    border-radius: 8px;
-    background: var(--bg);
-    color: var(--text);
-  }
-  .pin-box .pin-btns {
-    margin-top: 14px;
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-  }
-  .pin-box button {
-    padding: 8px 18px;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-  .pin-box .pin-ok { background: var(--bar4); color: #fff; }
-  .pin-box .pin-cancel { background: var(--accent); color: var(--text); }
-  .pin-box .pin-error { color: var(--bar1); font-size: 0.8rem; margin-top: 8px; min-height: 1.1em; }
+/* ── DETAIL VIEW ── */
+#view-detail { display: none; min-height: 100vh; }
+
+.detail-header {
+  display: flex; align-items: center;
+  padding: 14px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.back-btn {
+  padding: 6px 12px; border: 1.5px solid var(--border);
+  background: var(--card); border-radius: 8px;
+  font-size: 0.8rem; color: var(--text); cursor: pointer;
+  margin-right: 12px; white-space: nowrap;
+}
+.back-btn:active { background: #f5f1ec; }
+.detail-header .avatar { width: 36px; height: 36px; font-size: 0.7rem; margin-right: 10px; }
+.detail-header .info { flex: 1; }
+.detail-header .info .name { font-size: 1.1rem; font-weight: 700; }
+.detail-header .info .sub { font-size: 0.75rem; color: var(--muted); }
+.auto-save {
+  font-size: 0.75rem; color: var(--muted);
+  white-space: nowrap; margin-left: 8px;
+}
+
+.detail-body { padding: 16px 20px; max-width: 960px; margin: 0 auto; }
+
+/* Section cards */
+.section-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  margin-bottom: 14px;
+}
+@media (max-width: 600px) { .section-grid { grid-template-columns: 1fr; } }
+
+.section-card {
+  background: var(--card);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.section-header {
+  padding: 10px 16px;
+  font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.8px;
+}
+.section-header.green { background: var(--green-bg); color: var(--green-text); }
+.section-header.coral { background: var(--coral-bg); color: var(--coral-text); }
+.section-header.purple { background: var(--purple-bg); color: var(--purple-text); }
+.section-body { padding: 16px; }
+
+/* Agility boxes */
+.agility-grid { display: flex; gap: 12px; }
+.agility-box {
+  flex: 1; text-align: center;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 14px 10px;
+}
+.agility-box .label { font-size: 0.7rem; font-weight: 700; color: var(--green-text); text-transform: uppercase; }
+.agility-box .value {
+  font-size: 1.4rem; font-weight: 700; margin: 8px 0 2px;
+  color: var(--text); min-height: 1.8em;
+  display: flex; align-items: center; justify-content: center;
+}
+.agility-box .value .line { width: 24px; height: 3px; background: var(--bar-fill); border-radius: 2px; }
+.agility-box .unit { font-size: 0.75rem; color: var(--green-text); }
+.agility-note { font-size: 0.75rem; color: var(--green-accent); margin-top: 12px; font-style: italic; }
+
+/* Agility teacher inputs */
+.agility-input {
+  width: 80px; text-align: center; font-size: 1.1rem; font-weight: 600;
+  border: 1.5px solid var(--green-accent); border-radius: 6px;
+  padding: 6px; background: var(--bg); color: var(--text);
+}
+.agility-save-btn {
+  display: block; margin: 10px auto 0; padding: 6px 16px;
+  background: var(--green-accent); color: #fff; border: none;
+  border-radius: 6px; font-size: 0.8rem; cursor: pointer;
+}
+.agility-save-btn:disabled { opacity: 0.5; }
+
+/* Effort description */
+.effort-prompt { font-size: 0.9rem; margin-bottom: 12px; color: var(--text); }
+
+/* Progress overview */
+.overview-card {
+  background: var(--card); border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  padding: 16px; margin-bottom: 14px;
+}
+.overview-title {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--muted); margin-bottom: 14px;
+}
+.overview-cols { display: flex; gap: 24px; }
+@media (max-width: 600px) { .overview-cols { flex-direction: column; gap: 16px; } }
+.overview-col { flex: 1; }
+.overview-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 4px;
+  font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 10px;
+}
+.overview-badge.green { background: var(--green-bg); color: var(--green-text); }
+.overview-badge.coral { background: var(--coral-bg); color: var(--coral-text); }
+
+.overview-row {
+  display: flex; align-items: center; margin: 6px 0;
+}
+.overview-label { width: 110px; font-size: 0.75rem; color: var(--text); flex-shrink: 0; }
+.overview-bar-track {
+  flex: 1; height: 8px; background: var(--bar-empty);
+  border-radius: 4px; overflow: hidden;
+}
+.overview-bar-fill {
+  height: 100%; border-radius: 4px;
+  background: var(--bar-fill);
+  transition: width 0.3s ease;
+}
+.overview-dash { color: var(--muted); font-size: 0.8rem; margin-right: 6px; }
+
+/* Skill detail rows */
+.skill-item { margin-bottom: 18px; }
+.skill-item:last-child { margin-bottom: 0; }
+.skill-top { display: flex; justify-content: space-between; align-items: baseline; }
+.skill-name { font-size: 0.9rem; font-weight: 600; }
+.skill-tap { font-size: 0.75rem; color: var(--muted); }
+.skill-tags { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.skill-tag {
+  font-size: 0.7rem; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 2px 8px;
+}
+
+/* Rating bar (tappable) */
+.rating-bar {
+  display: flex; gap: 3px; margin-top: 8px; cursor: pointer;
+}
+.rating-seg {
+  flex: 1; height: 14px; background: var(--bar-empty);
+  border-radius: 3px; transition: background 0.15s;
+  position: relative;
+}
+.rating-seg.filled { background: var(--bar-fill); }
+.rating-seg.saving::after {
+  content: ''; position: absolute; inset: 0; border-radius: 3px;
+  background: rgba(255,255,255,0.3);
+  animation: flash 0.4s ease;
+}
+@keyframes flash { 0%,100%{opacity:0} 50%{opacity:1} }
+
+/* Full-width section header bars */
+.skills-header-bar {
+  padding: 10px 16px; border-radius: 12px 12px 0 0;
+  font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: #fff;
+}
+.skills-header-bar.green { background: linear-gradient(135deg, #43a047, #66bb6a); }
+.skills-header-bar.coral { background: linear-gradient(135deg, #ef5350, #e57373); }
+
+/* ── PIN OVERLAY ── */
+.pin-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: none; align-items: center; justify-content: center; z-index: 2000;
+}
+.pin-overlay.active { display: flex; }
+.pin-box {
+  background: var(--card); padding: 28px; border-radius: 16px;
+  text-align: center; width: 280px;
+}
+.pin-box h3 { font-size: 1rem; margin-bottom: 16px; }
+.pin-box input {
+  width: 140px; padding: 10px; text-align: center;
+  font-size: 1.3rem; letter-spacing: 8px;
+  border: 2px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--text);
+}
+.pin-box .pin-btns { margin-top: 16px; display: flex; gap: 8px; justify-content: center; }
+.pin-box button {
+  padding: 8px 20px; border: none; border-radius: 8px;
+  font-size: 0.85rem; cursor: pointer;
+}
+.pin-ok { background: var(--bar-fill); color: #fff; }
+.pin-cancel { background: var(--border); color: var(--text); }
+.pin-error { color: #e74c3c; font-size: 0.8rem; margin-top: 10px; min-height: 1.1em; }
 </style>
 </head>
 <body>
 
-<!-- ============ CONFIG ============ -->
 <script>
-  var CLASS_NAME = '7A';
-  var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFhJyvCrF6ThHNMs7bLedfAnMkC79PUKvRyqvLu2cUUaEJzru3OUkZifaE1YfDrw56Iw/exec';
-  var TEACHER_PIN = '1234'; // ← Change this
+var CLASS_NAME = '7A';
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFhJyvCrF6ThHNMs7bLedfAnMkC79PUKvRyqvLu2cUUaEJzru3OUkZifaE1YfDrw56Iw/exec';
+var TEACHER_PIN = '1234';
 
-  // ← Replace with real student names
-  var STUDENTS = [
-    'Student 1','Student 2','Student 3','Student 4','Student 5',
-    'Student 6','Student 7','Student 8','Student 9','Student 10'
-  ];
+var STUDENTS = [
+  'Aaliya S','Ben T','Chloe M','Daniel R','Emma K',
+  'Felix W','Grace L','Hugo B','Isla J','James P',
+  'Kira N','Luca F','Maya D','Noah C','Olivia H',
+  'Patrick G','Quinn A','Rosa E','Sam V','Tara U'
+];
 </script>
 
-<div id="loading"><div class="spinner"></div> Loading 7A...</div>
-
-<header>
-  <h1>7A Net Games</h1>
-  <div class="subtitle">Tap bars to set skill level (0–4)</div>
-</header>
-
+<div id="loading"><div class="spinner"></div> Loading...</div>
 <div class="error-banner" id="error-banner"></div>
 
-<div id="students-container"></div>
-
-<button class="teacher-btn" id="teacher-btn">Teacher: Agility Times</button>
-
-<div id="teacher-panel">
-  <h3>Agility Times</h3>
-  <label>Student
-    <select id="ag-student"></select>
-  </label>
-  <label>Field
-    <select id="ag-field">
-      <option value="ag_baseline">Baseline</option>
-      <option value="ag_retest">Retest</option>
-    </select>
-  </label>
-  <label>Time (seconds)
-    <input type="number" id="ag-time" step="0.01" min="0" placeholder="e.g. 14.32">
-  </label>
-  <button class="save-agility-btn" id="ag-save">Save Agility Time</button>
-  <div class="agility-status" id="ag-status"></div>
+<!-- ════ ROSTER VIEW ════ -->
+<div id="view-roster">
+  <div class="roster-header">
+    <div>
+      <h1>Net Games &middot; Class 7A</h1>
+      <div class="subtitle">Find your name and tap to update your skills</div>
+    </div>
+    <button class="teacher-btn" id="teacher-btn">Teacher &rsaquo;</button>
+  </div>
+  <div class="student-grid" id="student-grid"></div>
 </div>
 
-<!-- PIN overlay -->
+<!-- ════ DETAIL VIEW ════ -->
+<div id="view-detail">
+  <div class="detail-header">
+    <button class="back-btn" id="back-btn">&larr; back</button>
+    <div class="avatar" id="detail-avatar"></div>
+    <div class="info">
+      <div class="name" id="detail-name"></div>
+      <div class="sub">Class 7A &middot; Net Games</div>
+    </div>
+    <div class="auto-save" id="auto-save"></div>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+
+<!-- ════ PIN OVERLAY ════ -->
 <div class="pin-overlay" id="pin-overlay">
   <div class="pin-box">
     <h3>Enter Teacher PIN</h3>
@@ -310,61 +350,80 @@
 
 <script>
 (function() {
-  // ---------- Skill definitions ----------
-  var BADMINTON_SKILLS = [
-    { key: 'bserve', label: 'Serve' },
-    { key: 'bshot',  label: 'Shots' },
-    { key: 'bfoot',  label: 'Footwork' },
-    { key: 'btac',   label: 'Tactics' }
+  // ── Avatar colors ──
+  var PALETTE = [
+    { bg:'#c8e6c9', fg:'#2e7d32' }, { bg:'#d1c4e9', fg:'#4527a0' },
+    { bg:'#bbdefb', fg:'#1565c0' }, { bg:'#ffccbc', fg:'#bf360c' },
+    { bg:'#fff9c4', fg:'#f57f17' }, { bg:'#f8bbd0', fg:'#ad1457' },
+    { bg:'#b2dfdb', fg:'#00695c' }, { bg:'#c5e1a5', fg:'#558b2f' },
+    { bg:'#b3e5fc', fg:'#0277bd' }, { bg:'#e1bee7', fg:'#6a1b9a' }
   ];
-  var VOLLEYBALL_SKILLS = [
-    { key: 'vserve', label: 'Serve' },
-    { key: 'vskill', label: 'Skills' },
-    { key: 'vpos',   label: 'Position' }
-  ];
-  var GENERAL_SKILLS = [
-    { key: 'comm',   label: 'Comms' },
-    { key: 'effort', label: 'Effort' }
-  ];
+  function avatarColor(i) { return PALETTE[i % PALETTE.length]; }
+  function initials(name) {
+    var parts = name.split(' ');
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
 
-  var COLORS = ['', 'level-1', 'level-2', 'level-3', 'level-4'];
+  // ── Skill definitions ──
+  var BADMINTON = [
+    { key:'bserve', label:'Serve accuracy' },
+    { key:'bshot',  label:'Shot choice', tags:['clear','drop','smash','net shot'] },
+    { key:'bfoot',  label:'Footwork & movement' },
+    { key:'btac',   label:'Tactical play' }
+  ];
+  var VOLLEYBALL = [
+    { key:'vserve', label:'Serve accuracy' },
+    { key:'vskill', label:'Skill focus', tags:['pass','serve','set','hit'] },
+    { key:'vpos',   label:'Positioning & awareness' },
+    { key:'comm',   label:'Communication & teamwork' }
+  ];
+  var EFFORT_SKILL = { key:'effort', label:'Effort & focus' };
 
-  // In-memory data: { 'Student Name': { bserve: 0, ... } }
+  // ── State ──
   var studentData = {};
+  var currentStudent = null;
+  var teacherMode = false;
+  var savesInFlight = 0;
 
-  // ---------- Fetch data ----------
+  // ── Init data ──
+  STUDENTS.forEach(function(name) {
+    studentData[name] = {};
+    BADMINTON.concat(VOLLEYBALL).forEach(function(s) { studentData[name][s.key] = 0; });
+    studentData[name].effort = 0;
+    studentData[name].ag_baseline = '';
+    studentData[name].ag_retest = '';
+  });
+
+  // ── Fetch ──
   function fetchData() {
     fetch(APPS_SCRIPT_URL + '?action=get&class=' + encodeURIComponent(CLASS_NAME))
       .then(function(r) { return r.json(); })
       .then(function(json) {
         if (json.error) throw new Error(json.error);
-        // Merge fetched data
         json.students.forEach(function(s) {
           var name = s.Student;
-          if (!studentData[name]) studentData[name] = {};
-          for (var k in s) {
-            if (k !== 'Student') studentData[name][k] = s[k];
+          if (studentData[name]) {
+            for (var k in s) { if (k !== 'Student') studentData[name][k] = s[k]; }
           }
         });
-        renderAll();
         document.getElementById('loading').style.display = 'none';
       })
       .catch(function(err) {
         console.error('Fetch error:', err);
         showError('Could not load data. Check connection and reload.');
-        // Still hide loading so UI is usable with defaults
         document.getElementById('loading').style.display = 'none';
-        renderAll();
       });
   }
 
-  // ---------- Save single skill ----------
-  function saveSkill(student, field, value) {
+  // ── Save ──
+  function saveField(student, field, value, isAgility) {
+    savesInFlight++;
+    updateSaveIndicator();
     return fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
-        action: 'save',
+        action: isAgility ? 'saveAgility' : 'save',
         'class': CLASS_NAME,
         student: student,
         field: field,
@@ -373,176 +432,310 @@
     })
     .then(function(r) { return r.json(); })
     .then(function(json) {
+      savesInFlight--;
+      updateSaveIndicator();
       if (json.error) throw new Error(json.error);
       return json;
     })
     .catch(function(err) {
+      savesInFlight--;
+      updateSaveIndicator();
       console.error('Save error:', err);
-      showError('Save failed for ' + student + ' — ' + field + '. Tap again to retry.');
+      showError('Save failed — tap again to retry.');
     });
   }
 
-  // ---------- Save agility ----------
-  function saveAgility(student, field, value) {
-    return fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'saveAgility',
-        'class': CLASS_NAME,
-        student: student,
-        field: field,
-        value: value
-      })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(json) {
-      if (json.error) throw new Error(json.error);
-      return json;
-    });
+  function updateSaveIndicator() {
+    var el = document.getElementById('auto-save');
+    if (!el) return;
+    if (savesInFlight > 0) {
+      el.textContent = 'auto-saving';
+    } else {
+      el.textContent = 'saved';
+      setTimeout(function() { if (savesInFlight === 0) el.textContent = 'auto-saving'; }, 2000);
+      setTimeout(function() { if (savesInFlight === 0) el.textContent = ''; }, 2500);
+    }
   }
 
-  // ---------- Error ----------
   function showError(msg) {
     var el = document.getElementById('error-banner');
-    el.textContent = msg;
-    el.style.display = 'block';
-    setTimeout(function() { el.style.display = 'none'; }, 5000);
+    el.textContent = msg; el.style.display = 'block';
+    setTimeout(function() { el.style.display = 'none'; }, 4000);
   }
 
-  // ---------- Render ----------
-  function renderAll() {
-    var container = document.getElementById('students-container');
-    container.innerHTML = '';
-    var agSelect = document.getElementById('ag-student');
-    agSelect.innerHTML = '';
-
-    STUDENTS.forEach(function(name) {
-      if (!studentData[name]) {
-        studentData[name] = {};
-        // Default all skills to 0
-        BADMINTON_SKILLS.concat(VOLLEYBALL_SKILLS, GENERAL_SKILLS).forEach(function(s) {
-          studentData[name][s.key] = 0;
-        });
-        studentData[name].ag_baseline = '';
-        studentData[name].ag_retest = '';
-      }
-
+  // ── Roster ──
+  function renderRoster() {
+    var grid = document.getElementById('student-grid');
+    grid.innerHTML = '';
+    STUDENTS.forEach(function(name, i) {
+      var c = avatarColor(i);
       var card = document.createElement('div');
-      card.className = 'student-card';
-
-      // Header
-      var header = document.createElement('div');
-      header.className = 'student-header';
-      header.innerHTML = '<span>' + name + '</span><span class="chevron">&#9654;</span>';
-      header.addEventListener('click', function() {
-        card.classList.toggle('open');
-      });
-      card.appendChild(header);
-
-      // Body
-      var body = document.createElement('div');
-      body.className = 'student-body';
-      var inner = document.createElement('div');
-      inner.className = 'student-body-inner';
-
-      function addSection(label, skills) {
-        var lbl = document.createElement('div');
-        lbl.className = 'section-label';
-        lbl.textContent = label;
-        inner.appendChild(lbl);
-        skills.forEach(function(skill) {
-          inner.appendChild(createSkillRow(name, skill.key, skill.label));
-        });
-      }
-
-      addSection('Badminton', BADMINTON_SKILLS);
-      addSection('Volleyball', VOLLEYBALL_SKILLS);
-      addSection('General', GENERAL_SKILLS);
-
-      // Agility display (read-only)
-      var agLbl = document.createElement('div');
-      agLbl.className = 'section-label';
-      agLbl.textContent = 'Agility';
-      inner.appendChild(agLbl);
-
-      var baseline = studentData[name].ag_baseline;
-      var retest = studentData[name].ag_retest;
-      var agInfo = document.createElement('div');
-      agInfo.style.cssText = 'font-size:0.8rem;color:var(--muted);margin:4px 0;';
-      agInfo.textContent = 'Baseline: ' + (baseline || '—') + 's    Retest: ' + (retest || '—') + 's';
-      inner.appendChild(agInfo);
-
-      body.appendChild(inner);
-      card.appendChild(body);
-      container.appendChild(card);
-
-      // Agility dropdown
-      var opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      agSelect.appendChild(opt);
+      card.className = 'roster-card';
+      card.innerHTML =
+        '<div class="avatar" style="background:' + c.bg + ';color:' + c.fg + '">' + initials(name) + '</div>' +
+        '<span class="name">' + name + '</span>' +
+        '<span class="dash">&mdash;</span>';
+      card.addEventListener('click', function() { openStudent(name, i); });
+      grid.appendChild(card);
     });
   }
 
-  function createSkillRow(student, key, label) {
-    var row = document.createElement('div');
-    row.className = 'skill-row';
+  // ── Detail view ──
+  function openStudent(name, idx) {
+    currentStudent = name;
+    var c = avatarColor(idx);
+    var av = document.getElementById('detail-avatar');
+    av.style.background = c.bg; av.style.color = c.fg;
+    av.textContent = initials(name);
+    document.getElementById('detail-name').textContent = name;
+    document.getElementById('auto-save').textContent = '';
 
-    var lbl = document.createElement('div');
-    lbl.className = 'skill-label';
-    lbl.textContent = label;
-    row.appendChild(lbl);
+    renderDetail(name);
 
-    var bars = document.createElement('div');
-    bars.className = 'skill-bars';
+    document.getElementById('view-roster').style.display = 'none';
+    document.getElementById('view-detail').style.display = 'block';
+    window.scrollTo(0, 0);
+  }
 
-    var currentVal = parseInt(studentData[student][key]) || 0;
+  function closeStudent() {
+    document.getElementById('view-detail').style.display = 'none';
+    document.getElementById('view-roster').style.display = 'block';
+    currentStudent = null;
+  }
+
+  function renderDetail(name) {
+    var d = studentData[name];
+    var body = document.getElementById('detail-body');
+    body.innerHTML = '';
+
+    // ── Top grid: Agility + Effort ──
+    var topGrid = el('div', 'section-grid');
+
+    // Agility section
+    var agCard = el('div', 'section-card');
+    agCard.appendChild(sectionHeader('Illinois Agility Test · Teacher Recorded', 'green'));
+    var agBody = el('div', 'section-body');
+
+    var agGrid = el('div', 'agility-grid');
+    agGrid.appendChild(agilityBox('Baseline', d.ag_baseline, 'ag_baseline', name));
+    agGrid.appendChild(agilityBox('Re-test', d.ag_retest, 'ag_retest', name));
+    agBody.appendChild(agGrid);
+
+    if (!teacherMode) {
+      var note = el('div', 'agility-note');
+      note.textContent = 'Times will be added by your teacher';
+      agBody.appendChild(note);
+    }
+    agCard.appendChild(agBody);
+    topGrid.appendChild(agCard);
+
+    // Effort section
+    var effCard = el('div', 'section-card');
+    effCard.appendChild(sectionHeader('Effort & Focus', 'purple'));
+    var effBody = el('div', 'section-body');
+    var prompt = el('div', 'effort-prompt');
+    prompt.textContent = 'How hard did you push yourself today?';
+    effBody.appendChild(prompt);
+    effBody.appendChild(skillRatingItem(name, EFFORT_SKILL));
+    effCard.appendChild(effBody);
+    topGrid.appendChild(effCard);
+
+    body.appendChild(topGrid);
+
+    // ── Progress overview ──
+    var overview = el('div', 'overview-card');
+    var ovTitle = el('div', 'overview-title');
+    ovTitle.textContent = 'Skill Progress Overview';
+    overview.appendChild(ovTitle);
+
+    var ovCols = el('div', 'overview-cols');
+    ovCols.appendChild(overviewColumn('Badminton', 'green', BADMINTON, d));
+    ovCols.appendChild(overviewColumn('Volleyball', 'coral', VOLLEYBALL, d));
+    overview.appendChild(ovCols);
+    body.appendChild(overview);
+
+    // ── Skills detail grid ──
+    var skillGrid = el('div', 'section-grid');
+
+    // Badminton
+    var bCard = el('div', 'section-card');
+    var bHeader = el('div', 'skills-header-bar green');
+    bHeader.textContent = 'Badminton Skills';
+    bCard.appendChild(bHeader);
+    var bBody = el('div', 'section-body');
+    BADMINTON.forEach(function(s) { bBody.appendChild(skillRatingItem(name, s)); });
+    bCard.appendChild(bBody);
+    skillGrid.appendChild(bCard);
+
+    // Volleyball
+    var vCard = el('div', 'section-card');
+    var vHeader = el('div', 'skills-header-bar coral');
+    vHeader.textContent = 'Volleyball Skills';
+    vCard.appendChild(vHeader);
+    var vBody = el('div', 'section-body');
+    VOLLEYBALL.forEach(function(s) { vBody.appendChild(skillRatingItem(name, s)); });
+    vCard.appendChild(vBody);
+    skillGrid.appendChild(vCard);
+
+    body.appendChild(skillGrid);
+  }
+
+  // ── Helpers ──
+  function el(tag, cls) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    return e;
+  }
+
+  function sectionHeader(text, color) {
+    var h = el('div', 'section-header ' + color);
+    h.textContent = text;
+    return h;
+  }
+
+  function agilityBox(label, value, field, student) {
+    var box = el('div', 'agility-box');
+    var lbl = el('div', 'label'); lbl.textContent = label;
+    box.appendChild(lbl);
+
+    var valDiv = el('div', 'value');
+    if (teacherMode) {
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.step = '0.01'; inp.min = '0';
+      inp.className = 'agility-input';
+      inp.value = (value !== '' && value !== undefined && value !== null) ? value : '';
+      inp.placeholder = '—';
+      box.appendChild(lbl);
+      box.appendChild(valDiv);
+      valDiv.innerHTML = '';
+      valDiv.appendChild(inp);
+      var unit = el('div', 'unit'); unit.textContent = 'seconds';
+      box.appendChild(unit);
+
+      var btn = document.createElement('button');
+      btn.className = 'agility-save-btn';
+      btn.textContent = 'Save';
+      btn.addEventListener('click', function() {
+        var v = parseFloat(inp.value);
+        if (isNaN(v)) return;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        studentData[student][field] = v;
+        saveField(student, field, v, true).then(function() {
+          btn.textContent = 'Saved!';
+          setTimeout(function() { btn.textContent = 'Save'; btn.disabled = false; }, 1500);
+        });
+      });
+      box.appendChild(btn);
+    } else {
+      if (value !== '' && value !== undefined && value !== null && value !== 0) {
+        valDiv.textContent = value;
+      } else {
+        var line = el('div', 'line');
+        valDiv.appendChild(line);
+      }
+      box.appendChild(valDiv);
+      var unit = el('div', 'unit'); unit.textContent = 'seconds';
+      box.appendChild(unit);
+    }
+    return box;
+  }
+
+  function overviewColumn(title, color, skills, data) {
+    var col = el('div', 'overview-col');
+    var badge = el('span', 'overview-badge ' + color);
+    badge.textContent = title;
+    col.appendChild(badge);
+
+    skills.forEach(function(s) {
+      var row = el('div', 'overview-row');
+      var val = parseInt(data[s.key]) || 0;
+      if (val === 0) {
+        var dash = el('span', 'overview-dash'); dash.textContent = '—';
+        row.appendChild(dash);
+      }
+      var lbl = el('div', 'overview-label'); lbl.textContent = s.label;
+      row.appendChild(lbl);
+      var track = el('div', 'overview-bar-track');
+      var fill = el('div', 'overview-bar-fill');
+      fill.style.width = (val * 25) + '%';
+      track.appendChild(fill);
+      row.appendChild(track);
+      col.appendChild(row);
+    });
+    return col;
+  }
+
+  function skillRatingItem(student, skill) {
+    var item = el('div', 'skill-item');
+    var top = el('div', 'skill-top');
+    var nameEl = el('span', 'skill-name'); nameEl.textContent = skill.label;
+    var tap = el('span', 'skill-tap'); tap.textContent = 'tap to rate';
+    top.appendChild(nameEl); top.appendChild(tap);
+    item.appendChild(top);
+
+    if (skill.tags) {
+      var tagsDiv = el('div', 'skill-tags');
+      skill.tags.forEach(function(t) {
+        var tag = el('span', 'skill-tag'); tag.textContent = t;
+        tagsDiv.appendChild(tag);
+      });
+      item.appendChild(tagsDiv);
+    }
+
+    var bar = el('div', 'rating-bar');
+    var currentVal = parseInt(studentData[student][skill.key]) || 0;
 
     for (var i = 1; i <= 4; i++) {
       (function(level) {
-        var bar = document.createElement('div');
-        bar.className = 'skill-bar';
-        if (level <= currentVal) {
-          bar.classList.add(COLORS[level]);
-        }
-        bar.addEventListener('click', function() {
-          var oldVal = parseInt(studentData[student][key]) || 0;
-          // Tap same level = clear to level below; otherwise set to tapped level
-          var newVal = (oldVal === level) ? level - 1 : level;
-          studentData[student][key] = newVal;
+        var seg = el('div', 'rating-seg');
+        if (level <= currentVal) seg.classList.add('filled');
+        seg.addEventListener('click', function() {
+          var old = parseInt(studentData[student][skill.key]) || 0;
+          var newVal = (old === level) ? level - 1 : level;
+          studentData[student][skill.key] = newVal;
 
-          // Update bars visually
-          var siblings = bars.children;
-          for (var j = 0; j < siblings.length; j++) {
-            siblings[j].className = 'skill-bar';
-            if (j + 1 <= newVal) {
-              siblings[j].classList.add(COLORS[j + 1]);
-            }
+          // Update bar visually
+          var segs = bar.children;
+          for (var j = 0; j < segs.length; j++) {
+            segs[j].classList.toggle('filled', j + 1 <= newVal);
           }
+          seg.classList.add('saving');
+          setTimeout(function() { seg.classList.remove('saving'); }, 400);
 
-          // Saving flash
-          bar.classList.add('saving');
-          setTimeout(function() { bar.classList.remove('saving'); }, 600);
+          // Update overview bar if visible
+          updateOverviewBars(student);
 
-          // POST immediately
-          saveSkill(student, key, newVal);
+          // Save
+          saveField(student, skill.key, newVal, false);
         });
-        bars.appendChild(bar);
+        bar.appendChild(seg);
       })(i);
     }
-
-    row.appendChild(bars);
-    return row;
+    item.appendChild(bar);
+    return item;
   }
 
-  // ---------- Teacher panel ----------
-  var teacherUnlocked = false;
+  function updateOverviewBars(student) {
+    // Re-render is simplest; could optimize later
+    if (currentStudent === student) {
+      var d = studentData[student];
+      var fills = document.querySelectorAll('.overview-bar-fill');
+      var allSkills = BADMINTON.concat(VOLLEYBALL);
+      fills.forEach(function(fill, idx) {
+        if (idx < allSkills.length) {
+          var val = parseInt(d[allSkills[idx].key]) || 0;
+          fill.style.width = (val * 25) + '%';
+        }
+      });
+    }
+  }
 
+  // ── Teacher mode ──
   document.getElementById('teacher-btn').addEventListener('click', function() {
-    if (teacherUnlocked) {
-      var panel = document.getElementById('teacher-panel');
-      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if (teacherMode) {
+      teacherMode = false;
+      this.textContent = 'Teacher \u203A';
       return;
     }
     document.getElementById('pin-overlay').classList.add('active');
@@ -551,6 +744,15 @@
     document.getElementById('pin-input').focus();
   });
 
+  function checkPin() {
+    if (document.getElementById('pin-input').value === TEACHER_PIN) {
+      teacherMode = true;
+      document.getElementById('pin-overlay').classList.remove('active');
+      document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
+    } else {
+      document.getElementById('pin-error').textContent = 'Wrong PIN';
+    }
+  }
   document.getElementById('pin-ok').addEventListener('click', checkPin);
   document.getElementById('pin-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') checkPin();
@@ -559,63 +761,11 @@
     document.getElementById('pin-overlay').classList.remove('active');
   });
 
-  function checkPin() {
-    var val = document.getElementById('pin-input').value;
-    if (val === TEACHER_PIN) {
-      teacherUnlocked = true;
-      document.getElementById('pin-overlay').classList.remove('active');
-      document.getElementById('teacher-panel').style.display = 'block';
-      document.getElementById('teacher-btn').textContent = 'Teacher: Agility Times (Unlocked)';
-    } else {
-      document.getElementById('pin-error').textContent = 'Wrong PIN';
-    }
-  }
+  // ── Back button ──
+  document.getElementById('back-btn').addEventListener('click', closeStudent);
 
-  document.getElementById('ag-save').addEventListener('click', function() {
-    var student = document.getElementById('ag-student').value;
-    var field = document.getElementById('ag-field').value;
-    var time = document.getElementById('ag-time').value;
-    var status = document.getElementById('ag-status');
-    var btn = document.getElementById('ag-save');
-
-    if (!time || isNaN(parseFloat(time))) {
-      status.textContent = 'Enter a valid time';
-      status.style.color = 'var(--bar1)';
-      return;
-    }
-
-    btn.disabled = true;
-    status.textContent = 'Saving...';
-    status.style.color = 'var(--muted)';
-
-    saveAgility(student, field, parseFloat(time))
-      .then(function() {
-        status.textContent = 'Saved ' + field.replace('ag_', '') + ' for ' + student;
-        status.style.color = 'var(--bar3)';
-        studentData[student][field] = parseFloat(time);
-        document.getElementById('ag-time').value = '';
-        btn.disabled = false;
-        // Re-render to update display
-        renderAll();
-      })
-      .catch(function(err) {
-        status.textContent = 'Error: ' + err.message;
-        status.style.color = 'var(--bar1)';
-        btn.disabled = false;
-      });
-  });
-
-  // ---------- Init ----------
-  // Initialize data and render
-  STUDENTS.forEach(function(name) {
-    studentData[name] = {};
-    BADMINTON_SKILLS.concat(VOLLEYBALL_SKILLS, GENERAL_SKILLS).forEach(function(s) {
-      studentData[name][s.key] = 0;
-    });
-    studentData[name].ag_baseline = '';
-    studentData[name].ag_retest = '';
-  });
-
+  // ── Init ──
+  renderRoster();
   fetchData();
 })();
 </script>
