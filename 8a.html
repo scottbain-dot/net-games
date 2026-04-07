@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>8A Net Games Tracker</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --card: #16213e;
+    --accent: #0f3460;
+    --text: #e6e6e6;
+    --muted: #8899aa;
+    --bar0: #2d2d3d;
+    --bar1: #e74c3c;
+    --bar2: #f39c12;
+    --bar3: #2ecc71;
+    --bar4: #3498db;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 8px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    text-align: center;
+    padding: 12px 0 8px;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 700; }
+  header .subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+  /* Loading overlay */
+  #loading {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; font-size: 1.2rem;
+  }
+  #loading .spinner {
+    width: 40px; height: 40px;
+    border: 4px solid var(--accent);
+    border-top-color: var(--bar4);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error banner */
+  .error-banner {
+    background: #e74c3c; color: #fff;
+    padding: 10px; text-align: center;
+    border-radius: 8px; margin-bottom: 8px;
+    display: none; font-size: 0.85rem;
+  }
+
+  /* Student cards */
+  .student-card {
+    background: var(--card);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .student-header {
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .student-header .chevron {
+    transition: transform 0.2s;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .student-card.open .chevron { transform: rotate(90deg); }
+  .student-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .student-card.open .student-body {
+    max-height: 800px;
+  }
+  .student-body-inner {
+    padding: 0 14px 12px;
+  }
+
+  /* Section labels */
+  .section-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin: 10px 0 4px;
+  }
+
+  /* Skill row */
+  .skill-row {
+    display: flex;
+    align-items: center;
+    margin: 5px 0;
+  }
+  .skill-label {
+    width: 72px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .skill-bars {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+  }
+  .skill-bar {
+    flex: 1;
+    height: 28px;
+    border-radius: 4px;
+    background: var(--bar0);
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+  }
+  .skill-bar.filled { background: var(--bar1); }
+  .skill-bar.level-1 { background: var(--bar1); }
+  .skill-bar.level-2 { background: var(--bar2); }
+  .skill-bar.level-3 { background: var(--bar3); }
+  .skill-bar.level-4 { background: var(--bar4); }
+
+  /* Saving indicator */
+  .skill-bar.saving::after {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.15);
+    animation: pulse 0.6s ease-in-out;
+  }
+  @keyframes pulse { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
+
+  /* Teacher panel */
+  .teacher-btn {
+    display: block;
+    margin: 16px auto;
+    padding: 10px 24px;
+    background: var(--accent);
+    border: none;
+    color: var(--text);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  #teacher-panel {
+    display: none;
+    background: var(--card);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  #teacher-panel h3 {
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+  }
+  #teacher-panel label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    display: block;
+    margin-top: 8px;
+  }
+  #teacher-panel select,
+  #teacher-panel input {
+    width: 100%;
+    padding: 8px;
+    margin-top: 4px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  #teacher-panel .save-agility-btn {
+    margin-top: 12px;
+    padding: 8px 20px;
+    background: var(--bar4);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  #teacher-panel .save-agility-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  #teacher-panel .agility-status {
+    font-size: 0.8rem;
+    margin-top: 6px;
+    min-height: 1.2em;
+  }
+
+  /* PIN modal */
+  .pin-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center;
+    z-index: 999;
+  }
+  .pin-overlay.active { display: flex; }
+  .pin-box {
+    background: var(--card);
+    padding: 24px;
+    border-radius: 12px;
+    text-align: center;
+    width: 260px;
+  }
+  .pin-box h3 { margin-bottom: 12px; font-size: 1rem; }
+  .pin-box input {
+    width: 140px;
+    padding: 10px;
+    text-align: center;
+    font-size: 1.2rem;
+    letter-spacing: 8px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .pin-box .pin-btns {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .pin-box button {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .pin-box .pin-ok { background: var(--bar4); color: #fff; }
+  .pin-box .pin-cancel { background: var(--accent); color: var(--text); }
+  .pin-box .pin-error { color: var(--bar1); font-size: 0.8rem; margin-top: 8px; min-height: 1.1em; }
+</style>
+</head>
+<body>
+
+<!-- ============ CONFIG ============ -->
+<script>
+  var CLASS_NAME = '8A';
+  var APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE'; // ← Replace after deploying
+  var TEACHER_PIN = '1234'; // ← Change this
+
+  // ← Replace with real student names
+  var STUDENTS = [
+    'Student 1','Student 2','Student 3','Student 4','Student 5',
+    'Student 6','Student 7','Student 8','Student 9','Student 10'
+  ];
+</script>
+
+<div id="loading"><div class="spinner"></div> Loading 8A...</div>
+
+<header>
+  <h1>8A Net Games</h1>
+  <div class="subtitle">Tap bars to set skill level (0–4)</div>
+</header>
+
+<div class="error-banner" id="error-banner"></div>
+
+<div id="students-container"></div>
+
+<button class="teacher-btn" id="teacher-btn">Teacher: Agility Times</button>
+
+<div id="teacher-panel">
+  <h3>Agility Times</h3>
+  <label>Student
+    <select id="ag-student"></select>
+  </label>
+  <label>Field
+    <select id="ag-field">
+      <option value="ag_baseline">Baseline</option>
+      <option value="ag_retest">Retest</option>
+    </select>
+  </label>
+  <label>Time (seconds)
+    <input type="number" id="ag-time" step="0.01" min="0" placeholder="e.g. 14.32">
+  </label>
+  <button class="save-agility-btn" id="ag-save">Save Agility Time</button>
+  <div class="agility-status" id="ag-status"></div>
+</div>
+
+<!-- PIN overlay -->
+<div class="pin-overlay" id="pin-overlay">
+  <div class="pin-box">
+    <h3>Enter Teacher PIN</h3>
+    <input type="password" id="pin-input" maxlength="4" inputmode="numeric">
+    <div class="pin-error" id="pin-error"></div>
+    <div class="pin-btns">
+      <button class="pin-cancel" id="pin-cancel">Cancel</button>
+      <button class="pin-ok" id="pin-ok">Enter</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ---------- Skill definitions ----------
+  var BADMINTON_SKILLS = [
+    { key: 'bserve', label: 'Serve' },
+    { key: 'bshot',  label: 'Shots' },
+    { key: 'bfoot',  label: 'Footwork' },
+    { key: 'btac',   label: 'Tactics' }
+  ];
+  var VOLLEYBALL_SKILLS = [
+    { key: 'vserve', label: 'Serve' },
+    { key: 'vskill', label: 'Skills' },
+    { key: 'vpos',   label: 'Position' }
+  ];
+  var GENERAL_SKILLS = [
+    { key: 'comm',   label: 'Comms' },
+    { key: 'effort', label: 'Effort' }
+  ];
+
+  var COLORS = ['', 'level-1', 'level-2', 'level-3', 'level-4'];
+
+  // In-memory data: { 'Student Name': { bserve: 0, ... } }
+  var studentData = {};
+
+  // ---------- Fetch data ----------
+  function fetchData() {
+    fetch(APPS_SCRIPT_URL + '?action=get&class=' + encodeURIComponent(CLASS_NAME))
+      .then(function(r) { return r.json(); })
+      .then(function(json) {
+        if (json.error) throw new Error(json.error);
+        // Merge fetched data
+        json.students.forEach(function(s) {
+          var name = s.Student;
+          if (!studentData[name]) studentData[name] = {};
+          for (var k in s) {
+            if (k !== 'Student') studentData[name][k] = s[k];
+          }
+        });
+        renderAll();
+        document.getElementById('loading').style.display = 'none';
+      })
+      .catch(function(err) {
+        console.error('Fetch error:', err);
+        showError('Could not load data. Check connection and reload.');
+        // Still hide loading so UI is usable with defaults
+        document.getElementById('loading').style.display = 'none';
+        renderAll();
+      });
+  }
+
+  // ---------- Save single skill ----------
+  function saveSkill(student, field, value) {
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'save',
+        'class': CLASS_NAME,
+        student: student,
+        field: field,
+        value: value
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(json) {
+      if (json.error) throw new Error(json.error);
+      return json;
+    })
+    .catch(function(err) {
+      console.error('Save error:', err);
+      showError('Save failed for ' + student + ' — ' + field + '. Tap again to retry.');
+    });
+  }
+
+  // ---------- Save agility ----------
+  function saveAgility(student, field, value) {
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'saveAgility',
+        'class': CLASS_NAME,
+        student: student,
+        field: field,
+        value: value
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(json) {
+      if (json.error) throw new Error(json.error);
+      return json;
+    });
+  }
+
+  // ---------- Error ----------
+  function showError(msg) {
+    var el = document.getElementById('error-banner');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(function() { el.style.display = 'none'; }, 5000);
+  }
+
+  // ---------- Render ----------
+  function renderAll() {
+    var container = document.getElementById('students-container');
+    container.innerHTML = '';
+    var agSelect = document.getElementById('ag-student');
+    agSelect.innerHTML = '';
+
+    STUDENTS.forEach(function(name) {
+      if (!studentData[name]) {
+        studentData[name] = {};
+        // Default all skills to 0
+        BADMINTON_SKILLS.concat(VOLLEYBALL_SKILLS, GENERAL_SKILLS).forEach(function(s) {
+          studentData[name][s.key] = 0;
+        });
+        studentData[name].ag_baseline = '';
+        studentData[name].ag_retest = '';
+      }
+
+      var card = document.createElement('div');
+      card.className = 'student-card';
+
+      // Header
+      var header = document.createElement('div');
+      header.className = 'student-header';
+      header.innerHTML = '<span>' + name + '</span><span class="chevron">&#9654;</span>';
+      header.addEventListener('click', function() {
+        card.classList.toggle('open');
+      });
+      card.appendChild(header);
+
+      // Body
+      var body = document.createElement('div');
+      body.className = 'student-body';
+      var inner = document.createElement('div');
+      inner.className = 'student-body-inner';
+
+      function addSection(label, skills) {
+        var lbl = document.createElement('div');
+        lbl.className = 'section-label';
+        lbl.textContent = label;
+        inner.appendChild(lbl);
+        skills.forEach(function(skill) {
+          inner.appendChild(createSkillRow(name, skill.key, skill.label));
+        });
+      }
+
+      addSection('Badminton', BADMINTON_SKILLS);
+      addSection('Volleyball', VOLLEYBALL_SKILLS);
+      addSection('General', GENERAL_SKILLS);
+
+      // Agility display (read-only)
+      var agLbl = document.createElement('div');
+      agLbl.className = 'section-label';
+      agLbl.textContent = 'Agility';
+      inner.appendChild(agLbl);
+
+      var baseline = studentData[name].ag_baseline;
+      var retest = studentData[name].ag_retest;
+      var agInfo = document.createElement('div');
+      agInfo.style.cssText = 'font-size:0.8rem;color:var(--muted);margin:4px 0;';
+      agInfo.textContent = 'Baseline: ' + (baseline || '—') + 's    Retest: ' + (retest || '—') + 's';
+      inner.appendChild(agInfo);
+
+      body.appendChild(inner);
+      card.appendChild(body);
+      container.appendChild(card);
+
+      // Agility dropdown
+      var opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      agSelect.appendChild(opt);
+    });
+  }
+
+  function createSkillRow(student, key, label) {
+    var row = document.createElement('div');
+    row.className = 'skill-row';
+
+    var lbl = document.createElement('div');
+    lbl.className = 'skill-label';
+    lbl.textContent = label;
+    row.appendChild(lbl);
+
+    var bars = document.createElement('div');
+    bars.className = 'skill-bars';
+
+    var currentVal = parseInt(studentData[student][key]) || 0;
+
+    for (var i = 1; i <= 4; i++) {
+      (function(level) {
+        var bar = document.createElement('div');
+        bar.className = 'skill-bar';
+        if (level <= currentVal) {
+          bar.classList.add(COLORS[level]);
+        }
+        bar.addEventListener('click', function() {
+          var oldVal = parseInt(studentData[student][key]) || 0;
+          // Tap same level = clear to level below; otherwise set to tapped level
+          var newVal = (oldVal === level) ? level - 1 : level;
+          studentData[student][key] = newVal;
+
+          // Update bars visually
+          var siblings = bars.children;
+          for (var j = 0; j < siblings.length; j++) {
+            siblings[j].className = 'skill-bar';
+            if (j + 1 <= newVal) {
+              siblings[j].classList.add(COLORS[j + 1]);
+            }
+          }
+
+          // Saving flash
+          bar.classList.add('saving');
+          setTimeout(function() { bar.classList.remove('saving'); }, 600);
+
+          // POST immediately
+          saveSkill(student, key, newVal);
+        });
+        bars.appendChild(bar);
+      })(i);
+    }
+
+    row.appendChild(bars);
+    return row;
+  }
+
+  // ---------- Teacher panel ----------
+  var teacherUnlocked = false;
+
+  document.getElementById('teacher-btn').addEventListener('click', function() {
+    if (teacherUnlocked) {
+      var panel = document.getElementById('teacher-panel');
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      return;
+    }
+    document.getElementById('pin-overlay').classList.add('active');
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-error').textContent = '';
+    document.getElementById('pin-input').focus();
+  });
+
+  document.getElementById('pin-ok').addEventListener('click', checkPin);
+  document.getElementById('pin-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') checkPin();
+  });
+  document.getElementById('pin-cancel').addEventListener('click', function() {
+    document.getElementById('pin-overlay').classList.remove('active');
+  });
+
+  function checkPin() {
+    var val = document.getElementById('pin-input').value;
+    if (val === TEACHER_PIN) {
+      teacherUnlocked = true;
+      document.getElementById('pin-overlay').classList.remove('active');
+      document.getElementById('teacher-panel').style.display = 'block';
+      document.getElementById('teacher-btn').textContent = 'Teacher: Agility Times (Unlocked)';
+    } else {
+      document.getElementById('pin-error').textContent = 'Wrong PIN';
+    }
+  }
+
+  document.getElementById('ag-save').addEventListener('click', function() {
+    var student = document.getElementById('ag-student').value;
+    var field = document.getElementById('ag-field').value;
+    var time = document.getElementById('ag-time').value;
+    var status = document.getElementById('ag-status');
+    var btn = document.getElementById('ag-save');
+
+    if (!time || isNaN(parseFloat(time))) {
+      status.textContent = 'Enter a valid time';
+      status.style.color = 'var(--bar1)';
+      return;
+    }
+
+    btn.disabled = true;
+    status.textContent = 'Saving...';
+    status.style.color = 'var(--muted)';
+
+    saveAgility(student, field, parseFloat(time))
+      .then(function() {
+        status.textContent = 'Saved ' + field.replace('ag_', '') + ' for ' + student;
+        status.style.color = 'var(--bar3)';
+        studentData[student][field] = parseFloat(time);
+        document.getElementById('ag-time').value = '';
+        btn.disabled = false;
+        // Re-render to update display
+        renderAll();
+      })
+      .catch(function(err) {
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = 'var(--bar1)';
+        btn.disabled = false;
+      });
+  });
+
+  // ---------- Init ----------
+  // Initialize data and render
+  STUDENTS.forEach(function(name) {
+    studentData[name] = {};
+    BADMINTON_SKILLS.concat(VOLLEYBALL_SKILLS, GENERAL_SKILLS).forEach(function(s) {
+      studentData[name][s.key] = 0;
+    });
+    studentData[name].ag_baseline = '';
+    studentData[name].ag_retest = '';
+  });
+
+  fetchData();
+})();
+</script>
+</body>
+</html>
