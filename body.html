@@ -1,0 +1,44 @@
+<div id="loading"><div class="spinner"></div> Loading...</div>
+<div class="error-banner" id="error-banner"></div>
+
+<!-- ════ ROSTER VIEW ════ -->
+<div id="view-roster">
+  <div class="roster-header">
+    <div>
+      <h1>Net Games &middot; Class __CLASS__</h1>
+      <div class="subtitle">Find your name and tap to update your skills</div>
+    </div>
+    <button class="teacher-btn" id="teacher-btn">Teacher &rsaquo;</button>
+  </div>
+  <div class="student-grid" id="student-grid"></div>
+</div>
+
+<!-- ════ DETAIL VIEW ════ -->
+<div id="view-detail">
+  <div class="detail-header">
+    <button class="back-btn" id="back-btn">&larr; back</button>
+    <div class="avatar" id="detail-avatar"></div>
+    <div class="info">
+      <div class="name" id="detail-name"></div>
+      <div class="sub">Class __CLASS__ &middot; Net Games</div>
+    </div>
+    <div class="autosave" id="autosave">
+      <span class="dot"></span>
+      <span class="text">auto-saving</span>
+    </div>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+
+<!-- ════ PIN OVERLAY ════ -->
+<div class="pin-overlay" id="pin-overlay">
+  <div class="pin-box">
+    <h3>Enter Teacher PIN</h3>
+    <input type="password" id="pin-input" maxlength="4" inputmode="numeric">
+    <div class="pin-error" id="pin-error"></div>
+    <div class="pin-btns">
+      <button class="pin-cancel" id="pin-cancel">Cancel</button>
+      <button class="pin-ok" id="pin-ok">Enter</button>
+    </div>
+  </div>
+</div>
