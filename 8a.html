@@ -5,43 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Net Games · Class 8A</title>
 <style>
-:root {
-  --bg: #f7f3ee;
-  --card: #ffffff;
-  --text: #1a1a1a;
-  --muted: #888888;
-  --border: #e8e4df;
-  --bar-empty: #eae6e1;
-  --bar-fill: #2c3e6b;
-  --green-bg: #e8f5e9;
-  --green-text: #2e7d32;
-  --green-accent: #43a047;
-  --coral-bg: #fce4ec;
-  --coral-text: #c62828;
-  --coral-accent: #ef5350;
-  --purple-bg: #f3e5f5;
-  --purple-text: #6a1b9a;
-  --purple-accent: #ab47bc;
-}
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  background: #f5f4f0;
+  color: #1a1a1a;
   -webkit-tap-highlight-color: transparent;
   min-height: 100vh;
 }
 
 /* ── Loading ── */
 #loading {
-  position: fixed; inset: 0; background: var(--bg);
+  position: fixed; inset: 0; background: #f5f4f0;
   display: flex; align-items: center; justify-content: center;
-  z-index: 2000; font-size: 1rem; color: var(--muted);
+  z-index: 2000; font-size: 0.95rem; color: #888;
 }
 .spinner {
-  width: 32px; height: 32px;
-  border: 3px solid var(--border);
-  border-top-color: var(--bar-fill);
+  width: 28px; height: 28px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #2E86DE;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   margin-right: 10px;
@@ -56,53 +38,55 @@ body {
 }
 
 /* ── ROSTER VIEW ── */
-#view-roster { padding: 20px 24px; max-width: 960px; margin: 0 auto; }
+#view-roster { padding: 24px; max-width: 1100px; margin: 0 auto; }
 
 .roster-header {
   display: flex; justify-content: space-between; align-items: flex-start;
   margin-bottom: 20px;
 }
-.roster-header h1 { font-size: 1.6rem; font-weight: 700; }
-.roster-header .subtitle { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+.roster-header h1 { font-size: 1.5rem; font-weight: 700; color: #1a1a1a; }
+.roster-header .subtitle { font-size: 0.85rem; color: #888; margin-top: 3px; }
 .teacher-btn {
-  padding: 8px 16px; border: 1.5px solid var(--border);
-  background: var(--card); border-radius: 8px;
-  font-size: 0.85rem; color: var(--text); cursor: pointer;
+  padding: 8px 14px; border: 1px solid #e0e0e0;
+  background: #fff; border-radius: 10px;
+  font-size: 0.8rem; color: #1a1a1a; cursor: pointer;
   white-space: nowrap; flex-shrink: 0; margin-top: 4px;
 }
-.teacher-btn:active { background: #f0ece7; }
+.teacher-btn:hover { background: #f8f6f2; }
 
 .student-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
 }
-@media (max-width: 700px) { .student-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 440px) { .student-grid { grid-template-columns: 1fr; } }
 
 .roster-card {
-  background: var(--card);
+  background: #fff;
+  border: 1px solid #e8e8e8;
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 11px 13px;
   display: flex; align-items: center;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  transition: box-shadow 0.15s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   user-select: none;
 }
-.roster-card:active { box-shadow: 0 1px 6px rgba(0,0,0,0.12); }
+.roster-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
 
 .avatar {
-  width: 40px; height: 40px; border-radius: 50%;
+  width: 36px; height: 36px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.75rem; font-weight: 700;
-  flex-shrink: 0; margin-right: 12px;
+  font-size: 0.72rem; font-weight: 700;
+  flex-shrink: 0; margin-right: 11px;
 }
 .roster-card .name {
-  flex: 1; font-size: 0.9rem; font-weight: 500;
+  flex: 1; font-size: 0.88rem; font-weight: 500; color: #1a1a1a;
 }
 .roster-card .dash {
-  color: var(--muted); font-size: 1rem; margin-left: 8px;
+  color: #bbb; font-size: 0.9rem; margin-left: 8px;
 }
 
 /* ── DETAIL VIEW ── */
@@ -111,201 +95,276 @@ body {
 .detail-header {
   display: flex; align-items: center;
   padding: 14px 20px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
   position: sticky; top: 0; z-index: 100;
 }
 .back-btn {
-  padding: 6px 12px; border: 1.5px solid var(--border);
-  background: var(--card); border-radius: 8px;
-  font-size: 0.8rem; color: var(--text); cursor: pointer;
+  padding: 6px 12px; border: 1px solid #e0e0e0;
+  background: #fff; border-radius: 8px;
+  font-size: 0.8rem; color: #1a1a1a; cursor: pointer;
   margin-right: 12px; white-space: nowrap;
 }
-.back-btn:active { background: #f5f1ec; }
+.back-btn:hover { background: #f8f6f2; }
 .detail-header .avatar { width: 36px; height: 36px; font-size: 0.7rem; margin-right: 10px; }
 .detail-header .info { flex: 1; }
-.detail-header .info .name { font-size: 1.1rem; font-weight: 700; }
-.detail-header .info .sub { font-size: 0.75rem; color: var(--muted); }
-.auto-save {
-  font-size: 0.75rem; color: var(--muted);
+.detail-header .info .name { font-size: 1.05rem; font-weight: 700; }
+.detail-header .info .sub { font-size: 0.72rem; color: #888; margin-top: 1px; }
+
+/* Autosave indicator */
+.autosave {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.72rem; color: #ccc;
   white-space: nowrap; margin-left: 8px;
 }
+.autosave .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #1D9E75; opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.autosave.active .dot { opacity: 1; }
+.autosave.active { color: #1D9E75; font-weight: 600; }
+.autosave.pulse .dot { animation: pulse 0.8s ease; }
+@keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; transform: scale(1.2); } }
 
-.detail-body { padding: 16px 20px; max-width: 960px; margin: 0 auto; }
+.detail-body { padding: 18px 20px; max-width: 1100px; margin: 0 auto; }
 
 /* Section cards */
 .section-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
   margin-bottom: 14px;
 }
-@media (max-width: 600px) { .section-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .section-grid { grid-template-columns: 1fr; } }
 
 .section-card {
-  background: var(--card);
+  background: #fff;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border: 1px solid #e8e8e8;
 }
 .section-header {
   padding: 10px 16px;
-  font-size: 0.7rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.8px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
 }
-.section-header.green { background: var(--green-bg); color: var(--green-text); }
-.section-header.coral { background: var(--coral-bg); color: var(--coral-text); }
-.section-header.purple { background: var(--purple-bg); color: var(--purple-text); }
-.section-body { padding: 16px; }
+.section-header.blue { background: #ddeeff; color: #1a4a7a; }
+.section-header.green { background: #d4f0e4; color: #0a5c35; }
+.section-header.coral { background: #ffe4d4; color: #7a2a0a; }
+.section-header.purple { background: #eeeaff; color: #4a3a9a; }
+.section-body { padding: 0; }
 
-/* Agility boxes */
-.agility-grid { display: flex; gap: 12px; }
+/* Agility */
+.agility-body { padding: 16px; }
+.agility-grid { display: flex; gap: 10px; }
 .agility-box {
   flex: 1; text-align: center;
-  border: 1.5px solid var(--border); border-radius: 10px;
+  background: #f0f7ff;
+  border: 1px solid #c0d8f0;
+  border-radius: 10px;
   padding: 14px 10px;
 }
-.agility-box .label { font-size: 0.7rem; font-weight: 700; color: var(--green-text); text-transform: uppercase; }
-.agility-box .value {
-  font-size: 1.4rem; font-weight: 700; margin: 8px 0 2px;
-  color: var(--text); min-height: 1.8em;
-  display: flex; align-items: center; justify-content: center;
+.agility-box .label {
+  font-size: 10px; font-weight: 600; color: #1a4a7a;
+  text-transform: uppercase; letter-spacing: 0.06em;
 }
-.agility-box .value .line { width: 24px; height: 3px; background: var(--bar-fill); border-radius: 2px; }
-.agility-box .unit { font-size: 0.75rem; color: var(--green-text); }
-.agility-note { font-size: 0.75rem; color: var(--green-accent); margin-top: 12px; font-style: italic; }
+.agility-box .value {
+  font-size: 1.5rem; font-weight: 700; margin: 8px 0 2px;
+  color: #1a4a7a; min-height: 1.6em;
+}
+.agility-box .value.empty { color: #a0b8d0; }
+.agility-box .unit { font-size: 0.72rem; color: #6b8aaa; }
 
-/* Agility teacher inputs */
 .agility-input {
-  width: 80px; text-align: center; font-size: 1.1rem; font-weight: 600;
-  border: 1.5px solid var(--green-accent); border-radius: 6px;
-  padding: 6px; background: var(--bg); color: var(--text);
+  width: 90px; text-align: center; font-size: 1.1rem; font-weight: 600;
+  border: 1.5px solid #1a4a7a; border-radius: 6px;
+  padding: 4px; background: #fff; color: #1a4a7a;
 }
 .agility-save-btn {
-  display: block; margin: 10px auto 0; padding: 6px 16px;
-  background: var(--green-accent); color: #fff; border: none;
-  border-radius: 6px; font-size: 0.8rem; cursor: pointer;
+  display: block; margin: 10px auto 0; padding: 5px 14px;
+  background: #1a4a7a; color: #fff; border: none;
+  border-radius: 6px; font-size: 0.75rem; cursor: pointer;
 }
 .agility-save-btn:disabled { opacity: 0.5; }
 
-/* Effort description */
-.effort-prompt { font-size: 0.9rem; margin-bottom: 12px; color: var(--text); }
+.agility-diff {
+  margin-top: 12px;
+  background: #e8f4ff;
+  border: 1px solid #c0d8f0;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #1a4a7a;
+}
+.agility-diff.improved { color: #0a5c35; }
+.agility-diff strong { font-size: 1.1rem; font-weight: 700; }
 
-/* Progress overview */
+.agility-note {
+  font-size: 0.75rem; color: #6b8aaa;
+  margin-top: 10px; text-align: center; font-style: italic;
+}
+
+/* Effort prompt */
+.effort-body { padding: 16px; }
+.effort-prompt {
+  font-size: 0.85rem; margin-bottom: 14px; color: #555;
+}
+
+/* Skill rows */
+.skill-list { padding: 0; }
+.skill-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f5f5f5;
+}
+.skill-item:last-child { border-bottom: none; }
+.skill-top {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 6px;
+}
+.skill-name { font-size: 13px; font-weight: 500; color: #1a1a1a; }
+.skill-tap {
+  font-size: 11px; font-weight: 600; color: #ccc;
+  text-align: right;
+}
+.skill-tap.rated { /* color set inline by level */ }
+
+.skill-tags { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
+.skill-tag {
+  font-size: 10px; color: #999;
+  border: 1px solid #e8e8e8; border-radius: 4px;
+  padding: 2px 7px;
+}
+
+/* Rating bar — single continuous fill */
+.rating-bar {
+  position: relative;
+  height: 36px;
+  background: #f0f0f0;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  user-select: none;
+}
+.rating-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 0%;
+  border-radius: 10px;
+  transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background-color 0.2s ease;
+  background: transparent;
+}
+.rating-fill.level-1 { width: 25%; background: #F0A500; }
+.rating-fill.level-2 { width: 50%; background: #1D9E75; }
+.rating-fill.level-3 { width: 75%; background: #2E86DE; }
+.rating-fill.level-4 { width: 100%; background: #6C3FC5; }
+
+.rating-dividers {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.rating-dividers span {
+  position: absolute; top: 0; bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.25);
+}
+.rating-dividers span:nth-child(1) { left: 25%; }
+.rating-dividers span:nth-child(2) { left: 50%; }
+.rating-dividers span:nth-child(3) { left: 75%; }
+.rating-dividers span:nth-child(4) { left: calc(100% - 1px); }
+
+.rating-label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center;
+  padding: 0 12px;
+  font-size: 12px; font-weight: 600;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+.rating-label.level-0 { color: #bbb; justify-content: flex-start; }
+.rating-label.rated { color: #fff; justify-content: flex-start; }
+
+/* Overview */
 .overview-card {
-  background: var(--card); border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  padding: 16px; margin-bottom: 14px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  padding: 16px;
+  margin-bottom: 14px;
 }
 .overview-title {
-  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.8px; color: var(--muted); margin-bottom: 14px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #888; margin-bottom: 14px;
 }
-.overview-cols { display: flex; gap: 24px; }
-@media (max-width: 600px) { .overview-cols { flex-direction: column; gap: 16px; } }
+.overview-cols { display: flex; gap: 28px; }
+@media (max-width: 700px) { .overview-cols { flex-direction: column; gap: 18px; } }
 .overview-col { flex: 1; }
 .overview-badge {
-  display: inline-block; padding: 3px 10px; border-radius: 4px;
-  font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.5px; margin-bottom: 10px;
+  display: inline-block; padding: 3px 9px; border-radius: 5px;
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; margin-bottom: 10px;
 }
-.overview-badge.green { background: var(--green-bg); color: var(--green-text); }
-.overview-badge.coral { background: var(--coral-bg); color: var(--coral-text); }
+.overview-badge.green { background: #d4f0e4; color: #0a5c35; }
+.overview-badge.coral { background: #ffe4d4; color: #7a2a0a; }
 
 .overview-row {
   display: flex; align-items: center; margin: 6px 0;
+  font-size: 12px;
 }
-.overview-label { width: 110px; font-size: 0.75rem; color: var(--text); flex-shrink: 0; }
+.overview-label {
+  width: 140px; color: #555; flex-shrink: 0;
+}
 .overview-bar-track {
-  flex: 1; height: 8px; background: var(--bar-empty);
+  flex: 1; height: 6px; background: #f0f0f0;
   border-radius: 4px; overflow: hidden;
 }
 .overview-bar-fill {
   height: 100%; border-radius: 4px;
-  background: var(--bar-fill);
-  transition: width 0.3s ease;
+  width: 0%;
+  transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.overview-dash { color: var(--muted); font-size: 0.8rem; margin-right: 6px; }
+.overview-bar-fill.level-1 { background: #F0A500; }
+.overview-bar-fill.level-2 { background: #1D9E75; }
+.overview-bar-fill.level-3 { background: #2E86DE; }
+.overview-bar-fill.level-4 { background: #6C3FC5; }
 
-/* Skill detail rows */
-.skill-item { margin-bottom: 18px; }
-.skill-item:last-child { margin-bottom: 0; }
-.skill-top { display: flex; justify-content: space-between; align-items: baseline; }
-.skill-name { font-size: 0.9rem; font-weight: 600; }
-.skill-tap { font-size: 0.75rem; color: var(--muted); }
-.skill-tags { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
-.skill-tag {
-  font-size: 0.7rem; color: var(--muted);
-  border: 1px solid var(--border); border-radius: 4px;
-  padding: 2px 8px;
-}
-
-/* Rating bar (tappable) */
-.rating-bar {
-  display: flex; gap: 3px; margin-top: 8px; cursor: pointer;
-}
-.rating-seg {
-  flex: 1; height: 14px; background: var(--bar-empty);
-  border-radius: 3px; transition: background 0.15s;
-  position: relative;
-}
-.rating-seg.filled { background: var(--bar-fill); }
-.rating-seg.saving::after {
-  content: ''; position: absolute; inset: 0; border-radius: 3px;
-  background: rgba(255,255,255,0.3);
-  animation: flash 0.4s ease;
-}
-@keyframes flash { 0%,100%{opacity:0} 50%{opacity:1} }
-
-/* Full-width section header bars */
-.skills-header-bar {
-  padding: 10px 16px; border-radius: 12px 12px 0 0;
-  font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.5px; color: #fff;
-}
-.skills-header-bar.green { background: linear-gradient(135deg, #43a047, #66bb6a); }
-.skills-header-bar.coral { background: linear-gradient(135deg, #ef5350, #e57373); }
-
-/* ── PIN OVERLAY ── */
+/* PIN overlay */
 .pin-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   display: none; align-items: center; justify-content: center; z-index: 2000;
 }
 .pin-overlay.active { display: flex; }
 .pin-box {
-  background: var(--card); padding: 28px; border-radius: 16px;
+  background: #fff; padding: 24px; border-radius: 16px;
   text-align: center; width: 280px;
 }
-.pin-box h3 { font-size: 1rem; margin-bottom: 16px; }
+.pin-box h3 { font-size: 1rem; margin-bottom: 14px; }
 .pin-box input {
   width: 140px; padding: 10px; text-align: center;
   font-size: 1.3rem; letter-spacing: 8px;
-  border: 2px solid var(--border); border-radius: 8px;
-  background: var(--bg); color: var(--text);
+  border: 2px solid #e0e0e0; border-radius: 8px;
+  background: #fff; color: #1a1a1a;
 }
-.pin-box .pin-btns { margin-top: 16px; display: flex; gap: 8px; justify-content: center; }
+.pin-box .pin-btns { margin-top: 14px; display: flex; gap: 8px; justify-content: center; }
 .pin-box button {
-  padding: 8px 20px; border: none; border-radius: 8px;
+  padding: 8px 18px; border: none; border-radius: 8px;
   font-size: 0.85rem; cursor: pointer;
 }
-.pin-ok { background: var(--bar-fill); color: #fff; }
-.pin-cancel { background: var(--border); color: var(--text); }
+.pin-ok { background: #2E86DE; color: #fff; }
+.pin-cancel { background: #e8e8e8; color: #1a1a1a; }
 .pin-error { color: #e74c3c; font-size: 0.8rem; margin-top: 10px; min-height: 1.1em; }
+
 </style>
 </head>
 <body>
-
 <script>
 var CLASS_NAME = '8A';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFhJyvCrF6ThHNMs7bLedfAnMkC79PUKvRyqvLu2cUUaEJzru3OUkZifaE1YfDrw56Iw/exec';
 var TEACHER_PIN = '1234';
-
-var STUDENTS = [
-  'Aaliya S','Ben T','Chloe M','Daniel R','Emma K',
-  'Felix W','Grace L','Hugo B','Isla J','James P',
-  'Kira N','Luca F','Maya D','Noah C','Olivia H',
-  'Patrick G','Quinn A','Rosa E','Sam V','Tara U'
-];
+var STUDENTS = ['Student 1', 'Student 2', 'Student 3', 'Student 4', 'Student 5', 'Student 6', 'Student 7', 'Student 8', 'Student 9', 'Student 10'];
 </script>
-
 <div id="loading"><div class="spinner"></div> Loading...</div>
 <div class="error-banner" id="error-banner"></div>
 
@@ -330,7 +389,10 @@ var STUDENTS = [
       <div class="name" id="detail-name"></div>
       <div class="sub">Class 8A &middot; Net Games</div>
     </div>
-    <div class="auto-save" id="auto-save"></div>
+    <div class="autosave" id="autosave">
+      <span class="dot"></span>
+      <span class="text">auto-saving</span>
+    </div>
   </div>
   <div class="detail-body" id="detail-body"></div>
 </div>
@@ -350,13 +412,19 @@ var STUDENTS = [
 
 <script>
 (function() {
-  // ── Avatar colors ──
+  // ── Config (per-class values injected at build) ──
+  // CLASS_NAME, APPS_SCRIPT_URL, TEACHER_PIN, STUDENTS set above
+
+  // ── Avatar palette (8 colors, cycle by index) ──
   var PALETTE = [
-    { bg:'#c8e6c9', fg:'#2e7d32' }, { bg:'#d1c4e9', fg:'#4527a0' },
-    { bg:'#bbdefb', fg:'#1565c0' }, { bg:'#ffccbc', fg:'#bf360c' },
-    { bg:'#fff9c4', fg:'#f57f17' }, { bg:'#f8bbd0', fg:'#ad1457' },
-    { bg:'#b2dfdb', fg:'#00695c' }, { bg:'#c5e1a5', fg:'#558b2f' },
-    { bg:'#b3e5fc', fg:'#0277bd' }, { bg:'#e1bee7', fg:'#6a1b9a' }
+    { bg: '#d4f0e4', fg: '#0a5c35' },
+    { bg: '#e8e4ff', fg: '#4a3a9a' },
+    { bg: '#ddeeff', fg: '#1a4a7a' },
+    { bg: '#ffe4d4', fg: '#7a2a0a' },
+    { bg: '#fff0d4', fg: '#7a5a0a' },
+    { bg: '#fde4ee', fg: '#8a2a5a' },
+    { bg: '#d4eeff', fg: '#0a4a7a' },
+    { bg: '#e4ffd4', fg: '#2a6a0a' }
   ];
   function avatarColor(i) { return PALETTE[i % PALETTE.length]; }
   function initials(name) {
@@ -364,28 +432,34 @@ var STUDENTS = [
     return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
   }
 
+  // ── Level labels + colors ──
+  var LEVEL_LABELS = ['tap to rate', 'getting there', 'developing', 'consistent', 'nailed it \u2605'];
+  var LEVEL_COLORS = ['#ccc', '#F0A500', '#1D9E75', '#2E86DE', '#6C3FC5'];
+
   // ── Skill definitions ──
   var BADMINTON = [
-    { key:'bserve', label:'Serve accuracy' },
-    { key:'bshot',  label:'Shot choice', tags:['clear','drop','smash','net shot'] },
-    { key:'bfoot',  label:'Footwork & movement' },
-    { key:'btac',   label:'Tactical play' }
+    { key: 'bserve', label: 'Serve accuracy' },
+    { key: 'bshot',  label: 'Shot choice', tags: ['clear','drop','smash','net shot'] },
+    { key: 'bfoot',  label: 'Footwork & movement' },
+    { key: 'btac',   label: 'Tactical play' }
   ];
   var VOLLEYBALL = [
-    { key:'vserve', label:'Serve accuracy' },
-    { key:'vskill', label:'Skill focus', tags:['pass','serve','set','hit'] },
-    { key:'vpos',   label:'Positioning & awareness' },
-    { key:'comm',   label:'Communication & teamwork' }
+    { key: 'vserve', label: 'Serve accuracy' },
+    { key: 'vskill', label: 'Skill focus', tags: ['pass','serve','set','hit'] },
+    { key: 'vpos',   label: 'Positioning & awareness' },
+    { key: 'comm',   label: 'Communication & teamwork' }
   ];
-  var EFFORT_SKILL = { key:'effort', label:'Effort & focus' };
+  var EFFORT_SKILL = { key: 'effort', label: 'Effort & focus' };
 
   // ── State ──
   var studentData = {};
   var currentStudent = null;
+  var currentIdx = null;
   var teacherMode = false;
   var savesInFlight = 0;
+  var saveTextTimeout = null;
 
-  // ── Init data ──
+  // Init blank data for all students
   STUDENTS.forEach(function(name) {
     studentData[name] = {};
     BADMINTON.concat(VOLLEYBALL).forEach(function(s) { studentData[name][s.key] = 0; });
@@ -394,7 +468,37 @@ var STUDENTS = [
     studentData[name].ag_retest = '';
   });
 
-  // ── Fetch ──
+  // ── Helpers ──
+  function el(tag, cls) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    return e;
+  }
+
+  function showError(msg) {
+    var e = document.getElementById('error-banner');
+    e.textContent = msg; e.style.display = 'block';
+    setTimeout(function() { e.style.display = 'none'; }, 4000);
+  }
+
+  // ── Autosave indicator ──
+  function updateAutosave() {
+    var wrap = document.getElementById('autosave');
+    if (!wrap) return;
+    var txt = wrap.querySelector('.text');
+    if (savesInFlight > 0) {
+      wrap.classList.add('active', 'pulse');
+      txt.textContent = 'saved';
+    } else {
+      clearTimeout(saveTextTimeout);
+      saveTextTimeout = setTimeout(function() {
+        wrap.classList.remove('active', 'pulse');
+        txt.textContent = 'auto-saving';
+      }, 1400);
+    }
+  }
+
+  // ── Fetch all data ──
   function fetchData() {
     fetch(APPS_SCRIPT_URL + '?action=get&class=' + encodeURIComponent(CLASS_NAME))
       .then(function(r) { return r.json(); })
@@ -415,10 +519,10 @@ var STUDENTS = [
       });
   }
 
-  // ── Save ──
+  // ── Save one field ──
   function saveField(student, field, value, isAgility) {
     savesInFlight++;
-    updateSaveIndicator();
+    updateAutosave();
     return fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
@@ -433,34 +537,16 @@ var STUDENTS = [
     .then(function(r) { return r.json(); })
     .then(function(json) {
       savesInFlight--;
-      updateSaveIndicator();
+      updateAutosave();
       if (json.error) throw new Error(json.error);
       return json;
     })
     .catch(function(err) {
       savesInFlight--;
-      updateSaveIndicator();
+      updateAutosave();
       console.error('Save error:', err);
       showError('Save failed — tap again to retry.');
     });
-  }
-
-  function updateSaveIndicator() {
-    var el = document.getElementById('auto-save');
-    if (!el) return;
-    if (savesInFlight > 0) {
-      el.textContent = 'auto-saving';
-    } else {
-      el.textContent = 'saved';
-      setTimeout(function() { if (savesInFlight === 0) el.textContent = 'auto-saving'; }, 2000);
-      setTimeout(function() { if (savesInFlight === 0) el.textContent = ''; }, 2500);
-    }
-  }
-
-  function showError(msg) {
-    var el = document.getElementById('error-banner');
-    el.textContent = msg; el.style.display = 'block';
-    setTimeout(function() { el.style.display = 'none'; }, 4000);
   }
 
   // ── Roster ──
@@ -472,9 +558,10 @@ var STUDENTS = [
       var card = document.createElement('div');
       card.className = 'roster-card';
       card.innerHTML =
-        '<div class="avatar" style="background:' + c.bg + ';color:' + c.fg + '">' + initials(name) + '</div>' +
+        '<div class="avatar" style="background:' + c.bg + ';color:' + c.fg + '">' +
+          initials(name) + '</div>' +
         '<span class="name">' + name + '</span>' +
-        '<span class="dash">&mdash;</span>';
+        '<span class="dash">&rsaquo;</span>';
       card.addEventListener('click', function() { openStudent(name, i); });
       grid.appendChild(card);
     });
@@ -483,12 +570,12 @@ var STUDENTS = [
   // ── Detail view ──
   function openStudent(name, idx) {
     currentStudent = name;
+    currentIdx = idx;
     var c = avatarColor(idx);
     var av = document.getElementById('detail-avatar');
     av.style.background = c.bg; av.style.color = c.fg;
     av.textContent = initials(name);
     document.getElementById('detail-name').textContent = name;
-    document.getElementById('auto-save').textContent = '';
 
     renderDetail(name);
 
@@ -501,6 +588,7 @@ var STUDENTS = [
     document.getElementById('view-detail').style.display = 'none';
     document.getElementById('view-roster').style.display = 'block';
     currentStudent = null;
+    currentIdx = null;
   }
 
   function renderDetail(name) {
@@ -508,107 +596,76 @@ var STUDENTS = [
     var body = document.getElementById('detail-body');
     body.innerHTML = '';
 
-    // ── Top grid: Agility + Effort ──
+    // Top grid: Agility + Effort
     var topGrid = el('div', 'section-grid');
+    topGrid.appendChild(buildAgilityCard(name, d));
+    topGrid.appendChild(buildEffortCard(name, d));
+    body.appendChild(topGrid);
 
-    // Agility section
-    var agCard = el('div', 'section-card');
-    agCard.appendChild(sectionHeader('Illinois Agility Test · Teacher Recorded', 'green'));
-    var agBody = el('div', 'section-body');
+    // Progress overview
+    body.appendChild(buildOverview(d));
 
-    var agGrid = el('div', 'agility-grid');
-    agGrid.appendChild(agilityBox('Baseline', d.ag_baseline, 'ag_baseline', name));
-    agGrid.appendChild(agilityBox('Re-test', d.ag_retest, 'ag_retest', name));
-    agBody.appendChild(agGrid);
+    // Skill detail grid: Badminton + Volleyball
+    var skillGrid = el('div', 'section-grid');
+    skillGrid.appendChild(buildSkillsCard(name, 'Badminton Skills', 'green', BADMINTON));
+    skillGrid.appendChild(buildSkillsCard(name, 'Volleyball Skills', 'coral', VOLLEYBALL));
+    body.appendChild(skillGrid);
+  }
+
+  function buildAgilityCard(name, d) {
+    var card = el('div', 'section-card');
+    var h = el('div', 'section-header blue');
+    h.textContent = 'Illinois Agility Test \u00b7 Teacher Recorded';
+    card.appendChild(h);
+    var body = el('div', 'agility-body');
+
+    var grid = el('div', 'agility-grid');
+    grid.appendChild(buildAgilityBox('Baseline', d.ag_baseline, 'ag_baseline', name));
+    grid.appendChild(buildAgilityBox('Re-test', d.ag_retest, 'ag_retest', name));
+    body.appendChild(grid);
+
+    // Diff block (when both values present)
+    var b = parseFloat(d.ag_baseline);
+    var r = parseFloat(d.ag_retest);
+    if (!isNaN(b) && !isNaN(r)) {
+      var diff = el('div', 'agility-diff');
+      var delta = r - b;
+      if (delta < 0) {
+        diff.classList.add('improved');
+        diff.innerHTML = 'Improved by <strong>' + Math.abs(delta).toFixed(2) + 's</strong>';
+      } else if (delta > 0) {
+        diff.innerHTML = 'Slower by <strong>' + delta.toFixed(2) + 's</strong>';
+      } else {
+        diff.innerHTML = '<strong>No change</strong>';
+      }
+      body.appendChild(diff);
+    }
 
     if (!teacherMode) {
       var note = el('div', 'agility-note');
       note.textContent = 'Times will be added by your teacher';
-      agBody.appendChild(note);
+      body.appendChild(note);
     }
-    agCard.appendChild(agBody);
-    topGrid.appendChild(agCard);
-
-    // Effort section
-    var effCard = el('div', 'section-card');
-    effCard.appendChild(sectionHeader('Effort & Focus', 'purple'));
-    var effBody = el('div', 'section-body');
-    var prompt = el('div', 'effort-prompt');
-    prompt.textContent = 'How hard did you push yourself today?';
-    effBody.appendChild(prompt);
-    effBody.appendChild(skillRatingItem(name, EFFORT_SKILL));
-    effCard.appendChild(effBody);
-    topGrid.appendChild(effCard);
-
-    body.appendChild(topGrid);
-
-    // ── Progress overview ──
-    var overview = el('div', 'overview-card');
-    var ovTitle = el('div', 'overview-title');
-    ovTitle.textContent = 'Skill Progress Overview';
-    overview.appendChild(ovTitle);
-
-    var ovCols = el('div', 'overview-cols');
-    ovCols.appendChild(overviewColumn('Badminton', 'green', BADMINTON, d));
-    ovCols.appendChild(overviewColumn('Volleyball', 'coral', VOLLEYBALL, d));
-    overview.appendChild(ovCols);
-    body.appendChild(overview);
-
-    // ── Skills detail grid ──
-    var skillGrid = el('div', 'section-grid');
-
-    // Badminton
-    var bCard = el('div', 'section-card');
-    var bHeader = el('div', 'skills-header-bar green');
-    bHeader.textContent = 'Badminton Skills';
-    bCard.appendChild(bHeader);
-    var bBody = el('div', 'section-body');
-    BADMINTON.forEach(function(s) { bBody.appendChild(skillRatingItem(name, s)); });
-    bCard.appendChild(bBody);
-    skillGrid.appendChild(bCard);
-
-    // Volleyball
-    var vCard = el('div', 'section-card');
-    var vHeader = el('div', 'skills-header-bar coral');
-    vHeader.textContent = 'Volleyball Skills';
-    vCard.appendChild(vHeader);
-    var vBody = el('div', 'section-body');
-    VOLLEYBALL.forEach(function(s) { vBody.appendChild(skillRatingItem(name, s)); });
-    vCard.appendChild(vBody);
-    skillGrid.appendChild(vCard);
-
-    body.appendChild(skillGrid);
+    card.appendChild(body);
+    return card;
   }
 
-  // ── Helpers ──
-  function el(tag, cls) {
-    var e = document.createElement(tag);
-    if (cls) e.className = cls;
-    return e;
-  }
-
-  function sectionHeader(text, color) {
-    var h = el('div', 'section-header ' + color);
-    h.textContent = text;
-    return h;
-  }
-
-  function agilityBox(label, value, field, student) {
+  function buildAgilityBox(label, value, field, student) {
     var box = el('div', 'agility-box');
     var lbl = el('div', 'label'); lbl.textContent = label;
     box.appendChild(lbl);
 
-    var valDiv = el('div', 'value');
+    var hasValue = (value !== '' && value !== undefined && value !== null && value !== 0);
+
     if (teacherMode) {
+      var valDiv = el('div', 'value');
       var inp = document.createElement('input');
       inp.type = 'number'; inp.step = '0.01'; inp.min = '0';
       inp.className = 'agility-input';
-      inp.value = (value !== '' && value !== undefined && value !== null) ? value : '';
-      inp.placeholder = '—';
-      box.appendChild(lbl);
-      box.appendChild(valDiv);
-      valDiv.innerHTML = '';
+      inp.value = hasValue ? value : '';
+      inp.placeholder = '\u2014';
       valDiv.appendChild(inp);
+      box.appendChild(valDiv);
       var unit = el('div', 'unit'); unit.textContent = 'seconds';
       box.appendChild(unit);
 
@@ -619,26 +676,54 @@ var STUDENTS = [
         var v = parseFloat(inp.value);
         if (isNaN(v)) return;
         btn.disabled = true;
-        btn.textContent = 'Saving...';
+        btn.textContent = 'Saving\u2026';
         studentData[student][field] = v;
         saveField(student, field, v, true).then(function() {
           btn.textContent = 'Saved!';
-          setTimeout(function() { btn.textContent = 'Save'; btn.disabled = false; }, 1500);
+          // Re-render to refresh diff block + value display
+          setTimeout(function() {
+            btn.disabled = false;
+            btn.textContent = 'Save';
+            if (currentStudent === student) renderDetail(student);
+          }, 1000);
         });
       });
       box.appendChild(btn);
     } else {
-      if (value !== '' && value !== undefined && value !== null && value !== 0) {
-        valDiv.textContent = value;
-      } else {
-        var line = el('div', 'line');
-        valDiv.appendChild(line);
-      }
+      var valDiv = el('div', 'value' + (hasValue ? '' : ' empty'));
+      valDiv.textContent = hasValue ? value : '\u2014';
       box.appendChild(valDiv);
       var unit = el('div', 'unit'); unit.textContent = 'seconds';
       box.appendChild(unit);
     }
     return box;
+  }
+
+  function buildEffortCard(name, d) {
+    var card = el('div', 'section-card');
+    var h = el('div', 'section-header purple');
+    h.textContent = 'Effort & Focus';
+    card.appendChild(h);
+    var body = el('div', 'effort-body');
+    var prompt = el('div', 'effort-prompt');
+    prompt.textContent = 'How hard did you push yourself today?';
+    body.appendChild(prompt);
+    body.appendChild(buildSkillRow(name, EFFORT_SKILL, true));
+    card.appendChild(body);
+    return card;
+  }
+
+  function buildOverview(d) {
+    var card = el('div', 'overview-card');
+    var title = el('div', 'overview-title');
+    title.textContent = 'Skill Progress Overview';
+    card.appendChild(title);
+
+    var cols = el('div', 'overview-cols');
+    cols.appendChild(overviewColumn('Badminton', 'green', BADMINTON, d));
+    cols.appendChild(overviewColumn('Volleyball', 'coral', VOLLEYBALL, d));
+    card.appendChild(cols);
+    return card;
   }
 
   function overviewColumn(title, color, skills, data) {
@@ -650,14 +735,11 @@ var STUDENTS = [
     skills.forEach(function(s) {
       var row = el('div', 'overview-row');
       var val = parseInt(data[s.key]) || 0;
-      if (val === 0) {
-        var dash = el('span', 'overview-dash'); dash.textContent = '—';
-        row.appendChild(dash);
-      }
       var lbl = el('div', 'overview-label'); lbl.textContent = s.label;
       row.appendChild(lbl);
       var track = el('div', 'overview-bar-track');
       var fill = el('div', 'overview-bar-fill');
+      if (val > 0) fill.classList.add('level-' + val);
       fill.style.width = (val * 25) + '%';
       track.appendChild(fill);
       row.appendChild(track);
@@ -666,12 +748,34 @@ var STUDENTS = [
     return col;
   }
 
-  function skillRatingItem(student, skill) {
+  function buildSkillsCard(name, title, color, skills) {
+    var card = el('div', 'section-card');
+    var h = el('div', 'section-header ' + color);
+    h.textContent = title;
+    card.appendChild(h);
+    var list = el('div', 'skill-list');
+    skills.forEach(function(s) { list.appendChild(buildSkillRow(name, s, false)); });
+    card.appendChild(list);
+    return card;
+  }
+
+  // ── Skill row with single-fill power bar ──
+  function buildSkillRow(student, skill, inline) {
     var item = el('div', 'skill-item');
+
     var top = el('div', 'skill-top');
-    var nameEl = el('span', 'skill-name'); nameEl.textContent = skill.label;
-    var tap = el('span', 'skill-tap'); tap.textContent = 'tap to rate';
-    top.appendChild(nameEl); top.appendChild(tap);
+    var nameEl = el('span', 'skill-name');
+    nameEl.textContent = skill.label;
+    top.appendChild(nameEl);
+
+    var tap = el('span', 'skill-tap');
+    var currentVal = parseInt(studentData[student][skill.key]) || 0;
+    tap.textContent = LEVEL_LABELS[currentVal];
+    if (currentVal > 0) {
+      tap.classList.add('rated');
+      tap.style.color = LEVEL_COLORS[currentVal];
+    }
+    top.appendChild(tap);
     item.appendChild(top);
 
     if (skill.tags) {
@@ -683,65 +787,97 @@ var STUDENTS = [
       item.appendChild(tagsDiv);
     }
 
+    // Power bar
     var bar = el('div', 'rating-bar');
-    var currentVal = parseInt(studentData[student][skill.key]) || 0;
+    var fill = el('div', 'rating-fill');
+    if (currentVal > 0) fill.classList.add('level-' + currentVal);
+    bar.appendChild(fill);
 
-    for (var i = 1; i <= 4; i++) {
-      (function(level) {
-        var seg = el('div', 'rating-seg');
-        if (level <= currentVal) seg.classList.add('filled');
-        seg.addEventListener('click', function() {
-          var old = parseInt(studentData[student][skill.key]) || 0;
-          var newVal = (old === level) ? level - 1 : level;
-          studentData[student][skill.key] = newVal;
+    var dividers = el('div', 'rating-dividers');
+    for (var k = 0; k < 4; k++) dividers.appendChild(document.createElement('span'));
+    bar.appendChild(dividers);
 
-          // Update bar visually
-          var segs = bar.children;
-          for (var j = 0; j < segs.length; j++) {
-            segs[j].classList.toggle('filled', j + 1 <= newVal);
-          }
-          seg.classList.add('saving');
-          setTimeout(function() { seg.classList.remove('saving'); }, 400);
-
-          // Update overview bar if visible
-          updateOverviewBars(student);
-
-          // Save
-          saveField(student, skill.key, newVal, false);
-        });
-        bar.appendChild(seg);
-      })(i);
+    var label = el('div', 'rating-label');
+    if (currentVal === 0) {
+      label.classList.add('level-0');
+      label.textContent = 'tap to rate';
+    } else {
+      label.classList.add('rated');
+      label.textContent = LEVEL_LABELS[currentVal];
     }
+    bar.appendChild(label);
+
+    bar.addEventListener('click', function(e) {
+      var rect = bar.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var pct = x / rect.width;
+      var clickedLevel = Math.max(1, Math.min(4, Math.ceil(pct * 4)));
+      var old = parseInt(studentData[student][skill.key]) || 0;
+      var newVal = (old === clickedLevel) ? clickedLevel - 1 : clickedLevel;
+      studentData[student][skill.key] = newVal;
+
+      // Update fill
+      fill.className = 'rating-fill';
+      if (newVal > 0) fill.classList.add('level-' + newVal);
+
+      // Update bar label
+      label.className = 'rating-label';
+      if (newVal === 0) {
+        label.classList.add('level-0');
+        label.textContent = 'tap to rate';
+      } else {
+        label.classList.add('rated');
+        label.textContent = LEVEL_LABELS[newVal];
+      }
+
+      // Update top-right label
+      tap.className = 'skill-tap';
+      tap.textContent = LEVEL_LABELS[newVal];
+      if (newVal > 0) {
+        tap.classList.add('rated');
+        tap.style.color = LEVEL_COLORS[newVal];
+      } else {
+        tap.style.color = '';
+      }
+
+      // Update overview bars
+      updateOverviewBars(student);
+
+      // Save
+      saveField(student, skill.key, newVal, false);
+    });
     item.appendChild(bar);
+
     return item;
   }
 
   function updateOverviewBars(student) {
-    // Re-render is simplest; could optimize later
-    if (currentStudent === student) {
-      var d = studentData[student];
-      var fills = document.querySelectorAll('.overview-bar-fill');
-      var allSkills = BADMINTON.concat(VOLLEYBALL);
-      fills.forEach(function(fill, idx) {
-        if (idx < allSkills.length) {
-          var val = parseInt(d[allSkills[idx].key]) || 0;
-          fill.style.width = (val * 25) + '%';
-        }
-      });
-    }
+    if (currentStudent !== student) return;
+    var d = studentData[student];
+    var allSkills = BADMINTON.concat(VOLLEYBALL);
+    var fills = document.querySelectorAll('.overview-bar-fill');
+    fills.forEach(function(fill, idx) {
+      if (idx < allSkills.length) {
+        var val = parseInt(d[allSkills[idx].key]) || 0;
+        fill.className = 'overview-bar-fill';
+        if (val > 0) fill.classList.add('level-' + val);
+        fill.style.width = (val * 25) + '%';
+      }
+    });
   }
 
-  // ── Teacher mode ──
+  // ── Teacher mode (PIN) ──
   document.getElementById('teacher-btn').addEventListener('click', function() {
     if (teacherMode) {
       teacherMode = false;
       this.textContent = 'Teacher \u203A';
+      if (currentStudent) renderDetail(currentStudent);
       return;
     }
     document.getElementById('pin-overlay').classList.add('active');
     document.getElementById('pin-input').value = '';
     document.getElementById('pin-error').textContent = '';
-    document.getElementById('pin-input').focus();
+    setTimeout(function() { document.getElementById('pin-input').focus(); }, 50);
   });
 
   function checkPin() {
@@ -749,6 +885,7 @@ var STUDENTS = [
       teacherMode = true;
       document.getElementById('pin-overlay').classList.remove('active');
       document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
+      if (currentStudent) renderDetail(currentStudent);
     } else {
       document.getElementById('pin-error').textContent = 'Wrong PIN';
     }
@@ -761,13 +898,13 @@ var STUDENTS = [
     document.getElementById('pin-overlay').classList.remove('active');
   });
 
-  // ── Back button ──
   document.getElementById('back-btn').addEventListener('click', closeStudent);
 
   // ── Init ──
   renderRoster();
   fetchData();
 })();
+
 </script>
 </body>
 </html>
