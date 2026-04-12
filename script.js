@@ -1,0 +1,493 @@
+(function() {
+  // ── Config (per-class values injected at build) ──
+  // CLASS_NAME, APPS_SCRIPT_URL, TEACHER_PIN, STUDENTS set above
+
+  // ── Avatar palette (8 colors, cycle by index) ──
+  var PALETTE = [
+    { bg: '#d4f0e4', fg: '#0a5c35' },
+    { bg: '#e8e4ff', fg: '#4a3a9a' },
+    { bg: '#ddeeff', fg: '#1a4a7a' },
+    { bg: '#ffe4d4', fg: '#7a2a0a' },
+    { bg: '#fff0d4', fg: '#7a5a0a' },
+    { bg: '#fde4ee', fg: '#8a2a5a' },
+    { bg: '#d4eeff', fg: '#0a4a7a' },
+    { bg: '#e4ffd4', fg: '#2a6a0a' }
+  ];
+  function avatarColor(i) { return PALETTE[i % PALETTE.length]; }
+  function initials(name) {
+    var parts = name.split(' ');
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+
+  // ── Level labels + colors ──
+  var LEVEL_LABELS = ['tap to rate', 'getting there', 'developing', 'consistent', 'nailed it \u2605'];
+  var LEVEL_COLORS = ['#ccc', '#F0A500', '#1D9E75', '#2E86DE', '#6C3FC5'];
+
+  // ── Skill definitions ──
+  var BADMINTON = [
+    { key: 'bserve', label: 'Serve accuracy' },
+    { key: 'bshot',  label: 'Shot choice', tags: ['clear','drop','smash','net shot'] },
+    { key: 'bfoot',  label: 'Footwork & movement' },
+    { key: 'btac',   label: 'Tactical play' }
+  ];
+  var VOLLEYBALL = [
+    { key: 'vserve', label: 'Serve accuracy' },
+    { key: 'vskill', label: 'Skill focus', tags: ['pass','serve','set','hit'] },
+    { key: 'vpos',   label: 'Positioning & awareness' },
+    { key: 'comm',   label: 'Communication & teamwork' }
+  ];
+  var EFFORT_SKILL = { key: 'effort', label: 'Effort & focus' };
+
+  // ── State ──
+  var studentData = {};
+  var currentStudent = null;
+  var currentIdx = null;
+  var teacherMode = false;
+  var savesInFlight = 0;
+  var saveTextTimeout = null;
+
+  // Init blank data for all students
+  STUDENTS.forEach(function(name) {
+    studentData[name] = {};
+    BADMINTON.concat(VOLLEYBALL).forEach(function(s) { studentData[name][s.key] = 0; });
+    studentData[name].effort = 0;
+    studentData[name].ag_baseline = '';
+    studentData[name].ag_retest = '';
+  });
+
+  // ── Helpers ──
+  function el(tag, cls) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    return e;
+  }
+
+  function showError(msg) {
+    var e = document.getElementById('error-banner');
+    e.textContent = msg; e.style.display = 'block';
+    setTimeout(function() { e.style.display = 'none'; }, 4000);
+  }
+
+  // ── Autosave indicator ──
+  function updateAutosave() {
+    var wrap = document.getElementById('autosave');
+    if (!wrap) return;
+    var txt = wrap.querySelector('.text');
+    if (savesInFlight > 0) {
+      wrap.classList.add('active', 'pulse');
+      txt.textContent = 'saved';
+    } else {
+      clearTimeout(saveTextTimeout);
+      saveTextTimeout = setTimeout(function() {
+        wrap.classList.remove('active', 'pulse');
+        txt.textContent = 'auto-saving';
+      }, 1400);
+    }
+  }
+
+  // ── Fetch all data ──
+  function fetchData() {
+    fetch(APPS_SCRIPT_URL + '?action=get&class=' + encodeURIComponent(CLASS_NAME))
+      .then(function(r) { return r.json(); })
+      .then(function(json) {
+        if (json.error) throw new Error(json.error);
+        json.students.forEach(function(s) {
+          var name = s.Student;
+          if (studentData[name]) {
+            for (var k in s) { if (k !== 'Student') studentData[name][k] = s[k]; }
+          }
+        });
+        document.getElementById('loading').style.display = 'none';
+      })
+      .catch(function(err) {
+        console.error('Fetch error:', err);
+        showError('Could not load data. Check connection and reload.');
+        document.getElementById('loading').style.display = 'none';
+      });
+  }
+
+  // ── Save one field ──
+  function saveField(student, field, value, isAgility) {
+    savesInFlight++;
+    updateAutosave();
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: isAgility ? 'saveAgility' : 'save',
+        'class': CLASS_NAME,
+        student: student,
+        field: field,
+        value: value
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(json) {
+      savesInFlight--;
+      updateAutosave();
+      if (json.error) throw new Error(json.error);
+      return json;
+    })
+    .catch(function(err) {
+      savesInFlight--;
+      updateAutosave();
+      console.error('Save error:', err);
+      showError('Save failed — tap again to retry.');
+    });
+  }
+
+  // ── Roster ──
+  function renderRoster() {
+    var grid = document.getElementById('student-grid');
+    grid.innerHTML = '';
+    STUDENTS.forEach(function(name, i) {
+      var c = avatarColor(i);
+      var card = document.createElement('div');
+      card.className = 'roster-card';
+      card.innerHTML =
+        '<div class="avatar" style="background:' + c.bg + ';color:' + c.fg + '">' +
+          initials(name) + '</div>' +
+        '<span class="name">' + name + '</span>' +
+        '<span class="dash">&rsaquo;</span>';
+      card.addEventListener('click', function() { openStudent(name, i); });
+      grid.appendChild(card);
+    });
+  }
+
+  // ── Detail view ──
+  function openStudent(name, idx) {
+    currentStudent = name;
+    currentIdx = idx;
+    var c = avatarColor(idx);
+    var av = document.getElementById('detail-avatar');
+    av.style.background = c.bg; av.style.color = c.fg;
+    av.textContent = initials(name);
+    document.getElementById('detail-name').textContent = name;
+
+    renderDetail(name);
+
+    document.getElementById('view-roster').style.display = 'none';
+    document.getElementById('view-detail').style.display = 'block';
+    window.scrollTo(0, 0);
+  }
+
+  function closeStudent() {
+    document.getElementById('view-detail').style.display = 'none';
+    document.getElementById('view-roster').style.display = 'block';
+    currentStudent = null;
+    currentIdx = null;
+  }
+
+  function renderDetail(name) {
+    var d = studentData[name];
+    var body = document.getElementById('detail-body');
+    body.innerHTML = '';
+
+    // Top grid: Agility + Effort
+    var topGrid = el('div', 'section-grid');
+    topGrid.appendChild(buildAgilityCard(name, d));
+    topGrid.appendChild(buildEffortCard(name, d));
+    body.appendChild(topGrid);
+
+    // Progress overview
+    body.appendChild(buildOverview(d));
+
+    // Skill detail grid: Badminton + Volleyball
+    var skillGrid = el('div', 'section-grid');
+    skillGrid.appendChild(buildSkillsCard(name, 'Badminton Skills', 'green', BADMINTON));
+    skillGrid.appendChild(buildSkillsCard(name, 'Volleyball Skills', 'coral', VOLLEYBALL));
+    body.appendChild(skillGrid);
+  }
+
+  function buildAgilityCard(name, d) {
+    var card = el('div', 'section-card');
+    var h = el('div', 'section-header blue');
+    h.textContent = 'Illinois Agility Test \u00b7 Teacher Recorded';
+    card.appendChild(h);
+    var body = el('div', 'agility-body');
+
+    var grid = el('div', 'agility-grid');
+    grid.appendChild(buildAgilityBox('Baseline', d.ag_baseline, 'ag_baseline', name));
+    grid.appendChild(buildAgilityBox('Re-test', d.ag_retest, 'ag_retest', name));
+    body.appendChild(grid);
+
+    // Diff block (when both values present)
+    var b = parseFloat(d.ag_baseline);
+    var r = parseFloat(d.ag_retest);
+    if (!isNaN(b) && !isNaN(r)) {
+      var diff = el('div', 'agility-diff');
+      var delta = r - b;
+      if (delta < 0) {
+        diff.classList.add('improved');
+        diff.innerHTML = 'Improved by <strong>' + Math.abs(delta).toFixed(2) + 's</strong>';
+      } else if (delta > 0) {
+        diff.innerHTML = 'Slower by <strong>' + delta.toFixed(2) + 's</strong>';
+      } else {
+        diff.innerHTML = '<strong>No change</strong>';
+      }
+      body.appendChild(diff);
+    }
+
+    if (!teacherMode) {
+      var note = el('div', 'agility-note');
+      note.textContent = 'Times will be added by your teacher';
+      body.appendChild(note);
+    }
+    card.appendChild(body);
+    return card;
+  }
+
+  function buildAgilityBox(label, value, field, student) {
+    var box = el('div', 'agility-box');
+    var lbl = el('div', 'label'); lbl.textContent = label;
+    box.appendChild(lbl);
+
+    var hasValue = (value !== '' && value !== undefined && value !== null && value !== 0);
+
+    if (teacherMode) {
+      var valDiv = el('div', 'value');
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.step = '0.01'; inp.min = '0';
+      inp.className = 'agility-input';
+      inp.value = hasValue ? value : '';
+      inp.placeholder = '\u2014';
+      valDiv.appendChild(inp);
+      box.appendChild(valDiv);
+      var unit = el('div', 'unit'); unit.textContent = 'seconds';
+      box.appendChild(unit);
+
+      var btn = document.createElement('button');
+      btn.className = 'agility-save-btn';
+      btn.textContent = 'Save';
+      btn.addEventListener('click', function() {
+        var v = parseFloat(inp.value);
+        if (isNaN(v)) return;
+        btn.disabled = true;
+        btn.textContent = 'Saving\u2026';
+        studentData[student][field] = v;
+        saveField(student, field, v, true).then(function() {
+          btn.textContent = 'Saved!';
+          // Re-render to refresh diff block + value display
+          setTimeout(function() {
+            btn.disabled = false;
+            btn.textContent = 'Save';
+            if (currentStudent === student) renderDetail(student);
+          }, 1000);
+        });
+      });
+      box.appendChild(btn);
+    } else {
+      var valDiv = el('div', 'value' + (hasValue ? '' : ' empty'));
+      valDiv.textContent = hasValue ? value : '\u2014';
+      box.appendChild(valDiv);
+      var unit = el('div', 'unit'); unit.textContent = 'seconds';
+      box.appendChild(unit);
+    }
+    return box;
+  }
+
+  function buildEffortCard(name, d) {
+    var card = el('div', 'section-card');
+    var h = el('div', 'section-header purple');
+    h.textContent = 'Effort & Focus';
+    card.appendChild(h);
+    var body = el('div', 'effort-body');
+    var prompt = el('div', 'effort-prompt');
+    prompt.textContent = 'How hard did you push yourself today?';
+    body.appendChild(prompt);
+    body.appendChild(buildSkillRow(name, EFFORT_SKILL, true));
+    card.appendChild(body);
+    return card;
+  }
+
+  function buildOverview(d) {
+    var card = el('div', 'overview-card');
+    var title = el('div', 'overview-title');
+    title.textContent = 'Skill Progress Overview';
+    card.appendChild(title);
+
+    var cols = el('div', 'overview-cols');
+    cols.appendChild(overviewColumn('Badminton', 'green', BADMINTON, d));
+    cols.appendChild(overviewColumn('Volleyball', 'coral', VOLLEYBALL, d));
+    card.appendChild(cols);
+    return card;
+  }
+
+  function overviewColumn(title, color, skills, data) {
+    var col = el('div', 'overview-col');
+    var badge = el('span', 'overview-badge ' + color);
+    badge.textContent = title;
+    col.appendChild(badge);
+
+    skills.forEach(function(s) {
+      var row = el('div', 'overview-row');
+      var val = parseInt(data[s.key]) || 0;
+      var lbl = el('div', 'overview-label'); lbl.textContent = s.label;
+      row.appendChild(lbl);
+      var track = el('div', 'overview-bar-track');
+      var fill = el('div', 'overview-bar-fill');
+      if (val > 0) fill.classList.add('level-' + val);
+      fill.style.width = (val * 25) + '%';
+      track.appendChild(fill);
+      row.appendChild(track);
+      col.appendChild(row);
+    });
+    return col;
+  }
+
+  function buildSkillsCard(name, title, color, skills) {
+    var card = el('div', 'section-card');
+    var h = el('div', 'section-header ' + color);
+    h.textContent = title;
+    card.appendChild(h);
+    var list = el('div', 'skill-list');
+    skills.forEach(function(s) { list.appendChild(buildSkillRow(name, s, false)); });
+    card.appendChild(list);
+    return card;
+  }
+
+  // ── Skill row with single-fill power bar ──
+  function buildSkillRow(student, skill, inline) {
+    var item = el('div', 'skill-item');
+
+    var top = el('div', 'skill-top');
+    var nameEl = el('span', 'skill-name');
+    nameEl.textContent = skill.label;
+    top.appendChild(nameEl);
+
+    var tap = el('span', 'skill-tap');
+    var currentVal = parseInt(studentData[student][skill.key]) || 0;
+    tap.textContent = LEVEL_LABELS[currentVal];
+    if (currentVal > 0) {
+      tap.classList.add('rated');
+      tap.style.color = LEVEL_COLORS[currentVal];
+    }
+    top.appendChild(tap);
+    item.appendChild(top);
+
+    if (skill.tags) {
+      var tagsDiv = el('div', 'skill-tags');
+      skill.tags.forEach(function(t) {
+        var tag = el('span', 'skill-tag'); tag.textContent = t;
+        tagsDiv.appendChild(tag);
+      });
+      item.appendChild(tagsDiv);
+    }
+
+    // Power bar
+    var bar = el('div', 'rating-bar');
+    var fill = el('div', 'rating-fill');
+    if (currentVal > 0) fill.classList.add('level-' + currentVal);
+    bar.appendChild(fill);
+
+    var dividers = el('div', 'rating-dividers');
+    for (var k = 0; k < 4; k++) dividers.appendChild(document.createElement('span'));
+    bar.appendChild(dividers);
+
+    var label = el('div', 'rating-label');
+    if (currentVal === 0) {
+      label.classList.add('level-0');
+      label.textContent = 'tap to rate';
+    } else {
+      label.classList.add('rated');
+      label.textContent = LEVEL_LABELS[currentVal];
+    }
+    bar.appendChild(label);
+
+    bar.addEventListener('click', function(e) {
+      var rect = bar.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var pct = x / rect.width;
+      var clickedLevel = Math.max(1, Math.min(4, Math.ceil(pct * 4)));
+      var old = parseInt(studentData[student][skill.key]) || 0;
+      var newVal = (old === clickedLevel) ? clickedLevel - 1 : clickedLevel;
+      studentData[student][skill.key] = newVal;
+
+      // Update fill
+      fill.className = 'rating-fill';
+      if (newVal > 0) fill.classList.add('level-' + newVal);
+
+      // Update bar label
+      label.className = 'rating-label';
+      if (newVal === 0) {
+        label.classList.add('level-0');
+        label.textContent = 'tap to rate';
+      } else {
+        label.classList.add('rated');
+        label.textContent = LEVEL_LABELS[newVal];
+      }
+
+      // Update top-right label
+      tap.className = 'skill-tap';
+      tap.textContent = LEVEL_LABELS[newVal];
+      if (newVal > 0) {
+        tap.classList.add('rated');
+        tap.style.color = LEVEL_COLORS[newVal];
+      } else {
+        tap.style.color = '';
+      }
+
+      // Update overview bars
+      updateOverviewBars(student);
+
+      // Save
+      saveField(student, skill.key, newVal, false);
+    });
+    item.appendChild(bar);
+
+    return item;
+  }
+
+  function updateOverviewBars(student) {
+    if (currentStudent !== student) return;
+    var d = studentData[student];
+    var allSkills = BADMINTON.concat(VOLLEYBALL);
+    var fills = document.querySelectorAll('.overview-bar-fill');
+    fills.forEach(function(fill, idx) {
+      if (idx < allSkills.length) {
+        var val = parseInt(d[allSkills[idx].key]) || 0;
+        fill.className = 'overview-bar-fill';
+        if (val > 0) fill.classList.add('level-' + val);
+        fill.style.width = (val * 25) + '%';
+      }
+    });
+  }
+
+  // ── Teacher mode (PIN) ──
+  document.getElementById('teacher-btn').addEventListener('click', function() {
+    if (teacherMode) {
+      teacherMode = false;
+      this.textContent = 'Teacher \u203A';
+      if (currentStudent) renderDetail(currentStudent);
+      return;
+    }
+    document.getElementById('pin-overlay').classList.add('active');
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-error').textContent = '';
+    setTimeout(function() { document.getElementById('pin-input').focus(); }, 50);
+  });
+
+  function checkPin() {
+    if (document.getElementById('pin-input').value === TEACHER_PIN) {
+      teacherMode = true;
+      document.getElementById('pin-overlay').classList.remove('active');
+      document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
+      if (currentStudent) renderDetail(currentStudent);
+    } else {
+      document.getElementById('pin-error').textContent = 'Wrong PIN';
+    }
+  }
+  document.getElementById('pin-ok').addEventListener('click', checkPin);
+  document.getElementById('pin-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') checkPin();
+  });
+  document.getElementById('pin-cancel').addEventListener('click', function() {
+    document.getElementById('pin-overlay').classList.remove('active');
+  });
+
+  document.getElementById('back-btn').addEventListener('click', closeStudent);
+
+  // ── Init ──
+  renderRoster();
+  fetchData();
+})();
