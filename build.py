@@ -13,7 +13,7 @@ body = read('body.html')
 js = read('script.js')
 
 APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFhJyvCrF6ThHNMs7bLedfAnMkC79PUKvRyqvLu2cUUaEJzru3OUkZifaE1YfDrw56Iw/exec'
-TEACHER_PIN = '1234'
+TEACHER_PIN = '1770'
 
 STUDENTS_7A = [
     'Aaliya S','Ben T','Chloe M','Daniel R','Emma K',
