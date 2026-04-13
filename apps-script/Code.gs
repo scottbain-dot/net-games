@@ -28,9 +28,13 @@ var AGILITY_HEADERS = ['Student','Class','ag_baseline','ag_retest'];
 // PINs tab — one row per student per class, holds their 4-digit PIN
 var PIN_HEADERS = ['Student','Class','PIN'];
 
-// Grades tab — one row per student per class, holds S2/S1/S4 scores
-var GRADE_HEADERS = ['Student','Class','S2','S1','S4','timestamp'];
-var GRADE_CRITERIA = ['S2','S1','S4'];
+// Grades tab — one row per student per class, holds S2/S1/S4 scores + teacher pills
+var GRADE_HEADERS = ['Student','Class','S2','S1','S4',
+  's2_teacher','s1_badminton_teacher','s1_volleyball_teacher','s4_teacher','timestamp'];
+var GRADE_CRITERIA = ['S2','S1','S4',
+  's2_teacher','s1_badminton_teacher','s1_volleyball_teacher','s4_teacher'];
+var GRADE_SCORE_CRITERIA = ['S2','S1','S4'];        // 1-7 range
+var GRADE_PILL_CRITERIA = ['s2_teacher','s1_badminton_teacher','s1_volleyball_teacher','s4_teacher']; // 1-3 range
 
 // Settings tab fields
 var SETTINGS_HEADERS = ['Class','CurrentLesson'];
@@ -406,16 +410,17 @@ function readGrades(className) {
   if (!sheet || sheet.getLastRow() < 2) return out;
   var data = sheet.getDataRange().getValues();
   var headers = data[0];
-  var colS2 = colIndex(headers, 'S2') - 1;
-  var colS1 = colIndex(headers, 'S1') - 1;
-  var colS4 = colIndex(headers, 'S4') - 1;
+  function cellInt(row, field) {
+    var c = colIndex(headers, field);
+    if (c === -1) return null;
+    var v = row[c - 1];
+    return (v === '' || v === null || v === undefined) ? null : parseInt(v, 10);
+  }
   for (var r = 1; r < data.length; r++) {
     if (data[r][1] !== className) continue;
-    out[data[r][0]] = {
-      S2: data[r][colS2] === '' ? null : parseInt(data[r][colS2], 10),
-      S1: data[r][colS1] === '' ? null : parseInt(data[r][colS1], 10),
-      S4: data[r][colS4] === '' ? null : parseInt(data[r][colS4], 10)
-    };
+    var rec = {};
+    GRADE_CRITERIA.forEach(function(k) { rec[k] = cellInt(data[r], k); });
+    out[data[r][0]] = rec;
   }
   return out;
 }
@@ -427,13 +432,18 @@ function saveGrade(body) {
   var score = parseInt(body.score, 10);
   if (!className || !student || !criterion) return jsonResponse({ error: 'Missing params' });
   if (GRADE_CRITERIA.indexOf(criterion) === -1) return jsonResponse({ error: 'Bad criterion' });
-  if (isNaN(score) || score < 1 || score > 7) return jsonResponse({ error: 'Score must be 1-7' });
+  var isPill = GRADE_PILL_CRITERIA.indexOf(criterion) !== -1;
+  var max = isPill ? 3 : 7;
+  if (isNaN(score) || score < 1 || score > max) return jsonResponse({ error: 'Score must be 1-' + max });
   var sheet = getSheet('Grades');
   if (!sheet) return jsonResponse({ error: 'Grades sheet missing' });
   var headers = getHeaders(sheet);
   var row = findRowBy2(sheet, 1, student, 2, className);
   if (row === -1) {
-    var newRow = [student, className, '', '', '', new Date()];
+    var newRow = new Array(headers.length);
+    for (var i = 0; i < headers.length; i++) newRow[i] = '';
+    newRow[0] = student; newRow[1] = className;
+    newRow[headers.length - 1] = new Date();
     sheet.appendRow(newRow);
     row = sheet.getLastRow();
   }
@@ -513,4 +523,29 @@ function setupSheets() {
   st.setFrozenRows(1);
   var stRows = CLASSES.map(function(c) { return [c, 1]; });
   st.getRange(2, 1, stRows.length, SETTINGS_HEADERS.length).setValues(stRows);
+}
+
+// Additive migration — run once if Grades tab already exists and you don't
+// want to wipe its data. Adds any missing columns from GRADE_HEADERS.
+function upgradeGradesSchema() {
+  var book = ss();
+  var gr = book.getSheetByName('Grades');
+  if (!gr) {
+    gr = book.insertSheet('Grades');
+    gr.getRange(1, 1, 1, GRADE_HEADERS.length).setValues([GRADE_HEADERS]);
+    gr.setFrozenRows(1);
+    return;
+  }
+  var existing = gr.getRange(1, 1, 1, Math.max(1, gr.getLastColumn())).getValues()[0];
+  while (existing.length && existing[existing.length - 1] === '') existing.pop();
+  var missing = [];
+  GRADE_HEADERS.forEach(function(h) { if (existing.indexOf(h) === -1) missing.push(h); });
+  if (missing.length === 0) return;
+  var tsIdx = existing.indexOf('timestamp');
+  var before = tsIdx === -1 ? existing : existing.slice(0, tsIdx);
+  var after  = tsIdx === -1 ? [] : existing.slice(tsIdx);
+  var extras = missing.filter(function(m) { return m !== 'timestamp'; });
+  var ordered = before.concat(extras).concat(after);
+  if (missing.indexOf('timestamp') !== -1 && tsIdx === -1) ordered.push('timestamp');
+  gr.getRange(1, 1, 1, ordered.length).setValues([ordered]);
 }
