@@ -7,8 +7,13 @@
     <div>
       <h1>Net Games &middot; Class __CLASS__</h1>
       <div class="subtitle">Find your name and tap to update your skills</div>
+      <div class="roster-lesson">Current lesson: <strong id="roster-lesson-num">L1</strong></div>
     </div>
     <button class="teacher-btn" id="teacher-btn">Teacher &rsaquo;</button>
+  </div>
+  <div class="teacher-lesson-setter" id="teacher-lesson-setter">
+    <div class="teacher-lesson-setter-label">Set current lesson for __CLASS__</div>
+    <div class="lesson-pills" id="teacher-lesson-pills"></div>
   </div>
   <div class="student-grid" id="student-grid"></div>
 </div>
@@ -27,10 +32,15 @@
       <span class="text">auto-saving</span>
     </div>
   </div>
+  <div class="lesson-pills-wrap">
+    <div class="lesson-pills-label">Lesson</div>
+    <div class="lesson-pills" id="detail-lesson-pills"></div>
+    <div class="lesson-pills-note" id="lesson-pills-note"></div>
+  </div>
   <div class="detail-body" id="detail-body"></div>
 </div>
 
-<!-- ════ PIN OVERLAY ════ -->
+<!-- ════ PIN OVERLAY (teacher) ════ -->
 <div class="pin-overlay" id="pin-overlay">
   <div class="pin-box">
     <h3>Enter Teacher PIN</h3>
@@ -39,6 +49,20 @@
     <div class="pin-btns">
       <button class="pin-cancel" id="pin-cancel">Cancel</button>
       <button class="pin-ok" id="pin-ok">Enter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ INITIALS OVERLAY (student gate) ════ -->
+<div class="pin-overlay" id="initials-overlay">
+  <div class="pin-box">
+    <h3 id="initials-title">Type your initials</h3>
+    <div class="initials-hint" id="initials-hint"></div>
+    <input type="text" id="initials-input" maxlength="6" autocapitalize="characters" autocomplete="off">
+    <div class="pin-error" id="initials-error"></div>
+    <div class="pin-btns">
+      <button class="pin-cancel" id="initials-cancel">Cancel</button>
+      <button class="pin-ok" id="initials-ok">Enter</button>
     </div>
   </div>
 </div>
