@@ -114,6 +114,10 @@ function doGet(e) {
       if (!className) return jsonResponse({ error: 'Missing class' });
       return jsonResponse(readRoster(className));
     }
+    if (action === 'getAllCurrent') {
+      if (!className) return jsonResponse({ error: 'Missing class' });
+      return jsonResponse(readAllCurrent(className));
+    }
     if (action === 'getEngagement') {
       if (!className) return jsonResponse({ error: 'Missing class' });
       return jsonResponse(readEngagement(className));
@@ -168,6 +172,51 @@ function readStudent(className, student) {
 
 function readRoster(className) {
   return { students: ROSTERS[className] || [], currentLesson: readCurrentLesson(className) };
+}
+
+// One-shot load for the whole class at current lesson — keeps the frontend fast.
+function readAllCurrent(className) {
+  var currentLesson = readCurrentLesson(className);
+  var out = { currentLesson: currentLesson, students: {} };
+  (ROSTERS[className] || []).forEach(function(n) { out.students[n] = blankStudentRatings(); });
+
+  var sheet = getSheet(className);
+  if (sheet && sheet.getLastRow() > 1) {
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0];
+    for (var r = 1; r < data.length; r++) {
+      if (String(data[r][1]) !== String(currentLesson)) continue;
+      var name = data[r][0];
+      if (!out.students[name]) out.students[name] = blankStudentRatings();
+      for (var c = 2; c < headers.length; c++) {
+        if (headers[c] === 'timestamp') continue;
+        out.students[name][headers[c]] = data[r][c];
+      }
+    }
+  }
+
+  var ag = getSheet('Agility');
+  if (ag && ag.getLastRow() > 1) {
+    var agData = ag.getDataRange().getValues();
+    for (var r2 = 1; r2 < agData.length; r2++) {
+      if (agData[r2][1] !== className) continue;
+      var n2 = agData[r2][0];
+      if (!out.students[n2]) out.students[n2] = blankStudentRatings();
+      out.students[n2].ag_baseline = agData[r2][2];
+      out.students[n2].ag_retest = agData[r2][3];
+    }
+  }
+
+  return out;
+}
+
+function blankStudentRatings() {
+  var d = { ag_baseline: '', ag_retest: '', agility_focus: '', agility_execution: 0 };
+  for (var i = 0; i < LESSON_FIELDS.length; i++) {
+    var k = LESSON_FIELDS[i];
+    if (k !== 'agility_focus' && k !== 'agility_execution') d[k] = 0;
+  }
+  return d;
 }
 
 function readEngagement(className) {
