@@ -356,18 +356,58 @@ body {
 .pin-cancel { background: #e8e8e8; color: #1a1a1a; }
 .pin-error { color: #e74c3c; font-size: 0.8rem; margin-top: 10px; min-height: 1.1em; }
 
-/* Initials overlay (student gate) — reuses .pin-overlay / .pin-box */
-#initials-input {
-  width: 180px; padding: 10px; text-align: center;
-  font-size: 1.4rem; letter-spacing: 6px;
+/* Student PIN overlay — reuses .pin-overlay / .pin-box */
+#student-pin-input {
+  width: 160px; padding: 10px; text-align: center;
+  font-size: 1.4rem; letter-spacing: 10px;
   border: 2px solid #e0e0e0; border-radius: 8px;
-  background: #fff; color: #1a1a1a;
-  text-transform: uppercase; font-weight: 700;
+  background: #fff; color: #1a1a1a; font-weight: 700;
 }
-.initials-hint {
+.student-pin-hint {
   font-size: 0.8rem; color: #666; margin: -6px 0 12px;
 }
-.initials-hint strong { color: #1a4a7a; }
+.student-pin-hint strong { color: #1a4a7a; }
+
+/* Teacher PINs panel */
+.teacher-pins-panel {
+  display: none;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.teacher-pins-panel.active { display: block; }
+.teacher-pins-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.teacher-pins-refresh {
+  padding: 4px 10px; font-size: 0.72rem;
+  border: 1px solid #e0e0e0; background: #fff; border-radius: 6px;
+  cursor: pointer; color: #1a1a1a;
+}
+.teacher-pins-refresh:hover { background: #f8f6f2; }
+.teacher-pins-hint {
+  font-size: 0.72rem; color: #888; margin-bottom: 10px;
+}
+.teacher-pins-table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+.teacher-pins-table td {
+  padding: 6px 10px; border-bottom: 1px solid #f2f2f2;
+}
+.teacher-pins-table td.pin-name { font-weight: 500; }
+.teacher-pins-table td.pin-value {
+  font-family: ui-monospace, Menlo, monospace; letter-spacing: 2px; color: #1a4a7a;
+}
+.teacher-pins-table td.pin-value.empty { color: #bbb; font-style: italic; letter-spacing: 0; }
+.teacher-pins-table td.pin-actions { text-align: right; }
+.teacher-pins-table button.pin-reset {
+  padding: 3px 9px; font-size: 0.7rem;
+  border: 1px solid #e67e22; color: #e67e22; background: #fff;
+  border-radius: 6px; cursor: pointer;
+}
+.teacher-pins-table button.pin-reset:hover { background: #fff4ea; }
 
 /* Roster current-lesson badge */
 .roster-lesson {
@@ -440,7 +480,6 @@ var CLASS_NAME = '7A';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFhJyvCrF6ThHNMs7bLedfAnMkC79PUKvRyqvLu2cUUaEJzru3OUkZifaE1YfDrw56Iw/exec';
 var TEACHER_PIN = '1770';
 var STUDENTS = ['Freya R', 'Flavio C', 'Karim Y A G', 'Soomin O', 'Chaeyi L', 'Michelle S', 'Woojun J', 'Kian W', 'Nico S', 'Louis H', 'Ella B', 'Lena L', 'Austin W', 'Jihoo P', 'Ari R', 'Yilei L', 'Joon S', 'Rubin L'];
-var STUDENT_INITIALS = {"Freya R": "FR", "Flavio C": "FC", "Karim Y A G": "KG", "Soomin O": "SO", "Chaeyi L": "CL", "Michelle S": "MS", "Woojun J": "WJ", "Kian W": "KW", "Nico S": "NS", "Louis H": "LH", "Ella B": "EB", "Lena L": "LL", "Austin W": "AW", "Jihoo P": "JP", "Ari R": "AR", "Yilei L": "YL", "Joon S": "JS", "Rubin L": "RL"};
 </script>
 <div id="loading"><div class="spinner"></div> Loading...</div>
 <div class="error-banner" id="error-banner"></div>
@@ -458,6 +497,14 @@ var STUDENT_INITIALS = {"Freya R": "FR", "Flavio C": "FC", "Karim Y A G": "KG", 
   <div class="teacher-lesson-setter" id="teacher-lesson-setter">
     <div class="teacher-lesson-setter-label">Set current lesson for 7A</div>
     <div class="lesson-pills" id="teacher-lesson-pills"></div>
+  </div>
+  <div class="teacher-pins-panel" id="teacher-pins-panel">
+    <div class="teacher-pins-header">
+      <div class="teacher-lesson-setter-label">Student PINs</div>
+      <button class="teacher-pins-refresh" id="teacher-pins-refresh">Refresh</button>
+    </div>
+    <div class="teacher-pins-hint">Tap <em>Reset</em> to clear a PIN — the student will be asked to create a new one next time they tap their card.</div>
+    <table class="teacher-pins-table" id="teacher-pins-table"></table>
   </div>
   <div class="student-grid" id="student-grid"></div>
 </div>
@@ -497,16 +544,16 @@ var STUDENT_INITIALS = {"Freya R": "FR", "Flavio C": "FC", "Karim Y A G": "KG", 
   </div>
 </div>
 
-<!-- ════ INITIALS OVERLAY (student gate) ════ -->
-<div class="pin-overlay" id="initials-overlay">
+<!-- ════ STUDENT PIN OVERLAY (create / enter) ════ -->
+<div class="pin-overlay" id="student-pin-overlay">
   <div class="pin-box">
-    <h3 id="initials-title">Type your initials</h3>
-    <div class="initials-hint" id="initials-hint"></div>
-    <input type="text" id="initials-input" maxlength="6" autocapitalize="characters" autocomplete="off">
-    <div class="pin-error" id="initials-error"></div>
+    <h3 id="student-pin-title">Enter your PIN</h3>
+    <div class="student-pin-hint" id="student-pin-hint"></div>
+    <input type="password" id="student-pin-input" maxlength="4" inputmode="numeric" autocomplete="off">
+    <div class="pin-error" id="student-pin-error"></div>
     <div class="pin-btns">
-      <button class="pin-cancel" id="initials-cancel">Cancel</button>
-      <button class="pin-ok" id="initials-ok">Enter</button>
+      <button class="pin-cancel" id="student-pin-cancel">Cancel</button>
+      <button class="pin-ok" id="student-pin-ok">Enter</button>
     </div>
   </div>
 </div>
@@ -610,6 +657,20 @@ function saveField(student, field, value, isAgility) {
 function setLessonRemote(lesson) {
   return api(null, { action: 'setLesson', 'class': CLASS_NAME, lesson: lesson, pin: TEACHER_PIN });
 }
+function verifyPinRemote(student, pin) {
+  return api(null, { action: 'verifyPin', 'class': CLASS_NAME, student: student, pin: pin });
+}
+function setPinRemote(student, pin, teacherPin) {
+  var payload = { action: 'setPin', 'class': CLASS_NAME, student: student, pin: pin };
+  if (teacherPin) payload.teacherPin = teacherPin;
+  return api(null, payload);
+}
+function fetchAllPins() {
+  return api('action=getAllPins&class=' + encodeURIComponent(CLASS_NAME) + '&pin=' + encodeURIComponent(TEACHER_PIN));
+}
+function resetPinRemote(student) {
+  return api(null, { action: 'resetPin', 'class': CLASS_NAME, student: student, teacherPin: TEACHER_PIN });
+}
 
 </script>
 <script>
@@ -664,35 +725,74 @@ function renderRoster() {
   });
 }
 
-// Chunk 2: initials gate + open/close student
+// Chunk 2: PIN gate + open/close student
+var pinFlow = 'enter';        // 'enter' | 'create-first' | 'create-confirm'
+var pinAttempts = 0;
+var pinPending = '';          // first PIN entry while creating
 function tapStudentCard(name, idx) {
   if (teacherMode) { openStudent(name, idx); return; }
-  promptInitials(name, idx);
+  var d = studentData[name] || {};
+  pinAttempts = 0; pinPending = '';
+  pinFlow = d.hasPin ? 'enter' : 'create-first';
+  openPinOverlay(name, idx);
 }
-function promptInitials(name, idx) {
-  var ov = document.getElementById('initials-overlay');
-  document.getElementById('initials-title').textContent = 'Confirm: ' + name;
-  document.getElementById('initials-hint').innerHTML =
-    'Type the initials for <strong>' + name + '</strong>';
-  document.getElementById('initials-error').textContent = '';
-  var inp = document.getElementById('initials-input');
-  inp.value = '';
-  inp.dataset.target = name;
-  inp.dataset.idx = idx;
+function openPinOverlay(name, idx) {
+  var ov = document.getElementById('student-pin-overlay');
+  var title = document.getElementById('student-pin-title');
+  var hint  = document.getElementById('student-pin-hint');
+  var err   = document.getElementById('student-pin-error');
+  var inp   = document.getElementById('student-pin-input');
+  inp.value = ''; err.textContent = '';
+  inp.dataset.target = name; inp.dataset.idx = idx;
+  if (pinFlow === 'enter') {
+    title.textContent = 'Enter your PIN';
+    hint.innerHTML = 'Welcome back, <strong>' + name + '</strong>';
+  } else if (pinFlow === 'create-first') {
+    title.textContent = 'Create your 4-digit PIN';
+    hint.innerHTML = 'Hi <strong>' + name + '</strong> — pick a PIN only you will remember';
+  } else {
+    title.textContent = 'Confirm your PIN';
+    hint.innerHTML = 'Type the same 4 digits again';
+  }
   ov.classList.add('active');
   setTimeout(function() { inp.focus(); }, 50);
 }
-function checkInitials() {
-  var inp = document.getElementById('initials-input');
+function closePinOverlay() {
+  document.getElementById('student-pin-overlay').classList.remove('active');
+}
+function submitStudentPin() {
+  var inp = document.getElementById('student-pin-input');
+  var err = document.getElementById('student-pin-error');
   var name = inp.dataset.target;
   var idx = parseInt(inp.dataset.idx, 10);
-  var expect = (STUDENT_INITIALS[name] || '').toUpperCase();
-  var got = (inp.value || '').trim().toUpperCase();
-  if (got && got === expect) {
-    document.getElementById('initials-overlay').classList.remove('active');
-    openStudent(name, idx);
+  var pin = (inp.value || '').trim();
+  if (!/^\d{4}$/.test(pin)) { err.textContent = 'Enter 4 digits'; return; }
+
+  if (pinFlow === 'enter') {
+    verifyPinRemote(name, pin).then(function(j) {
+      if (j && j.ok) { closePinOverlay(); openStudent(name, idx); return; }
+      pinAttempts++;
+      if (pinAttempts >= 2) { closePinOverlay(); showError('Wrong PIN — ask your teacher'); return; }
+      err.textContent = 'Wrong PIN — one more try';
+      inp.value = ''; inp.focus();
+    });
+  } else if (pinFlow === 'create-first') {
+    pinPending = pin; pinFlow = 'create-confirm';
+    openPinOverlay(name, idx);
   } else {
-    document.getElementById('initials-error').textContent = 'Try again';
+    if (pin !== pinPending) {
+      err.textContent = 'Did not match — try again';
+      pinPending = ''; pinFlow = 'create-first';
+      inp.value = ''; inp.focus(); return;
+    }
+    setPinRemote(name, pin).then(function(j) {
+      if (j && j.ok) {
+        if (studentData[name]) studentData[name].hasPin = true;
+        closePinOverlay(); openStudent(name, idx);
+      } else {
+        err.textContent = (j && j.error) || 'Could not save PIN';
+      }
+    });
   }
 }
 function openStudent(name, idx) {
@@ -974,11 +1074,47 @@ function renderTeacherLessonSetter() {
   })(i);
 }
 
+// Teacher PINs table — lists every student's PIN with a Reset button
+function refreshTeacherPins() {
+  var table = document.getElementById('teacher-pins-table');
+  if (!table) return;
+  table.innerHTML = '<tr><td colspan="3" class="teacher-pins-hint">Loading…</td></tr>';
+  fetchAllPins().then(function(j) {
+    var pins = (j && j.pins) || {};
+    table.innerHTML = '';
+    STUDENTS.forEach(function(name) {
+      var tr = document.createElement('tr');
+      var pin = pins[name] || '';
+      tr.innerHTML = '<td class="pin-name">' + name + '</td>' +
+        '<td class="pin-value' + (pin ? '' : ' empty') + '">' + (pin || 'no PIN yet') + '</td>' +
+        '<td class="pin-actions"></td>';
+      var btn = document.createElement('button');
+      btn.className = 'pin-reset'; btn.textContent = 'Reset';
+      btn.addEventListener('click', function() {
+        if (!confirm('Reset PIN for ' + name + '?')) return;
+        btn.disabled = true; btn.textContent = 'Resetting…';
+        resetPinRemote(name).then(function(r) {
+          if (r && r.ok) {
+            if (studentData[name]) studentData[name].hasPin = false;
+            refreshTeacherPins();
+          } else {
+            btn.disabled = false; btn.textContent = 'Reset';
+            showError('Reset failed');
+          }
+        });
+      });
+      tr.querySelector('.pin-actions').appendChild(btn);
+      table.appendChild(tr);
+    });
+  });
+}
+
 // Chunk 8: DOM event handlers + boot
 document.getElementById('teacher-btn').addEventListener('click', function() {
   if (teacherMode) {
     teacherMode = false; this.textContent = 'Teacher \u203A';
     document.getElementById('teacher-lesson-setter').classList.remove('active');
+    document.getElementById('teacher-pins-panel').classList.remove('active');
     if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
     return;
   }
@@ -993,7 +1129,9 @@ function checkPin() {
     document.getElementById('pin-overlay').classList.remove('active');
     document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
     document.getElementById('teacher-lesson-setter').classList.add('active');
+    document.getElementById('teacher-pins-panel').classList.add('active');
     renderTeacherLessonSetter();
+    refreshTeacherPins();
     if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
   } else { document.getElementById('pin-error').textContent = 'Wrong PIN'; }
 }
@@ -1002,11 +1140,12 @@ document.getElementById('pin-input').addEventListener('keydown', function(e) { i
 document.getElementById('pin-cancel').addEventListener('click', function() {
   document.getElementById('pin-overlay').classList.remove('active');
 });
-document.getElementById('initials-ok').addEventListener('click', checkInitials);
-document.getElementById('initials-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') checkInitials(); });
-document.getElementById('initials-cancel').addEventListener('click', function() {
-  document.getElementById('initials-overlay').classList.remove('active');
+document.getElementById('student-pin-ok').addEventListener('click', submitStudentPin);
+document.getElementById('student-pin-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') submitStudentPin();
 });
+document.getElementById('student-pin-cancel').addEventListener('click', closePinOverlay);
+document.getElementById('teacher-pins-refresh').addEventListener('click', refreshTeacherPins);
 document.getElementById('back-btn').addEventListener('click', closeStudent);
 
 // Boot
