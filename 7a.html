@@ -673,6 +673,112 @@ body {
 }
 .lesson-pills-note.readonly { color: #e67e22; font-style: normal; font-weight: 600; }
 
+/* ── Intro panel (above roster) ── */
+.intro-panel {
+  display: grid;
+  grid-template-columns: 1.25fr repeat(3, 1fr) 0.9fr;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+@media (max-width: 960px) {
+  .intro-panel { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+  .intro-panel { grid-template-columns: 1fr; }
+}
+.intro-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 22px;
+  border: 1px solid #ececec;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  position: relative;
+  overflow: hidden;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+.intro-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
+
+/* Hero */
+.intro-hero {
+  background: linear-gradient(150deg, #143b2a 0%, #0d2a1e 100%);
+  color: #fff;
+  border-color: transparent;
+  justify-content: space-between;
+}
+.intro-super {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #5bb995;
+}
+.intro-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-top: auto;
+}
+.intro-subtitle {
+  font-size: 0.82rem;
+  color: #7ec9a6;
+  margin-top: 8px;
+}
+
+/* Criteria cards */
+.intro-crit { padding-top: 22px; }
+.intro-crit::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 4px;
+}
+.intro-s2::before { background: linear-gradient(90deg, #5aa3ef, #2E86DE); }
+.intro-s1::before { background: linear-gradient(90deg, #5fc7a1, #1D9E75); }
+.intro-s4::before { background: linear-gradient(90deg, #9f7ce3, #6C3FC5); }
+
+.intro-crit-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 10px; margin-bottom: 16px;
+}
+.intro-crit-title {
+  font-size: 1.05rem; font-weight: 700; line-height: 1.2; color: #1a1a1a;
+}
+.intro-badge {
+  display: inline-block;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+}
+.intro-badge.s2 { background: #EBF4FF; color: #0C447C; }
+.intro-badge.s1 { background: #EAF5EE; color: #085041; }
+.intro-badge.s4 { background: #F0EEFF; color: #3C3489; }
+
+.intro-body {
+  font-size: 0.88rem; color: #555; line-height: 1.5;
+}
+.intro-body strong { color: #1a1a1a; font-weight: 600; }
+
+/* Illinois card */
+.intro-illinois {
+  align-items: center; text-align: center; gap: 10px;
+  padding: 22px 18px;
+}
+.intro-illinois-icon {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: #EBF4FF; color: #2E86DE;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.55rem; font-weight: 400;
+  margin-bottom: 4px;
+}
+.intro-illinois-title {
+  font-size: 1rem; font-weight: 700; color: #1a4a7a;
+  line-height: 1.2;
+}
+.intro-illinois-dates {
+  font-size: 0.78rem; color: #888; line-height: 1.5; margin-top: 6px;
+}
+
 </style>
 </head>
 
@@ -688,10 +794,41 @@ var STUDENTS = ['Freya R', 'Flavio C', 'Karim Y A G', 'Soomin O', 'Chaeyi L', 'M
 
 <!-- ════ ROSTER VIEW ════ -->
 <div id="view-roster">
+  <div class="intro-panel">
+    <div class="intro-card intro-hero">
+      <div class="intro-super">7A &middot; Net Games</div>
+      <div class="intro-title">Move for Skills</div>
+      <div class="intro-subtitle">9 lessons &middot; 3 criteria</div>
+    </div>
+    <div class="intro-card intro-crit intro-s2">
+      <div class="intro-crit-head">
+        <div class="intro-crit-title">Skill<br>Identification</div>
+        <span class="intro-badge s2">S2</span>
+      </div>
+      <div class="intro-body">Pick your <strong>agility focus</strong> every lesson and work on it deliberately</div>
+    </div>
+    <div class="intro-card intro-crit intro-s1">
+      <div class="intro-crit-head">
+        <div class="intro-crit-title">Skill<br>Development</div>
+        <span class="intro-badge s1">S1</span>
+      </div>
+      <div class="intro-body">Improve your skills and <strong>beat your Illinois baseline</strong> at the re-test</div>
+    </div>
+    <div class="intro-card intro-crit intro-s4">
+      <div class="intro-crit-head">
+        <div class="intro-crit-title">Active<br>Participation</div>
+        <span class="intro-badge s4">S4</span>
+      </div>
+      <div class="intro-body"><strong>Show up fully</strong> every lesson &mdash; communicate, collaborate, give effort</div>
+    </div>
+    <div class="intro-card intro-illinois">
+      <div class="intro-illinois-icon">&#8853;</div>
+      <div class="intro-illinois-title">Illinois<br>Agility Test</div>
+      <div class="intro-illinois-dates">L1 baseline<br>L9 re-test</div>
+    </div>
+  </div>
   <div class="roster-header">
     <div>
-      <h1>Net Games &middot; Class 7A</h1>
-      <div class="subtitle">Find your name and tap to update your skills</div>
       <div class="roster-lesson">Current lesson: <strong id="roster-lesson-num">L1</strong></div>
     </div>
     <button class="teacher-btn" id="teacher-btn">Teacher &rsaquo;</button>
