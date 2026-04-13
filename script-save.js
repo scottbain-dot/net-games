@@ -61,3 +61,6 @@ function fetchAllPins() {
 function resetPinRemote(student) {
   return api(null, { action: 'resetPin', 'class': CLASS_NAME, student: student, teacherPin: TEACHER_PIN });
 }
+function fetchEngagement() {
+  return api('action=getEngagement&class=' + encodeURIComponent(CLASS_NAME));
+}
