@@ -202,3 +202,201 @@ function buildEffortCard(name, d) {
   card.appendChild(body);
   return card;
 }
+
+// Chunk 5: agility input box + skill progress overview
+function buildAgilityBox(label, value, field, student) {
+  var box = el('div', 'agility-box');
+  var lbl = el('div', 'label'); lbl.textContent = label; box.appendChild(lbl);
+  var has = (value !== '' && value !== undefined && value !== null && value !== 0);
+  if (teacherMode) {
+    var v = el('div', 'value');
+    var inp = document.createElement('input');
+    inp.type = 'number'; inp.step = '0.01'; inp.min = '0';
+    inp.className = 'agility-input';
+    inp.value = has ? value : ''; inp.placeholder = '\u2014';
+    v.appendChild(inp); box.appendChild(v);
+    var u = el('div', 'unit'); u.textContent = 'seconds'; box.appendChild(u);
+    var btn = document.createElement('button');
+    btn.className = 'agility-save-btn'; btn.textContent = 'Save';
+    btn.addEventListener('click', function() {
+      var val = parseFloat(inp.value);
+      if (isNaN(val)) return;
+      btn.disabled = true; btn.textContent = 'Saving\u2026';
+      if (studentData[student]) studentData[student][field] = val;
+      saveField(student, field, val, true).then(function() {
+        btn.textContent = 'Saved!';
+        setTimeout(function() {
+          btn.disabled = false; btn.textContent = 'Save';
+          if (currentStudent === student) renderDetail(student);
+        }, 1000);
+      });
+    });
+    box.appendChild(btn);
+  } else {
+    var v2 = el('div', 'value' + (has ? '' : ' empty'));
+    v2.textContent = has ? value : '\u2014'; box.appendChild(v2);
+    var u2 = el('div', 'unit'); u2.textContent = 'seconds'; box.appendChild(u2);
+  }
+  return box;
+}
+function buildOverview(d) {
+  var card = el('div', 'overview-card');
+  var t = el('div', 'overview-title'); t.textContent = 'Skill Progress Overview';
+  card.appendChild(t);
+  var cols = el('div', 'overview-cols');
+  cols.appendChild(overviewColumn('Badminton', 'green', BADMINTON, d));
+  cols.appendChild(overviewColumn('Volleyball', 'coral', VOLLEYBALL, d));
+  card.appendChild(cols);
+  return card;
+}
+function overviewColumn(title, color, skills, data) {
+  var col = el('div', 'overview-col');
+  var b = el('span', 'overview-badge ' + color); b.textContent = title; col.appendChild(b);
+  skills.forEach(function(s) {
+    var row = el('div', 'overview-row'), val = parseInt(data[s.key]) || 0;
+    var lbl = el('div', 'overview-label'); lbl.textContent = s.label; row.appendChild(lbl);
+    var track = el('div', 'overview-bar-track'), fill = el('div', 'overview-bar-fill');
+    if (val > 0) fill.classList.add('level-' + val);
+    fill.style.width = (val * 25) + '%';
+    track.appendChild(fill); row.appendChild(track); col.appendChild(row);
+  });
+  return col;
+}
+
+// Chunk 6: skill cards + skill row (clickable rating bar)
+function buildSkillsCard(name, title, color, skills, d) {
+  var card = el('div', 'section-card');
+  var h = el('div', 'section-header ' + color); h.textContent = title;
+  card.appendChild(h);
+  var list = el('div', 'skill-list');
+  skills.forEach(function(s) { list.appendChild(buildSkillRow(name, s, d, false)); });
+  card.appendChild(list);
+  return card;
+}
+function buildSkillRow(student, skill, d, inline) {
+  var item = el('div', 'skill-item');
+  var top = el('div', 'skill-top');
+  var nameEl = el('span', 'skill-name'); nameEl.textContent = skill.label; top.appendChild(nameEl);
+  var tap = el('span', 'skill-tap');
+  var cur = parseInt(d[skill.key]) || 0;
+  tap.textContent = LEVEL_LABELS[cur];
+  if (cur > 0) { tap.classList.add('rated'); tap.style.color = LEVEL_COLORS[cur]; }
+  top.appendChild(tap); item.appendChild(top);
+  if (skill.tags) {
+    var td = el('div', 'skill-tags');
+    skill.tags.forEach(function(t) { var x = el('span', 'skill-tag'); x.textContent = t; td.appendChild(x); });
+    item.appendChild(td);
+  }
+  var bar = el('div', 'rating-bar'), fill = el('div', 'rating-fill');
+  if (cur > 0) fill.classList.add('level-' + cur);
+  bar.appendChild(fill);
+  var divs = el('div', 'rating-dividers');
+  for (var k = 0; k < 4; k++) divs.appendChild(document.createElement('span'));
+  bar.appendChild(divs);
+  var label = el('div', 'rating-label');
+  if (cur === 0) { label.classList.add('level-0'); label.textContent = 'tap to rate'; }
+  else { label.classList.add('rated'); label.textContent = LEVEL_LABELS[cur]; }
+  bar.appendChild(label);
+  if (!canEdit()) { bar.style.cursor = 'not-allowed'; bar.style.opacity = '0.85'; item.appendChild(bar); return item; }
+  bar.addEventListener('click', function(e) {
+    var rect = bar.getBoundingClientRect(), x = e.clientX - rect.left, pct = x / rect.width;
+    var clicked = Math.max(1, Math.min(4, Math.ceil(pct * 4)));
+    var old = parseInt(d[skill.key]) || 0;
+    var nv = (old === clicked) ? clicked - 1 : clicked;
+    d[skill.key] = nv;
+    if (viewedLesson === currentLesson && studentData[student]) studentData[student][skill.key] = nv;
+    fill.className = 'rating-fill'; if (nv > 0) fill.classList.add('level-' + nv);
+    label.className = 'rating-label';
+    if (nv === 0) { label.classList.add('level-0'); label.textContent = 'tap to rate'; }
+    else { label.classList.add('rated'); label.textContent = LEVEL_LABELS[nv]; }
+    tap.className = 'skill-tap'; tap.textContent = LEVEL_LABELS[nv];
+    if (nv > 0) { tap.classList.add('rated'); tap.style.color = LEVEL_COLORS[nv]; } else { tap.style.color = ''; }
+    updateOverviewBars(d);
+    saveField(student, skill.key, nv, false);
+  });
+  item.appendChild(bar);
+  return item;
+}
+
+// Chunk 7: overview bar live update + teacher lesson setter pills
+function updateOverviewBars(d) {
+  var all = BADMINTON.concat(VOLLEYBALL);
+  var fills = document.querySelectorAll('.overview-bar-fill');
+  fills.forEach(function(fill, idx) {
+    if (idx < all.length) {
+      var v = parseInt(d[all[idx].key]) || 0;
+      fill.className = 'overview-bar-fill';
+      if (v > 0) fill.classList.add('level-' + v);
+      fill.style.width = (v * 25) + '%';
+    }
+  });
+}
+function renderTeacherLessonSetter() {
+  var box = document.getElementById('teacher-lesson-pills');
+  if (!box) return;
+  box.innerHTML = '';
+  for (var i = 1; i <= 9; i++) (function(n) {
+    var p = el('span', 'lesson-pill');
+    p.textContent = 'L' + n;
+    if (n === currentLesson) p.classList.add('current', 'active');
+    p.addEventListener('click', function() {
+      if (p.classList.contains('saving')) return;
+      p.classList.add('saving');
+      setLessonRemote(n).then(function(j) {
+        p.classList.remove('saving');
+        if (j && !j.error) {
+          currentLesson = n;
+          if (!currentStudent) viewedLesson = n;
+          updateRosterLessonBadge();
+          renderTeacherLessonSetter();
+          if (currentStudent && viewedLesson === currentLesson) {
+            renderLessonPills(); renderDetail(currentStudent);
+          }
+        } else { showError('Could not set lesson'); }
+      });
+    });
+    box.appendChild(p);
+  })(i);
+}
+
+// Chunk 8: DOM event handlers + boot
+document.getElementById('teacher-btn').addEventListener('click', function() {
+  if (teacherMode) {
+    teacherMode = false; this.textContent = 'Teacher \u203A';
+    document.getElementById('teacher-lesson-setter').classList.remove('active');
+    if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
+    return;
+  }
+  document.getElementById('pin-overlay').classList.add('active');
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  setTimeout(function() { document.getElementById('pin-input').focus(); }, 50);
+});
+function checkPin() {
+  if (document.getElementById('pin-input').value === TEACHER_PIN) {
+    teacherMode = true;
+    document.getElementById('pin-overlay').classList.remove('active');
+    document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
+    document.getElementById('teacher-lesson-setter').classList.add('active');
+    renderTeacherLessonSetter();
+    if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
+  } else { document.getElementById('pin-error').textContent = 'Wrong PIN'; }
+}
+document.getElementById('pin-ok').addEventListener('click', checkPin);
+document.getElementById('pin-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') checkPin(); });
+document.getElementById('pin-cancel').addEventListener('click', function() {
+  document.getElementById('pin-overlay').classList.remove('active');
+});
+document.getElementById('initials-ok').addEventListener('click', checkInitials);
+document.getElementById('initials-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') checkInitials(); });
+document.getElementById('initials-cancel').addEventListener('click', function() {
+  document.getElementById('initials-overlay').classList.remove('active');
+});
+document.getElementById('back-btn').addEventListener('click', closeStudent);
+
+// Boot
+renderRoster();
+fetchAllCurrent().then(function() {
+  updateRosterLessonBadge();
+  document.getElementById('loading').style.display = 'none';
+});
