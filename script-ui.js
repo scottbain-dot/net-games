@@ -192,6 +192,7 @@ function renderDetail(name) {
   topGrid.appendChild(buildAgilityCard(name, d));
   topGrid.appendChild(buildEffortCard(name, d));
   body.appendChild(topGrid);
+  body.appendChild(buildFocusCard(name, d));
   body.appendChild(buildOverview(d));
   var skillGrid = el('div', 'section-grid');
   skillGrid.appendChild(buildSkillsCard(name, 'Badminton Skills', 'green', BADMINTON, d));
@@ -238,6 +239,43 @@ function buildEffortCard(name, d) {
   prompt.textContent = 'How hard did you push yourself today?';
   body.appendChild(prompt);
   body.appendChild(buildSkillRow(name, EFFORT_SKILL, d, true));
+  card.appendChild(body);
+  return card;
+}
+
+// Agility focus (8 element buttons + execution power bar)
+function buildFocusCard(name, d) {
+  var card = el('div', 'section-card');
+  var h = el('div', 'section-header blue'); h.textContent = 'My Agility Focus Today';
+  card.appendChild(h);
+  var body = el('div', 'focus-body');
+  var prompt = el('div', 'focus-prompt');
+  prompt.textContent = 'Pick the one element you focused on this lesson';
+  body.appendChild(prompt);
+  var grid = el('div', 'focus-grid');
+  var editable = canEdit();
+  var selected = String(d.agility_focus || '');
+  AGILITY_FOCUS_ELEMENTS.forEach(function(e) {
+    var b = el('div', 'focus-btn');
+    if (!editable) b.classList.add('readonly');
+    if (selected === e.key) b.classList.add('active');
+    b.innerHTML = e.label + '<span class="focus-sub">' + e.sub + '</span>';
+    if (editable) b.addEventListener('click', function() {
+      var next = (selected === e.key) ? '' : e.key;
+      d.agility_focus = next;
+      if (viewedLesson === currentLesson && studentData[name]) studentData[name].agility_focus = next;
+      Array.prototype.forEach.call(grid.children, function(c) { c.classList.remove('active'); });
+      if (next) b.classList.add('active');
+      selected = next;
+      saveField(name, 'agility_focus', next, false);
+    });
+    grid.appendChild(b);
+  });
+  body.appendChild(grid);
+  var execLabel = el('div', 'focus-exec-label');
+  execLabel.textContent = 'How well did I execute it today?';
+  body.appendChild(execLabel);
+  body.appendChild(buildSkillRow(name, { key: 'agility_execution', label: 'Execution' }, d, true));
   card.appendChild(body);
   return card;
 }
@@ -398,6 +436,53 @@ function renderTeacherLessonSetter() {
   })(i);
 }
 
+// Engagement grid — students × L1..L9, dot if that lesson has an agility_focus
+function openEngagementView() {
+  document.getElementById('view-roster').style.display = 'none';
+  document.getElementById('view-engagement').style.display = 'block';
+  window.scrollTo(0, 0);
+  renderEngagementGrid();
+}
+function closeEngagementView() {
+  document.getElementById('view-engagement').style.display = 'none';
+  document.getElementById('view-roster').style.display = 'block';
+}
+function focusElementLabel(key) {
+  for (var i = 0; i < AGILITY_FOCUS_ELEMENTS.length; i++) {
+    if (AGILITY_FOCUS_ELEMENTS[i].key === key) return AGILITY_FOCUS_ELEMENTS[i].label;
+  }
+  return key;
+}
+function renderEngagementGrid() {
+  var table = document.getElementById('engagement-grid');
+  table.innerHTML = '<tr><td class="name-col">Loading…</td></tr>';
+  fetchEngagement().then(function(j) {
+    if (j && j.error) { table.innerHTML = '<tr><td class="name-col">Error: ' + j.error + '</td></tr>'; return; }
+    var data = (j && j.students) || {};
+    var head = '<tr><th class="name-col">Student</th>';
+    for (var i = 1; i <= 9; i++) head += '<th>L' + i + '</th>';
+    head += '</tr>';
+    var rows = [head];
+    STUDENTS.forEach(function(name) {
+      var row = '<tr><td class="name-col">' + name + '</td>';
+      var rec = data[name] || {};
+      for (var i = 1; i <= 9; i++) {
+        var lesson = rec['L' + i];
+        var focus = lesson && lesson.agility_focus ? String(lesson.agility_focus) : '';
+        if (focus) {
+          row += '<td class="engagement-cell has-data" title="' + focusElementLabel(focus) + '">' +
+                 '<span class="engagement-dot on"></span></td>';
+        } else {
+          row += '<td class="engagement-cell"><span class="engagement-dot"></span></td>';
+        }
+      }
+      row += '</tr>';
+      rows.push(row);
+    });
+    table.innerHTML = rows.join('');
+  });
+}
+
 // Teacher PINs table — lists every student's PIN with a Reset button
 function refreshTeacherPins() {
   var table = document.getElementById('teacher-pins-table');
@@ -470,6 +555,8 @@ document.getElementById('student-pin-input').addEventListener('keydown', functio
 });
 document.getElementById('student-pin-cancel').addEventListener('click', closePinOverlay);
 document.getElementById('teacher-pins-refresh').addEventListener('click', refreshTeacherPins);
+document.getElementById('teacher-engagement-btn').addEventListener('click', openEngagementView);
+document.getElementById('engagement-back-btn').addEventListener('click', closeEngagementView);
 document.getElementById('back-btn').addEventListener('click', closeStudent);
 
 // Boot

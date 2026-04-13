@@ -402,6 +402,71 @@ body {
 }
 .teacher-pins-table button.pin-reset:hover { background: #fff4ea; }
 
+/* Agility focus card */
+.focus-body { padding: 16px; }
+.focus-prompt { font-size: 0.85rem; margin-bottom: 12px; color: #555; }
+.focus-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  margin-bottom: 14px;
+}
+@media (min-width: 520px) { .focus-grid { grid-template-columns: repeat(4, 1fr); } }
+.focus-btn {
+  padding: 10px 8px; background: #fff;
+  border: 1px solid #e0e0e0; border-radius: 10px;
+  font-size: 0.78rem; font-weight: 600;
+  color: #1a1a1a; cursor: pointer; text-align: center;
+  user-select: none; line-height: 1.25;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.focus-btn .focus-sub {
+  display: block; font-size: 0.65rem; font-weight: 400;
+  color: #888; margin-top: 3px;
+}
+.focus-btn:hover { background: #fafaf7; }
+.focus-btn.active {
+  background: #eef4ff; border-color: #2E86DE; color: #1a4a7a;
+  box-shadow: 0 2px 6px rgba(46,134,222,0.15);
+}
+.focus-btn.active .focus-sub { color: #4a7aaa; }
+.focus-btn.readonly { cursor: not-allowed; opacity: 0.85; }
+.focus-exec-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #888; margin-bottom: 6px;
+}
+
+/* Engagement view (teacher) */
+#view-engagement { display: none; min-height: 100vh; }
+.engagement-body { padding: 18px 20px; max-width: 1100px; margin: 0 auto; }
+.engagement-legend {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.78rem; color: #555; margin-bottom: 14px; flex-wrap: wrap;
+}
+.legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 2px; }
+.legend-dot.dot-on { background: #1D9E75; }
+.legend-dot.dot-off { background: #e8e8e8; border: 1px solid #d0d0d0; }
+.legend-hint { margin-left: auto; color: #888; font-style: italic; }
+.engagement-grid-wrap {
+  background: #fff; border: 1px solid #e8e8e8; border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 10px; overflow-x: auto;
+}
+.engagement-grid { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+.engagement-grid th, .engagement-grid td {
+  padding: 7px 10px; text-align: center; border-bottom: 1px solid #f2f2f2;
+}
+.engagement-grid th {
+  font-size: 10px; font-weight: 600; color: #888;
+  text-transform: uppercase; letter-spacing: 0.06em; background: #fafaf7;
+}
+.engagement-grid th.name-col, .engagement-grid td.name-col {
+  text-align: left; font-weight: 500; color: #1a1a1a;
+  white-space: nowrap; padding-left: 14px;
+}
+.engagement-dot {
+  display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+  background: #e8e8e8; border: 1px solid #d0d0d0;
+}
+.engagement-dot.on { background: #1D9E75; border-color: #1D9E75; }
+
 /* Roster current-lesson badge */
 .roster-lesson {
   display: inline-block; margin-top: 8px;

@@ -409,6 +409,71 @@ body {
 }
 .teacher-pins-table button.pin-reset:hover { background: #fff4ea; }
 
+/* Agility focus card */
+.focus-body { padding: 16px; }
+.focus-prompt { font-size: 0.85rem; margin-bottom: 12px; color: #555; }
+.focus-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  margin-bottom: 14px;
+}
+@media (min-width: 520px) { .focus-grid { grid-template-columns: repeat(4, 1fr); } }
+.focus-btn {
+  padding: 10px 8px; background: #fff;
+  border: 1px solid #e0e0e0; border-radius: 10px;
+  font-size: 0.78rem; font-weight: 600;
+  color: #1a1a1a; cursor: pointer; text-align: center;
+  user-select: none; line-height: 1.25;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.focus-btn .focus-sub {
+  display: block; font-size: 0.65rem; font-weight: 400;
+  color: #888; margin-top: 3px;
+}
+.focus-btn:hover { background: #fafaf7; }
+.focus-btn.active {
+  background: #eef4ff; border-color: #2E86DE; color: #1a4a7a;
+  box-shadow: 0 2px 6px rgba(46,134,222,0.15);
+}
+.focus-btn.active .focus-sub { color: #4a7aaa; }
+.focus-btn.readonly { cursor: not-allowed; opacity: 0.85; }
+.focus-exec-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #888; margin-bottom: 6px;
+}
+
+/* Engagement view (teacher) */
+#view-engagement { display: none; min-height: 100vh; }
+.engagement-body { padding: 18px 20px; max-width: 1100px; margin: 0 auto; }
+.engagement-legend {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.78rem; color: #555; margin-bottom: 14px; flex-wrap: wrap;
+}
+.legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 2px; }
+.legend-dot.dot-on { background: #1D9E75; }
+.legend-dot.dot-off { background: #e8e8e8; border: 1px solid #d0d0d0; }
+.legend-hint { margin-left: auto; color: #888; font-style: italic; }
+.engagement-grid-wrap {
+  background: #fff; border: 1px solid #e8e8e8; border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 10px; overflow-x: auto;
+}
+.engagement-grid { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+.engagement-grid th, .engagement-grid td {
+  padding: 7px 10px; text-align: center; border-bottom: 1px solid #f2f2f2;
+}
+.engagement-grid th {
+  font-size: 10px; font-weight: 600; color: #888;
+  text-transform: uppercase; letter-spacing: 0.06em; background: #fafaf7;
+}
+.engagement-grid th.name-col, .engagement-grid td.name-col {
+  text-align: left; font-weight: 500; color: #1a1a1a;
+  white-space: nowrap; padding-left: 14px;
+}
+.engagement-dot {
+  display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+  background: #e8e8e8; border: 1px solid #d0d0d0;
+}
+.engagement-dot.on { background: #1D9E75; border-color: #1D9E75; }
+
 /* Roster current-lesson badge */
 .roster-lesson {
   display: inline-block; margin-top: 8px;
@@ -501,7 +566,10 @@ var STUDENTS = ['Nicolas v M', 'Seppe M', 'Antonia G', 'Amaya W', 'Peter T', 'Si
   <div class="teacher-pins-panel" id="teacher-pins-panel">
     <div class="teacher-pins-header">
       <div class="teacher-lesson-setter-label">Student PINs</div>
-      <button class="teacher-pins-refresh" id="teacher-pins-refresh">Refresh</button>
+      <div>
+        <button class="teacher-pins-refresh" id="teacher-engagement-btn">Engagement grid &rsaquo;</button>
+        <button class="teacher-pins-refresh" id="teacher-pins-refresh">Refresh</button>
+      </div>
     </div>
     <div class="teacher-pins-hint">Tap <em>Reset</em> to clear a PIN — the student will be asked to create a new one next time they tap their card.</div>
     <table class="teacher-pins-table" id="teacher-pins-table"></table>
@@ -540,6 +608,27 @@ var STUDENTS = ['Nicolas v M', 'Seppe M', 'Antonia G', 'Amaya W', 'Peter T', 'Si
     <div class="pin-btns">
       <button class="pin-cancel" id="pin-cancel">Cancel</button>
       <button class="pin-ok" id="pin-ok">Enter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ENGAGEMENT VIEW (teacher) ════ -->
+<div id="view-engagement">
+  <div class="detail-header">
+    <button class="back-btn" id="engagement-back-btn">&larr; back</button>
+    <div class="info">
+      <div class="name">Agility Engagement &middot; 8A</div>
+      <div class="sub">Which lessons each student logged a focus</div>
+    </div>
+  </div>
+  <div class="engagement-body">
+    <div class="engagement-legend">
+      <span class="legend-dot dot-on"></span> logged focus
+      <span class="legend-dot dot-off"></span> no entry
+      <span class="legend-hint">Hover a dot to see the chosen element</span>
+    </div>
+    <div class="engagement-grid-wrap">
+      <table class="engagement-grid" id="engagement-grid"></table>
     </div>
   </div>
 </div>
@@ -670,6 +759,9 @@ function fetchAllPins() {
 }
 function resetPinRemote(student) {
   return api(null, { action: 'resetPin', 'class': CLASS_NAME, student: student, teacherPin: TEACHER_PIN });
+}
+function fetchEngagement() {
+  return api('action=getEngagement&class=' + encodeURIComponent(CLASS_NAME));
 }
 
 </script>
@@ -868,6 +960,7 @@ function renderDetail(name) {
   topGrid.appendChild(buildAgilityCard(name, d));
   topGrid.appendChild(buildEffortCard(name, d));
   body.appendChild(topGrid);
+  body.appendChild(buildFocusCard(name, d));
   body.appendChild(buildOverview(d));
   var skillGrid = el('div', 'section-grid');
   skillGrid.appendChild(buildSkillsCard(name, 'Badminton Skills', 'green', BADMINTON, d));
@@ -914,6 +1007,43 @@ function buildEffortCard(name, d) {
   prompt.textContent = 'How hard did you push yourself today?';
   body.appendChild(prompt);
   body.appendChild(buildSkillRow(name, EFFORT_SKILL, d, true));
+  card.appendChild(body);
+  return card;
+}
+
+// Agility focus (8 element buttons + execution power bar)
+function buildFocusCard(name, d) {
+  var card = el('div', 'section-card');
+  var h = el('div', 'section-header blue'); h.textContent = 'My Agility Focus Today';
+  card.appendChild(h);
+  var body = el('div', 'focus-body');
+  var prompt = el('div', 'focus-prompt');
+  prompt.textContent = 'Pick the one element you focused on this lesson';
+  body.appendChild(prompt);
+  var grid = el('div', 'focus-grid');
+  var editable = canEdit();
+  var selected = String(d.agility_focus || '');
+  AGILITY_FOCUS_ELEMENTS.forEach(function(e) {
+    var b = el('div', 'focus-btn');
+    if (!editable) b.classList.add('readonly');
+    if (selected === e.key) b.classList.add('active');
+    b.innerHTML = e.label + '<span class="focus-sub">' + e.sub + '</span>';
+    if (editable) b.addEventListener('click', function() {
+      var next = (selected === e.key) ? '' : e.key;
+      d.agility_focus = next;
+      if (viewedLesson === currentLesson && studentData[name]) studentData[name].agility_focus = next;
+      Array.prototype.forEach.call(grid.children, function(c) { c.classList.remove('active'); });
+      if (next) b.classList.add('active');
+      selected = next;
+      saveField(name, 'agility_focus', next, false);
+    });
+    grid.appendChild(b);
+  });
+  body.appendChild(grid);
+  var execLabel = el('div', 'focus-exec-label');
+  execLabel.textContent = 'How well did I execute it today?';
+  body.appendChild(execLabel);
+  body.appendChild(buildSkillRow(name, { key: 'agility_execution', label: 'Execution' }, d, true));
   card.appendChild(body);
   return card;
 }
@@ -1074,6 +1204,53 @@ function renderTeacherLessonSetter() {
   })(i);
 }
 
+// Engagement grid — students × L1..L9, dot if that lesson has an agility_focus
+function openEngagementView() {
+  document.getElementById('view-roster').style.display = 'none';
+  document.getElementById('view-engagement').style.display = 'block';
+  window.scrollTo(0, 0);
+  renderEngagementGrid();
+}
+function closeEngagementView() {
+  document.getElementById('view-engagement').style.display = 'none';
+  document.getElementById('view-roster').style.display = 'block';
+}
+function focusElementLabel(key) {
+  for (var i = 0; i < AGILITY_FOCUS_ELEMENTS.length; i++) {
+    if (AGILITY_FOCUS_ELEMENTS[i].key === key) return AGILITY_FOCUS_ELEMENTS[i].label;
+  }
+  return key;
+}
+function renderEngagementGrid() {
+  var table = document.getElementById('engagement-grid');
+  table.innerHTML = '<tr><td class="name-col">Loading…</td></tr>';
+  fetchEngagement().then(function(j) {
+    if (j && j.error) { table.innerHTML = '<tr><td class="name-col">Error: ' + j.error + '</td></tr>'; return; }
+    var data = (j && j.students) || {};
+    var head = '<tr><th class="name-col">Student</th>';
+    for (var i = 1; i <= 9; i++) head += '<th>L' + i + '</th>';
+    head += '</tr>';
+    var rows = [head];
+    STUDENTS.forEach(function(name) {
+      var row = '<tr><td class="name-col">' + name + '</td>';
+      var rec = data[name] || {};
+      for (var i = 1; i <= 9; i++) {
+        var lesson = rec['L' + i];
+        var focus = lesson && lesson.agility_focus ? String(lesson.agility_focus) : '';
+        if (focus) {
+          row += '<td class="engagement-cell has-data" title="' + focusElementLabel(focus) + '">' +
+                 '<span class="engagement-dot on"></span></td>';
+        } else {
+          row += '<td class="engagement-cell"><span class="engagement-dot"></span></td>';
+        }
+      }
+      row += '</tr>';
+      rows.push(row);
+    });
+    table.innerHTML = rows.join('');
+  });
+}
+
 // Teacher PINs table — lists every student's PIN with a Reset button
 function refreshTeacherPins() {
   var table = document.getElementById('teacher-pins-table');
@@ -1146,6 +1323,8 @@ document.getElementById('student-pin-input').addEventListener('keydown', functio
 });
 document.getElementById('student-pin-cancel').addEventListener('click', closePinOverlay);
 document.getElementById('teacher-pins-refresh').addEventListener('click', refreshTeacherPins);
+document.getElementById('teacher-engagement-btn').addEventListener('click', openEngagementView);
+document.getElementById('engagement-back-btn').addEventListener('click', closeEngagementView);
 document.getElementById('back-btn').addEventListener('click', closeStudent);
 
 // Boot
