@@ -356,14 +356,91 @@ body {
 .pin-cancel { background: #e8e8e8; color: #1a1a1a; }
 .pin-error { color: #e74c3c; font-size: 0.8rem; margin-top: 10px; min-height: 1.1em; }
 
+/* Initials overlay (student gate) — reuses .pin-overlay / .pin-box */
+#initials-input {
+  width: 180px; padding: 10px; text-align: center;
+  font-size: 1.4rem; letter-spacing: 6px;
+  border: 2px solid #e0e0e0; border-radius: 8px;
+  background: #fff; color: #1a1a1a;
+  text-transform: uppercase; font-weight: 700;
+}
+.initials-hint {
+  font-size: 0.8rem; color: #666; margin: -6px 0 12px;
+}
+.initials-hint strong { color: #1a4a7a; }
+
+/* Roster current-lesson badge */
+.roster-lesson {
+  display: inline-block; margin-top: 8px;
+  font-size: 0.75rem; color: #6b8aaa;
+  background: #e8f4ff; border: 1px solid #c0d8f0;
+  border-radius: 999px; padding: 3px 10px;
+}
+.roster-lesson strong { color: #1a4a7a; font-weight: 700; margin-left: 2px; }
+
+/* Teacher: set-current-lesson strip in roster (shown in teacher mode) */
+.teacher-lesson-setter {
+  display: none;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.teacher-lesson-setter.active { display: block; }
+.teacher-lesson-setter-label {
+  font-size: 10px; font-weight: 600; color: #888;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+/* Lesson pills (used in both detail view and teacher roster setter) */
+.lesson-pills-wrap {
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 10px 20px 12px;
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;
+  max-width: 1100px; margin: 0 auto;
+}
+.lesson-pills-label {
+  font-size: 10px; font-weight: 600; color: #888;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.lesson-pills {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.lesson-pill {
+  padding: 5px 11px;
+  font-size: 0.78rem; font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid #e0e0e0;
+  background: #fff; color: #888;
+  cursor: pointer; user-select: none;
+  min-width: 32px; text-align: center;
+}
+.lesson-pill:hover { background: #f8f6f2; }
+.lesson-pill.current { border-color: #2E86DE; color: #2E86DE; background: #e8f4ff; }
+.lesson-pill.active { background: #1a4a7a; border-color: #1a4a7a; color: #fff; }
+.lesson-pill.active.current { background: #2E86DE; border-color: #2E86DE; color: #fff; }
+.lesson-pill.saving { opacity: 0.6; cursor: wait; }
+.lesson-pills-note {
+  font-size: 0.72rem; color: #888; font-style: italic;
+  margin-left: auto;
+}
+.lesson-pills-note.readonly { color: #e67e22; font-style: normal; font-weight: 600; }
+
 </style>
 </head>
+
 <body>
 <script>
 var CLASS_NAME = '7A';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFhJyvCrF6ThHNMs7bLedfAnMkC79PUKvRyqvLu2cUUaEJzru3OUkZifaE1YfDrw56Iw/exec';
 var TEACHER_PIN = '1770';
 var STUDENTS = ['Freya R', 'Flavio C', 'Karim Y A G', 'Soomin O', 'Chaeyi L', 'Michelle S', 'Woojun J', 'Kian W', 'Nico S', 'Louis H', 'Ella B', 'Lena L', 'Austin W', 'Jihoo P', 'Ari R', 'Yilei L', 'Joon S', 'Rubin L'];
+var STUDENT_INITIALS = {"Freya R": "FR", "Flavio C": "FC", "Karim Y A G": "KG", "Soomin O": "SO", "Chaeyi L": "CL", "Michelle S": "MS", "Woojun J": "WJ", "Kian W": "KW", "Nico S": "NS", "Louis H": "LH", "Ella B": "EB", "Lena L": "LL", "Austin W": "AW", "Jihoo P": "JP", "Ari R": "AR", "Yilei L": "YL", "Joon S": "JS", "Rubin L": "RL"};
 </script>
 <div id="loading"><div class="spinner"></div> Loading...</div>
 <div class="error-banner" id="error-banner"></div>
@@ -374,8 +451,13 @@ var STUDENTS = ['Freya R', 'Flavio C', 'Karim Y A G', 'Soomin O', 'Chaeyi L', 'M
     <div>
       <h1>Net Games &middot; Class 7A</h1>
       <div class="subtitle">Find your name and tap to update your skills</div>
+      <div class="roster-lesson">Current lesson: <strong id="roster-lesson-num">L1</strong></div>
     </div>
     <button class="teacher-btn" id="teacher-btn">Teacher &rsaquo;</button>
+  </div>
+  <div class="teacher-lesson-setter" id="teacher-lesson-setter">
+    <div class="teacher-lesson-setter-label">Set current lesson for 7A</div>
+    <div class="lesson-pills" id="teacher-lesson-pills"></div>
   </div>
   <div class="student-grid" id="student-grid"></div>
 </div>
@@ -394,10 +476,15 @@ var STUDENTS = ['Freya R', 'Flavio C', 'Karim Y A G', 'Soomin O', 'Chaeyi L', 'M
       <span class="text">auto-saving</span>
     </div>
   </div>
+  <div class="lesson-pills-wrap">
+    <div class="lesson-pills-label">Lesson</div>
+    <div class="lesson-pills" id="detail-lesson-pills"></div>
+    <div class="lesson-pills-note" id="lesson-pills-note"></div>
+  </div>
   <div class="detail-body" id="detail-body"></div>
 </div>
 
-<!-- ════ PIN OVERLAY ════ -->
+<!-- ════ PIN OVERLAY (teacher) ════ -->
 <div class="pin-overlay" id="pin-overlay">
   <div class="pin-box">
     <h3>Enter Teacher PIN</h3>
@@ -410,492 +497,524 @@ var STUDENTS = ['Freya R', 'Flavio C', 'Karim Y A G', 'Soomin O', 'Chaeyi L', 'M
   </div>
 </div>
 
+<!-- ════ INITIALS OVERLAY (student gate) ════ -->
+<div class="pin-overlay" id="initials-overlay">
+  <div class="pin-box">
+    <h3 id="initials-title">Type your initials</h3>
+    <div class="initials-hint" id="initials-hint"></div>
+    <input type="text" id="initials-input" maxlength="6" autocapitalize="characters" autocomplete="off">
+    <div class="pin-error" id="initials-error"></div>
+    <div class="pin-btns">
+      <button class="pin-cancel" id="initials-cancel">Cancel</button>
+      <button class="pin-ok" id="initials-ok">Enter</button>
+    </div>
+  </div>
+</div>
+
 <script>
-(function() {
-  // ── Config (per-class values injected at build) ──
-  // CLASS_NAME, APPS_SCRIPT_URL, TEACHER_PIN, STUDENTS set above
+// ── Constants & static data for Net Games ──
+// CLASS_NAME, APPS_SCRIPT_URL, TEACHER_PIN, STUDENTS, STUDENT_INITIALS
+// are injected by build.py just before these files are concatenated.
 
-  // ── Avatar palette (8 colors, cycle by index) ──
-  var PALETTE = [
-    { bg: '#d4f0e4', fg: '#0a5c35' },
-    { bg: '#e8e4ff', fg: '#4a3a9a' },
-    { bg: '#ddeeff', fg: '#1a4a7a' },
-    { bg: '#ffe4d4', fg: '#7a2a0a' },
-    { bg: '#fff0d4', fg: '#7a5a0a' },
-    { bg: '#fde4ee', fg: '#8a2a5a' },
-    { bg: '#d4eeff', fg: '#0a4a7a' },
-    { bg: '#e4ffd4', fg: '#2a6a0a' }
-  ];
-  function avatarColor(i) { return PALETTE[i % PALETTE.length]; }
-  function initials(name) {
-    var parts = name.split(' ');
-    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
-  }
+// Avatar palette (8 colors, cycle by index)
+var PALETTE = [
+  { bg: '#d4f0e4', fg: '#0a5c35' },
+  { bg: '#e8e4ff', fg: '#4a3a9a' },
+  { bg: '#ddeeff', fg: '#1a4a7a' },
+  { bg: '#ffe4d4', fg: '#7a2a0a' },
+  { bg: '#fff0d4', fg: '#7a5a0a' },
+  { bg: '#fde4ee', fg: '#8a2a5a' },
+  { bg: '#d4eeff', fg: '#0a4a7a' },
+  { bg: '#e4ffd4', fg: '#2a6a0a' }
+];
 
-  // ── Level labels + colors ──
-  var LEVEL_LABELS = ['tap to rate', 'getting there', 'developing', 'consistent', 'nailed it \u2605'];
-  var LEVEL_COLORS = ['#ccc', '#F0A500', '#1D9E75', '#2E86DE', '#6C3FC5'];
+// Rating levels (0–4) shared across skill bars and agility execution
+var LEVEL_LABELS = ['tap to rate', 'getting there', 'developing', 'consistent', 'nailed it \u2605'];
+var LEVEL_COLORS = ['#ccc', '#F0A500', '#1D9E75', '#2E86DE', '#6C3FC5'];
 
-  // ── Skill definitions ──
-  var BADMINTON = [
-    { key: 'bserve', label: 'Serve accuracy' },
-    { key: 'bshot',  label: 'Shot choice', tags: ['clear','drop','smash','net shot'] },
-    { key: 'bfoot',  label: 'Footwork & movement' },
-    { key: 'btac',   label: 'Tactical play' }
-  ];
-  var VOLLEYBALL = [
-    { key: 'vserve', label: 'Serve accuracy' },
-    { key: 'vskill', label: 'Skill focus', tags: ['pass','serve','set','hit'] },
-    { key: 'vpos',   label: 'Positioning & awareness' },
-    { key: 'comm',   label: 'Communication & teamwork' }
-  ];
-  var EFFORT_SKILL = { key: 'effort', label: 'Effort & focus' };
+// Skill definitions
+var BADMINTON = [
+  { key: 'bserve', label: 'Serve accuracy' },
+  { key: 'bshot',  label: 'Shot choice', tags: ['clear','drop','smash','net shot'] },
+  { key: 'bfoot',  label: 'Footwork & movement' },
+  { key: 'btac',   label: 'Tactical play' }
+];
+var VOLLEYBALL = [
+  { key: 'vserve', label: 'Serve accuracy' },
+  { key: 'vskill', label: 'Skill focus', tags: ['pass','serve','set','hit'] },
+  { key: 'vpos',   label: 'Positioning & awareness' },
+  { key: 'comm',   label: 'Communication & teamwork' }
+];
+var EFFORT_SKILL = { key: 'effort', label: 'Effort & focus' };
 
-  // ── State ──
-  var currentLesson = 1;
-  var studentData = {};   // keyed by student name: { bserve, ..., ag_baseline, ag_retest }
-  var currentStudent = null;
-  var currentIdx = null;
-  var teacherMode = false;
-  var savesInFlight = 0;
-  var saveTextTimeout = null;
+// Agility focus elements (8 tap-buttons in the "My agility focus today" card)
+var AGILITY_FOCUS_ELEMENTS = [
+  { key: 'explosive_start', label: 'Explosive start', sub: 'First step' },
+  { key: 'sharp_turns',     label: 'Sharp turns',     sub: 'Change of direction' },
+  { key: 'quick_stop',      label: 'Quick stop',      sub: 'Deceleration' },
+  { key: 'top_speed',       label: 'Top speed',       sub: 'Acceleration' },
+  { key: 'curves',          label: 'Curves',          sub: 'Bend running' },
+  { key: 'sideways',        label: 'Sideways',        sub: 'Shuffle step' },
+  { key: 'go_again',        label: 'Go again',        sub: 'Stop-start ability' },
+  { key: 'react',           label: 'React',           sub: 'Reaction time' }
+];
 
-  // Seed blank rating state for every student (lesson data filled when card opens).
-  STUDENTS.forEach(function(name) {
-    studentData[name] = blankRatings();
+</script>
+<script>
+// State + Apps Script data layer. UI helpers come from script-ui.js.
+var savesInFlight = 0;
+var saveTextTimeout = null;
+var studentData = {};     // current-lesson snapshot per student
+var studentHistory = {};  // lazy full-lesson history per student
+var currentLesson = 1;
+var viewedLesson = 1;
+
+function api(path, payload) {
+  var opts = payload
+    ? { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }
+    : undefined;
+  return fetch(APPS_SCRIPT_URL + (payload ? '' : '?' + path), opts)
+    .then(function(r) { return r.json(); });
+}
+function fetchAllCurrent() {
+  return api('action=getAllCurrent&class=' + encodeURIComponent(CLASS_NAME)).then(function(j) {
+    if (j.error) throw new Error(j.error);
+    currentLesson = parseInt(j.currentLesson, 10) || 1;
+    viewedLesson = currentLesson;
+    if (j.students) for (var n in j.students) studentData[n] = j.students[n];
+  }).catch(function(err) { console.error(err); showError('Could not load data.'); });
+}
+function fetchStudentHistory(name) {
+  return api('action=getStudent&class=' + encodeURIComponent(CLASS_NAME) +
+             '&student=' + encodeURIComponent(name)).then(function(j) {
+    if (j.error) throw new Error(j.error);
+    var h = {};
+    (j.lessons || []).forEach(function(row) { h['L' + row.Lesson] = row; });
+    studentHistory[name] = h;
+    return h;
   });
+}
+function saveField(student, field, value, isAgility) {
+  savesInFlight++; updateAutosave();
+  var p = isAgility
+    ? { action: 'saveAgility', 'class': CLASS_NAME, student: student, field: field, value: value }
+    : { action: 'saveLesson', 'class': CLASS_NAME, student: student, lesson: viewedLesson, field: field, value: value };
+  return api(null, p).then(function(j) {
+    savesInFlight--; updateAutosave();
+    if (j.error) throw new Error(j.error);
+  }).catch(function(err) {
+    savesInFlight--; updateAutosave();
+    console.error(err); showError('Save failed — tap again to retry.');
+  });
+}
+function setLessonRemote(lesson) {
+  return api(null, { action: 'setLesson', 'class': CLASS_NAME, lesson: lesson, pin: TEACHER_PIN });
+}
 
-  function blankRatings() {
-    var d = { ag_baseline: '', ag_retest: '' };
-    BADMINTON.concat(VOLLEYBALL).forEach(function(s) { d[s.key] = 0; });
-    d.effort = 0;
-    d.agility_focus = '';
-    d.agility_execution = 0;
-    return d;
-  }
+</script>
+<script>
+// Render functions + DOM event handlers (chunk 1: helpers + roster).
+var currentStudent = null;
+var currentIdx = null;
+var teacherMode = false;
 
-  // ── DOM helpers ──
-  function el(tag, cls) {
-    var e = document.createElement(tag);
-    if (cls) e.className = cls;
-    return e;
+function el(tag, cls) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  return e;
+}
+function showError(msg) {
+  var e = document.getElementById('error-banner');
+  e.textContent = msg; e.style.display = 'block';
+  setTimeout(function() { e.style.display = 'none'; }, 4000);
+}
+function avatarColor(i) { return PALETTE[i % PALETTE.length]; }
+function initialsOf(name) {
+  var p = name.split(' ');
+  return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
+}
+function updateAutosave() {
+  var w = document.getElementById('autosave');
+  if (!w) return;
+  var t = w.querySelector('.text');
+  if (savesInFlight > 0) {
+    w.classList.add('active', 'pulse'); t.textContent = 'saved';
+  } else {
+    clearTimeout(saveTextTimeout);
+    saveTextTimeout = setTimeout(function() {
+      w.classList.remove('active', 'pulse'); t.textContent = 'auto-saving';
+    }, 1400);
   }
-  function showError(msg) {
-    var e = document.getElementById('error-banner');
-    e.textContent = msg; e.style.display = 'block';
-    setTimeout(function() { e.style.display = 'none'; }, 4000);
-  }
+}
+function updateRosterLessonBadge() {
+  var n = document.getElementById('roster-lesson-num');
+  if (n) n.textContent = 'L' + currentLesson;
+}
+function renderRoster() {
+  var grid = document.getElementById('student-grid');
+  grid.innerHTML = '';
+  STUDENTS.forEach(function(name, i) {
+    var c = avatarColor(i);
+    var card = el('div', 'roster-card');
+    card.innerHTML = '<div class="avatar" style="background:' + c.bg + ';color:' + c.fg +
+      '">' + initialsOf(name) + '</div><span class="name">' + name +
+      '</span><span class="dash">&rsaquo;</span>';
+    card.addEventListener('click', function() { tapStudentCard(name, i); });
+    grid.appendChild(card);
+  });
+}
 
-  // ── Autosave indicator ──
-  function updateAutosave() {
-    var wrap = document.getElementById('autosave');
-    if (!wrap) return;
-    var txt = wrap.querySelector('.text');
-    if (savesInFlight > 0) {
-      wrap.classList.add('active', 'pulse');
-      txt.textContent = 'saved';
-    } else {
-      clearTimeout(saveTextTimeout);
-      saveTextTimeout = setTimeout(function() {
-        wrap.classList.remove('active', 'pulse');
-        txt.textContent = 'auto-saving';
-      }, 1400);
+// Chunk 2: initials gate + open/close student
+function tapStudentCard(name, idx) {
+  if (teacherMode) { openStudent(name, idx); return; }
+  promptInitials(name, idx);
+}
+function promptInitials(name, idx) {
+  var ov = document.getElementById('initials-overlay');
+  document.getElementById('initials-title').textContent = 'Confirm: ' + name;
+  document.getElementById('initials-hint').innerHTML =
+    'Type the initials for <strong>' + name + '</strong>';
+  document.getElementById('initials-error').textContent = '';
+  var inp = document.getElementById('initials-input');
+  inp.value = '';
+  inp.dataset.target = name;
+  inp.dataset.idx = idx;
+  ov.classList.add('active');
+  setTimeout(function() { inp.focus(); }, 50);
+}
+function checkInitials() {
+  var inp = document.getElementById('initials-input');
+  var name = inp.dataset.target;
+  var idx = parseInt(inp.dataset.idx, 10);
+  var expect = (STUDENT_INITIALS[name] || '').toUpperCase();
+  var got = (inp.value || '').trim().toUpperCase();
+  if (got && got === expect) {
+    document.getElementById('initials-overlay').classList.remove('active');
+    openStudent(name, idx);
+  } else {
+    document.getElementById('initials-error').textContent = 'Try again';
+  }
+}
+function openStudent(name, idx) {
+  currentStudent = name; currentIdx = idx;
+  viewedLesson = currentLesson;
+  var c = avatarColor(idx);
+  var av = document.getElementById('detail-avatar');
+  av.style.background = c.bg; av.style.color = c.fg;
+  av.textContent = initialsOf(name);
+  document.getElementById('detail-name').textContent = name;
+  renderLessonPills();
+  renderDetail(name);
+  document.getElementById('view-roster').style.display = 'none';
+  document.getElementById('view-detail').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+function closeStudent() {
+  document.getElementById('view-detail').style.display = 'none';
+  document.getElementById('view-roster').style.display = 'block';
+  currentStudent = null; currentIdx = null;
+}
+
+// Chunk 3: lesson pills + detail entry + viewed-ratings selector
+function canEdit() { return teacherMode || viewedLesson === currentLesson; }
+function renderLessonPills() {
+  var box = document.getElementById('detail-lesson-pills');
+  box.innerHTML = '';
+  for (var i = 1; i <= 9; i++) (function(n) {
+    var pill = el('span', 'lesson-pill');
+    pill.textContent = 'L' + n;
+    if (n === currentLesson) pill.classList.add('current');
+    if (n === viewedLesson) pill.classList.add('active');
+    pill.addEventListener('click', function() { switchLesson(n); });
+    box.appendChild(pill);
+  })(i);
+  var note = document.getElementById('lesson-pills-note');
+  note.className = 'lesson-pills-note';
+  if (viewedLesson !== currentLesson && !teacherMode) {
+    note.textContent = 'Read-only — past lesson'; note.classList.add('readonly');
+  } else if (viewedLesson !== currentLesson) {
+    note.textContent = 'Editing past lesson';
+  } else { note.textContent = ''; }
+}
+function switchLesson(n) {
+  if (!currentStudent || n === viewedLesson) return;
+  viewedLesson = n;
+  var name = currentStudent;
+  if (n === currentLesson) { renderLessonPills(); renderDetail(name); return; }
+  if (studentHistory[name] && studentHistory[name]['L' + n] !== undefined) {
+    renderLessonPills(); renderDetail(name); return;
+  }
+  fetchStudentHistory(name).then(function() {
+    if (currentStudent === name && viewedLesson === n) {
+      renderLessonPills(); renderDetail(name);
     }
+  });
+}
+function getViewed(name) {
+  var cur = studentData[name] || {};
+  var base = { ag_baseline: cur.ag_baseline || '', ag_retest: cur.ag_retest || '' };
+  if (viewedLesson === currentLesson) { for (var k in cur) base[k] = cur[k]; return base; }
+  var rec = studentHistory[name] && studentHistory[name]['L' + viewedLesson];
+  if (rec) for (var k2 in rec) {
+    if (k2 !== 'Student' && k2 !== 'Lesson' && k2 !== 'timestamp') base[k2] = rec[k2];
   }
+  return base;
+}
+function renderDetail(name) {
+  var d = getViewed(name);
+  var body = document.getElementById('detail-body');
+  body.innerHTML = '';
+  var topGrid = el('div', 'section-grid');
+  topGrid.appendChild(buildAgilityCard(name, d));
+  topGrid.appendChild(buildEffortCard(name, d));
+  body.appendChild(topGrid);
+  body.appendChild(buildOverview(d));
+  var skillGrid = el('div', 'section-grid');
+  skillGrid.appendChild(buildSkillsCard(name, 'Badminton Skills', 'green', BADMINTON, d));
+  skillGrid.appendChild(buildSkillsCard(name, 'Volleyball Skills', 'coral', VOLLEYBALL, d));
+  body.appendChild(skillGrid);
+}
 
-  // ── One-shot: load every student's current-lesson data + agility times ──
-  function fetchAllCurrent() {
-    return fetch(APPS_SCRIPT_URL + '?action=getAllCurrent&class=' + encodeURIComponent(CLASS_NAME))
-      .then(function(r) { return r.json(); })
-      .then(function(json) {
-        if (json.error) throw new Error(json.error);
-        currentLesson = parseInt(json.currentLesson, 10) || 1;
-        if (json.students) {
-          for (var name in json.students) {
-            var ratings = blankRatings();
-            var src = json.students[name];
-            for (var k in src) { if (src[k] !== undefined) ratings[k] = src[k]; }
-            studentData[name] = ratings;
+// Chunk 4: agility test card + effort card
+function buildAgilityCard(name, d) {
+  var card = el('div', 'section-card');
+  var h = el('div', 'section-header blue');
+  h.textContent = 'Illinois Agility Test \u00b7 Teacher Recorded';
+  card.appendChild(h);
+  var body = el('div', 'agility-body');
+  var grid = el('div', 'agility-grid');
+  grid.appendChild(buildAgilityBox('Baseline', d.ag_baseline, 'ag_baseline', name));
+  grid.appendChild(buildAgilityBox('Re-test', d.ag_retest, 'ag_retest', name));
+  body.appendChild(grid);
+  var b = parseFloat(d.ag_baseline), r = parseFloat(d.ag_retest);
+  if (!isNaN(b) && !isNaN(r)) {
+    var diff = el('div', 'agility-diff'); var delta = r - b;
+    if (delta < 0) {
+      diff.classList.add('improved');
+      diff.innerHTML = 'Improved by <strong>' + Math.abs(delta).toFixed(2) + 's</strong>';
+    } else if (delta > 0) {
+      diff.innerHTML = 'Slower by <strong>' + delta.toFixed(2) + 's</strong>';
+    } else { diff.innerHTML = '<strong>No change</strong>'; }
+    body.appendChild(diff);
+  }
+  if (!teacherMode) {
+    var note = el('div', 'agility-note');
+    note.textContent = 'Times will be added by your teacher';
+    body.appendChild(note);
+  }
+  card.appendChild(body);
+  return card;
+}
+function buildEffortCard(name, d) {
+  var card = el('div', 'section-card');
+  var h = el('div', 'section-header purple'); h.textContent = 'Effort & Focus';
+  card.appendChild(h);
+  var body = el('div', 'effort-body');
+  var prompt = el('div', 'effort-prompt');
+  prompt.textContent = 'How hard did you push yourself today?';
+  body.appendChild(prompt);
+  body.appendChild(buildSkillRow(name, EFFORT_SKILL, d, true));
+  card.appendChild(body);
+  return card;
+}
+
+// Chunk 5: agility input box + skill progress overview
+function buildAgilityBox(label, value, field, student) {
+  var box = el('div', 'agility-box');
+  var lbl = el('div', 'label'); lbl.textContent = label; box.appendChild(lbl);
+  var has = (value !== '' && value !== undefined && value !== null && value !== 0);
+  if (teacherMode) {
+    var v = el('div', 'value');
+    var inp = document.createElement('input');
+    inp.type = 'number'; inp.step = '0.01'; inp.min = '0';
+    inp.className = 'agility-input';
+    inp.value = has ? value : ''; inp.placeholder = '\u2014';
+    v.appendChild(inp); box.appendChild(v);
+    var u = el('div', 'unit'); u.textContent = 'seconds'; box.appendChild(u);
+    var btn = document.createElement('button');
+    btn.className = 'agility-save-btn'; btn.textContent = 'Save';
+    btn.addEventListener('click', function() {
+      var val = parseFloat(inp.value);
+      if (isNaN(val)) return;
+      btn.disabled = true; btn.textContent = 'Saving\u2026';
+      if (studentData[student]) studentData[student][field] = val;
+      saveField(student, field, val, true).then(function() {
+        btn.textContent = 'Saved!';
+        setTimeout(function() {
+          btn.disabled = false; btn.textContent = 'Save';
+          if (currentStudent === student) renderDetail(student);
+        }, 1000);
+      });
+    });
+    box.appendChild(btn);
+  } else {
+    var v2 = el('div', 'value' + (has ? '' : ' empty'));
+    v2.textContent = has ? value : '\u2014'; box.appendChild(v2);
+    var u2 = el('div', 'unit'); u2.textContent = 'seconds'; box.appendChild(u2);
+  }
+  return box;
+}
+function buildOverview(d) {
+  var card = el('div', 'overview-card');
+  var t = el('div', 'overview-title'); t.textContent = 'Skill Progress Overview';
+  card.appendChild(t);
+  var cols = el('div', 'overview-cols');
+  cols.appendChild(overviewColumn('Badminton', 'green', BADMINTON, d));
+  cols.appendChild(overviewColumn('Volleyball', 'coral', VOLLEYBALL, d));
+  card.appendChild(cols);
+  return card;
+}
+function overviewColumn(title, color, skills, data) {
+  var col = el('div', 'overview-col');
+  var b = el('span', 'overview-badge ' + color); b.textContent = title; col.appendChild(b);
+  skills.forEach(function(s) {
+    var row = el('div', 'overview-row'), val = parseInt(data[s.key]) || 0;
+    var lbl = el('div', 'overview-label'); lbl.textContent = s.label; row.appendChild(lbl);
+    var track = el('div', 'overview-bar-track'), fill = el('div', 'overview-bar-fill');
+    if (val > 0) fill.classList.add('level-' + val);
+    fill.style.width = (val * 25) + '%';
+    track.appendChild(fill); row.appendChild(track); col.appendChild(row);
+  });
+  return col;
+}
+
+// Chunk 6: skill cards + skill row (clickable rating bar)
+function buildSkillsCard(name, title, color, skills, d) {
+  var card = el('div', 'section-card');
+  var h = el('div', 'section-header ' + color); h.textContent = title;
+  card.appendChild(h);
+  var list = el('div', 'skill-list');
+  skills.forEach(function(s) { list.appendChild(buildSkillRow(name, s, d, false)); });
+  card.appendChild(list);
+  return card;
+}
+function buildSkillRow(student, skill, d, inline) {
+  var item = el('div', 'skill-item');
+  var top = el('div', 'skill-top');
+  var nameEl = el('span', 'skill-name'); nameEl.textContent = skill.label; top.appendChild(nameEl);
+  var tap = el('span', 'skill-tap');
+  var cur = parseInt(d[skill.key]) || 0;
+  tap.textContent = LEVEL_LABELS[cur];
+  if (cur > 0) { tap.classList.add('rated'); tap.style.color = LEVEL_COLORS[cur]; }
+  top.appendChild(tap); item.appendChild(top);
+  if (skill.tags) {
+    var td = el('div', 'skill-tags');
+    skill.tags.forEach(function(t) { var x = el('span', 'skill-tag'); x.textContent = t; td.appendChild(x); });
+    item.appendChild(td);
+  }
+  var bar = el('div', 'rating-bar'), fill = el('div', 'rating-fill');
+  if (cur > 0) fill.classList.add('level-' + cur);
+  bar.appendChild(fill);
+  var divs = el('div', 'rating-dividers');
+  for (var k = 0; k < 4; k++) divs.appendChild(document.createElement('span'));
+  bar.appendChild(divs);
+  var label = el('div', 'rating-label');
+  if (cur === 0) { label.classList.add('level-0'); label.textContent = 'tap to rate'; }
+  else { label.classList.add('rated'); label.textContent = LEVEL_LABELS[cur]; }
+  bar.appendChild(label);
+  if (!canEdit()) { bar.style.cursor = 'not-allowed'; bar.style.opacity = '0.85'; item.appendChild(bar); return item; }
+  bar.addEventListener('click', function(e) {
+    var rect = bar.getBoundingClientRect(), x = e.clientX - rect.left, pct = x / rect.width;
+    var clicked = Math.max(1, Math.min(4, Math.ceil(pct * 4)));
+    var old = parseInt(d[skill.key]) || 0;
+    var nv = (old === clicked) ? clicked - 1 : clicked;
+    d[skill.key] = nv;
+    if (viewedLesson === currentLesson && studentData[student]) studentData[student][skill.key] = nv;
+    fill.className = 'rating-fill'; if (nv > 0) fill.classList.add('level-' + nv);
+    label.className = 'rating-label';
+    if (nv === 0) { label.classList.add('level-0'); label.textContent = 'tap to rate'; }
+    else { label.classList.add('rated'); label.textContent = LEVEL_LABELS[nv]; }
+    tap.className = 'skill-tap'; tap.textContent = LEVEL_LABELS[nv];
+    if (nv > 0) { tap.classList.add('rated'); tap.style.color = LEVEL_COLORS[nv]; } else { tap.style.color = ''; }
+    updateOverviewBars(d);
+    saveField(student, skill.key, nv, false);
+  });
+  item.appendChild(bar);
+  return item;
+}
+
+// Chunk 7: overview bar live update + teacher lesson setter pills
+function updateOverviewBars(d) {
+  var all = BADMINTON.concat(VOLLEYBALL);
+  var fills = document.querySelectorAll('.overview-bar-fill');
+  fills.forEach(function(fill, idx) {
+    if (idx < all.length) {
+      var v = parseInt(d[all[idx].key]) || 0;
+      fill.className = 'overview-bar-fill';
+      if (v > 0) fill.classList.add('level-' + v);
+      fill.style.width = (v * 25) + '%';
+    }
+  });
+}
+function renderTeacherLessonSetter() {
+  var box = document.getElementById('teacher-lesson-pills');
+  if (!box) return;
+  box.innerHTML = '';
+  for (var i = 1; i <= 9; i++) (function(n) {
+    var p = el('span', 'lesson-pill');
+    p.textContent = 'L' + n;
+    if (n === currentLesson) p.classList.add('current', 'active');
+    p.addEventListener('click', function() {
+      if (p.classList.contains('saving')) return;
+      p.classList.add('saving');
+      setLessonRemote(n).then(function(j) {
+        p.classList.remove('saving');
+        if (j && !j.error) {
+          currentLesson = n;
+          if (!currentStudent) viewedLesson = n;
+          updateRosterLessonBadge();
+          renderTeacherLessonSetter();
+          if (currentStudent && viewedLesson === currentLesson) {
+            renderLessonPills(); renderDetail(currentStudent);
           }
-        }
-      })
-      .catch(function(err) {
-        console.error('Initial fetch error:', err);
-        showError('Could not load data. Check connection and reload.');
+        } else { showError('Could not set lesson'); }
       });
-  }
-
-  // ── Save one field ──
-  function saveField(student, field, value, isAgility) {
-    savesInFlight++;
-    updateAutosave();
-    var payload = isAgility
-      ? { action: 'saveAgility', 'class': CLASS_NAME, student: student, field: field, value: value }
-      : { action: 'saveLesson', 'class': CLASS_NAME, student: student, lesson: currentLesson, field: field, value: value };
-    return fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(json) {
-      savesInFlight--;
-      updateAutosave();
-      if (json.error) throw new Error(json.error);
-      return json;
-    })
-    .catch(function(err) {
-      savesInFlight--;
-      updateAutosave();
-      console.error('Save error:', err);
-      showError('Save failed — tap again to retry.');
     });
+    box.appendChild(p);
+  })(i);
+}
+
+// Chunk 8: DOM event handlers + boot
+document.getElementById('teacher-btn').addEventListener('click', function() {
+  if (teacherMode) {
+    teacherMode = false; this.textContent = 'Teacher \u203A';
+    document.getElementById('teacher-lesson-setter').classList.remove('active');
+    if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
+    return;
   }
-
-  // ── Roster ──
-  function renderRoster() {
-    var grid = document.getElementById('student-grid');
-    grid.innerHTML = '';
-    STUDENTS.forEach(function(name, i) {
-      var c = avatarColor(i);
-      var card = document.createElement('div');
-      card.className = 'roster-card';
-      card.innerHTML =
-        '<div class="avatar" style="background:' + c.bg + ';color:' + c.fg + '">' +
-          initials(name) + '</div>' +
-        '<span class="name">' + name + '</span>' +
-        '<span class="dash">&rsaquo;</span>';
-      card.addEventListener('click', function() { openStudent(name, i); });
-      grid.appendChild(card);
-    });
-  }
-
-  // ── Detail view ──
-  function openStudent(name, idx) {
-    currentStudent = name;
-    currentIdx = idx;
-    var c = avatarColor(idx);
-    var av = document.getElementById('detail-avatar');
-    av.style.background = c.bg; av.style.color = c.fg;
-    av.textContent = initials(name);
-    document.getElementById('detail-name').textContent = name;
-
-    renderDetail(name);
-
-    document.getElementById('view-roster').style.display = 'none';
-    document.getElementById('view-detail').style.display = 'block';
-    window.scrollTo(0, 0);
-  }
-
-  function closeStudent() {
-    document.getElementById('view-detail').style.display = 'none';
-    document.getElementById('view-roster').style.display = 'block';
-    currentStudent = null;
-    currentIdx = null;
-  }
-
-  function renderDetail(name) {
-    var d = studentData[name];
-    var body = document.getElementById('detail-body');
-    body.innerHTML = '';
-
-    var topGrid = el('div', 'section-grid');
-    topGrid.appendChild(buildAgilityCard(name, d));
-    topGrid.appendChild(buildEffortCard(name, d));
-    body.appendChild(topGrid);
-
-    body.appendChild(buildOverview(d));
-
-    var skillGrid = el('div', 'section-grid');
-    skillGrid.appendChild(buildSkillsCard(name, 'Badminton Skills', 'green', BADMINTON));
-    skillGrid.appendChild(buildSkillsCard(name, 'Volleyball Skills', 'coral', VOLLEYBALL));
-    body.appendChild(skillGrid);
-  }
-
-  function buildAgilityCard(name, d) {
-    var card = el('div', 'section-card');
-    var h = el('div', 'section-header blue');
-    h.textContent = 'Illinois Agility Test \u00b7 Teacher Recorded';
-    card.appendChild(h);
-    var body = el('div', 'agility-body');
-
-    var grid = el('div', 'agility-grid');
-    grid.appendChild(buildAgilityBox('Baseline', d.ag_baseline, 'ag_baseline', name));
-    grid.appendChild(buildAgilityBox('Re-test', d.ag_retest, 'ag_retest', name));
-    body.appendChild(grid);
-
-    var b = parseFloat(d.ag_baseline);
-    var r = parseFloat(d.ag_retest);
-    if (!isNaN(b) && !isNaN(r)) {
-      var diff = el('div', 'agility-diff');
-      var delta = r - b;
-      if (delta < 0) {
-        diff.classList.add('improved');
-        diff.innerHTML = 'Improved by <strong>' + Math.abs(delta).toFixed(2) + 's</strong>';
-      } else if (delta > 0) {
-        diff.innerHTML = 'Slower by <strong>' + delta.toFixed(2) + 's</strong>';
-      } else {
-        diff.innerHTML = '<strong>No change</strong>';
-      }
-      body.appendChild(diff);
-    }
-
-    if (!teacherMode) {
-      var note = el('div', 'agility-note');
-      note.textContent = 'Times will be added by your teacher';
-      body.appendChild(note);
-    }
-    card.appendChild(body);
-    return card;
-  }
-
-  function buildAgilityBox(label, value, field, student) {
-    var box = el('div', 'agility-box');
-    var lbl = el('div', 'label'); lbl.textContent = label;
-    box.appendChild(lbl);
-
-    var hasValue = (value !== '' && value !== undefined && value !== null && value !== 0);
-
-    if (teacherMode) {
-      var valDiv = el('div', 'value');
-      var inp = document.createElement('input');
-      inp.type = 'number'; inp.step = '0.01'; inp.min = '0';
-      inp.className = 'agility-input';
-      inp.value = hasValue ? value : '';
-      inp.placeholder = '\u2014';
-      valDiv.appendChild(inp);
-      box.appendChild(valDiv);
-      var unit = el('div', 'unit'); unit.textContent = 'seconds';
-      box.appendChild(unit);
-
-      var btn = document.createElement('button');
-      btn.className = 'agility-save-btn';
-      btn.textContent = 'Save';
-      btn.addEventListener('click', function() {
-        var v = parseFloat(inp.value);
-        if (isNaN(v)) return;
-        btn.disabled = true;
-        btn.textContent = 'Saving\u2026';
-        studentData[student][field] = v;
-        saveField(student, field, v, true).then(function() {
-          btn.textContent = 'Saved!';
-          setTimeout(function() {
-            btn.disabled = false;
-            btn.textContent = 'Save';
-            if (currentStudent === student) renderDetail(student);
-          }, 1000);
-        });
-      });
-      box.appendChild(btn);
-    } else {
-      var valDiv2 = el('div', 'value' + (hasValue ? '' : ' empty'));
-      valDiv2.textContent = hasValue ? value : '\u2014';
-      box.appendChild(valDiv2);
-      var unit2 = el('div', 'unit'); unit2.textContent = 'seconds';
-      box.appendChild(unit2);
-    }
-    return box;
-  }
-
-  function buildEffortCard(name, d) {
-    var card = el('div', 'section-card');
-    var h = el('div', 'section-header purple');
-    h.textContent = 'Effort & Focus';
-    card.appendChild(h);
-    var body = el('div', 'effort-body');
-    var prompt = el('div', 'effort-prompt');
-    prompt.textContent = 'How hard did you push yourself today?';
-    body.appendChild(prompt);
-    body.appendChild(buildSkillRow(name, EFFORT_SKILL, true));
-    card.appendChild(body);
-    return card;
-  }
-
-  function buildOverview(d) {
-    var card = el('div', 'overview-card');
-    var title = el('div', 'overview-title');
-    title.textContent = 'Skill Progress Overview';
-    card.appendChild(title);
-
-    var cols = el('div', 'overview-cols');
-    cols.appendChild(overviewColumn('Badminton', 'green', BADMINTON, d));
-    cols.appendChild(overviewColumn('Volleyball', 'coral', VOLLEYBALL, d));
-    card.appendChild(cols);
-    return card;
-  }
-
-  function overviewColumn(title, color, skills, data) {
-    var col = el('div', 'overview-col');
-    var badge = el('span', 'overview-badge ' + color);
-    badge.textContent = title;
-    col.appendChild(badge);
-
-    skills.forEach(function(s) {
-      var row = el('div', 'overview-row');
-      var val = parseInt(data[s.key]) || 0;
-      var lbl = el('div', 'overview-label'); lbl.textContent = s.label;
-      row.appendChild(lbl);
-      var track = el('div', 'overview-bar-track');
-      var fill = el('div', 'overview-bar-fill');
-      if (val > 0) fill.classList.add('level-' + val);
-      fill.style.width = (val * 25) + '%';
-      track.appendChild(fill);
-      row.appendChild(track);
-      col.appendChild(row);
-    });
-    return col;
-  }
-
-  function buildSkillsCard(name, title, color, skills) {
-    var card = el('div', 'section-card');
-    var h = el('div', 'section-header ' + color);
-    h.textContent = title;
-    card.appendChild(h);
-    var list = el('div', 'skill-list');
-    skills.forEach(function(s) { list.appendChild(buildSkillRow(name, s, false)); });
-    card.appendChild(list);
-    return card;
-  }
-
-  function buildSkillRow(student, skill, inline) {
-    var item = el('div', 'skill-item');
-
-    var top = el('div', 'skill-top');
-    var nameEl = el('span', 'skill-name');
-    nameEl.textContent = skill.label;
-    top.appendChild(nameEl);
-
-    var tap = el('span', 'skill-tap');
-    var currentVal = parseInt(studentData[student][skill.key]) || 0;
-    tap.textContent = LEVEL_LABELS[currentVal];
-    if (currentVal > 0) {
-      tap.classList.add('rated');
-      tap.style.color = LEVEL_COLORS[currentVal];
-    }
-    top.appendChild(tap);
-    item.appendChild(top);
-
-    if (skill.tags) {
-      var tagsDiv = el('div', 'skill-tags');
-      skill.tags.forEach(function(t) {
-        var tag = el('span', 'skill-tag'); tag.textContent = t;
-        tagsDiv.appendChild(tag);
-      });
-      item.appendChild(tagsDiv);
-    }
-
-    var bar = el('div', 'rating-bar');
-    var fill = el('div', 'rating-fill');
-    if (currentVal > 0) fill.classList.add('level-' + currentVal);
-    bar.appendChild(fill);
-
-    var dividers = el('div', 'rating-dividers');
-    for (var k = 0; k < 4; k++) dividers.appendChild(document.createElement('span'));
-    bar.appendChild(dividers);
-
-    var label = el('div', 'rating-label');
-    if (currentVal === 0) {
-      label.classList.add('level-0');
-      label.textContent = 'tap to rate';
-    } else {
-      label.classList.add('rated');
-      label.textContent = LEVEL_LABELS[currentVal];
-    }
-    bar.appendChild(label);
-
-    bar.addEventListener('click', function(e) {
-      var rect = bar.getBoundingClientRect();
-      var x = e.clientX - rect.left;
-      var pct = x / rect.width;
-      var clickedLevel = Math.max(1, Math.min(4, Math.ceil(pct * 4)));
-      var old = parseInt(studentData[student][skill.key]) || 0;
-      var newVal = (old === clickedLevel) ? clickedLevel - 1 : clickedLevel;
-      studentData[student][skill.key] = newVal;
-
-      fill.className = 'rating-fill';
-      if (newVal > 0) fill.classList.add('level-' + newVal);
-
-      label.className = 'rating-label';
-      if (newVal === 0) {
-        label.classList.add('level-0');
-        label.textContent = 'tap to rate';
-      } else {
-        label.classList.add('rated');
-        label.textContent = LEVEL_LABELS[newVal];
-      }
-
-      tap.className = 'skill-tap';
-      tap.textContent = LEVEL_LABELS[newVal];
-      if (newVal > 0) {
-        tap.classList.add('rated');
-        tap.style.color = LEVEL_COLORS[newVal];
-      } else {
-        tap.style.color = '';
-      }
-
-      updateOverviewBars(student);
-      saveField(student, skill.key, newVal, false);
-    });
-    item.appendChild(bar);
-
-    return item;
-  }
-
-  function updateOverviewBars(student) {
-    if (currentStudent !== student) return;
-    var d = studentData[student];
-    var allSkills = BADMINTON.concat(VOLLEYBALL);
-    var fills = document.querySelectorAll('.overview-bar-fill');
-    fills.forEach(function(fill, idx) {
-      if (idx < allSkills.length) {
-        var val = parseInt(d[allSkills[idx].key]) || 0;
-        fill.className = 'overview-bar-fill';
-        if (val > 0) fill.classList.add('level-' + val);
-        fill.style.width = (val * 25) + '%';
-      }
-    });
-  }
-
-  // ── Teacher mode (PIN) ──
-  document.getElementById('teacher-btn').addEventListener('click', function() {
-    if (teacherMode) {
-      teacherMode = false;
-      this.textContent = 'Teacher \u203A';
-      if (currentStudent) renderDetail(currentStudent);
-      return;
-    }
-    document.getElementById('pin-overlay').classList.add('active');
-    document.getElementById('pin-input').value = '';
-    document.getElementById('pin-error').textContent = '';
-    setTimeout(function() { document.getElementById('pin-input').focus(); }, 50);
-  });
-
-  function checkPin() {
-    if (document.getElementById('pin-input').value === TEACHER_PIN) {
-      teacherMode = true;
-      document.getElementById('pin-overlay').classList.remove('active');
-      document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
-      if (currentStudent) renderDetail(currentStudent);
-    } else {
-      document.getElementById('pin-error').textContent = 'Wrong PIN';
-    }
-  }
-  document.getElementById('pin-ok').addEventListener('click', checkPin);
-  document.getElementById('pin-input').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') checkPin();
-  });
-  document.getElementById('pin-cancel').addEventListener('click', function() {
+  document.getElementById('pin-overlay').classList.add('active');
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  setTimeout(function() { document.getElementById('pin-input').focus(); }, 50);
+});
+function checkPin() {
+  if (document.getElementById('pin-input').value === TEACHER_PIN) {
+    teacherMode = true;
     document.getElementById('pin-overlay').classList.remove('active');
-  });
+    document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
+    document.getElementById('teacher-lesson-setter').classList.add('active');
+    renderTeacherLessonSetter();
+    if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
+  } else { document.getElementById('pin-error').textContent = 'Wrong PIN'; }
+}
+document.getElementById('pin-ok').addEventListener('click', checkPin);
+document.getElementById('pin-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') checkPin(); });
+document.getElementById('pin-cancel').addEventListener('click', function() {
+  document.getElementById('pin-overlay').classList.remove('active');
+});
+document.getElementById('initials-ok').addEventListener('click', checkInitials);
+document.getElementById('initials-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') checkInitials(); });
+document.getElementById('initials-cancel').addEventListener('click', function() {
+  document.getElementById('initials-overlay').classList.remove('active');
+});
+document.getElementById('back-btn').addEventListener('click', closeStudent);
 
-  document.getElementById('back-btn').addEventListener('click', closeStudent);
-
-  // ── Init ──
-  renderRoster();
-  fetchAllCurrent().then(function() {
-    document.getElementById('loading').style.display = 'none';
-  });
-})();
+// Boot
+renderRoster();
+fetchAllCurrent().then(function() {
+  updateRosterLessonBadge();
+  document.getElementById('loading').style.display = 'none';
+});
 
 </script>
 </body>
