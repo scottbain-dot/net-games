@@ -99,3 +99,63 @@ function closeStudent() {
   document.getElementById('view-roster').style.display = 'block';
   currentStudent = null; currentIdx = null;
 }
+
+// Chunk 3: lesson pills + detail entry + viewed-ratings selector
+function canEdit() { return teacherMode || viewedLesson === currentLesson; }
+function renderLessonPills() {
+  var box = document.getElementById('detail-lesson-pills');
+  box.innerHTML = '';
+  for (var i = 1; i <= 9; i++) (function(n) {
+    var pill = el('span', 'lesson-pill');
+    pill.textContent = 'L' + n;
+    if (n === currentLesson) pill.classList.add('current');
+    if (n === viewedLesson) pill.classList.add('active');
+    pill.addEventListener('click', function() { switchLesson(n); });
+    box.appendChild(pill);
+  })(i);
+  var note = document.getElementById('lesson-pills-note');
+  note.className = 'lesson-pills-note';
+  if (viewedLesson !== currentLesson && !teacherMode) {
+    note.textContent = 'Read-only — past lesson'; note.classList.add('readonly');
+  } else if (viewedLesson !== currentLesson) {
+    note.textContent = 'Editing past lesson';
+  } else { note.textContent = ''; }
+}
+function switchLesson(n) {
+  if (!currentStudent || n === viewedLesson) return;
+  viewedLesson = n;
+  var name = currentStudent;
+  if (n === currentLesson) { renderLessonPills(); renderDetail(name); return; }
+  if (studentHistory[name] && studentHistory[name]['L' + n] !== undefined) {
+    renderLessonPills(); renderDetail(name); return;
+  }
+  fetchStudentHistory(name).then(function() {
+    if (currentStudent === name && viewedLesson === n) {
+      renderLessonPills(); renderDetail(name);
+    }
+  });
+}
+function getViewed(name) {
+  var cur = studentData[name] || {};
+  var base = { ag_baseline: cur.ag_baseline || '', ag_retest: cur.ag_retest || '' };
+  if (viewedLesson === currentLesson) { for (var k in cur) base[k] = cur[k]; return base; }
+  var rec = studentHistory[name] && studentHistory[name]['L' + viewedLesson];
+  if (rec) for (var k2 in rec) {
+    if (k2 !== 'Student' && k2 !== 'Lesson' && k2 !== 'timestamp') base[k2] = rec[k2];
+  }
+  return base;
+}
+function renderDetail(name) {
+  var d = getViewed(name);
+  var body = document.getElementById('detail-body');
+  body.innerHTML = '';
+  var topGrid = el('div', 'section-grid');
+  topGrid.appendChild(buildAgilityCard(name, d));
+  topGrid.appendChild(buildEffortCard(name, d));
+  body.appendChild(topGrid);
+  body.appendChild(buildOverview(d));
+  var skillGrid = el('div', 'section-grid');
+  skillGrid.appendChild(buildSkillsCard(name, 'Badminton Skills', 'green', BADMINTON, d));
+  skillGrid.appendChild(buildSkillsCard(name, 'Volleyball Skills', 'coral', VOLLEYBALL, d));
+  body.appendChild(skillGrid);
+}
