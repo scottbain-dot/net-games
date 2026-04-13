@@ -23,8 +23,10 @@ STUDENTS_7A = [
 ]
 
 STUDENTS_8A = [
-    'Student 1','Student 2','Student 3','Student 4','Student 5',
-    'Student 6','Student 7','Student 8','Student 9','Student 10'
+    'Nicolas v M','Seppe M','Antonia G','Amaya W','Peter T',
+    'Silas V','Seoyeon J','Taehyun S','Dylan T','Ryan S',
+    'Josh R','David L','Vihaan M','Philipp N',"Alec O'D",
+    'Bora G','Katharina V','Kinley C'
 ]
 
 def js_array(names):
