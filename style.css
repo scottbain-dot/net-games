@@ -467,6 +467,108 @@ body {
 }
 .engagement-dot.on { background: #1D9E75; border-color: #1D9E75; }
 
+/* Grading view (teacher) */
+#view-grading { display: none; min-height: 100vh; }
+.grading-body { padding: 18px 20px; max-width: 1400px; margin: 0 auto; }
+.grading-table {
+  border-collapse: separate; border-spacing: 0;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e8e8e8; border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+.grading-table th, .grading-table td {
+  vertical-align: top; padding: 12px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: left;
+}
+.grading-table tr:last-child td { border-bottom: none; }
+.grading-table th {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 10px 14px;
+}
+.grading-table th.name-col { background: #fafaf7; color: #555; width: 200px; }
+.grading-table th.col-s2 { background: #EBF4FF; color: #0C447C; }
+.grading-table th.col-s1 { background: #EAF5EE; color: #085041; }
+.grading-table th.col-s4 { background: #F0EEFF; color: #3C3489; }
+.grading-table td.name-col {
+  width: 200px; background: #fafaf7;
+  display: flex; align-items: center; gap: 10px;
+}
+.grading-table td.name-col .avatar {
+  width: 34px; height: 34px; font-size: 0.7rem;
+  flex-shrink: 0; margin-right: 0;
+}
+.grading-table td.name-col .name { font-size: 0.9rem; font-weight: 600; color: #1a1a1a; }
+.grading-cell { min-width: 240px; }
+.grading-datum {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.78rem; color: #555; margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.grading-datum-label { color: #888; font-size: 0.7rem; white-space: nowrap; min-width: 84px; }
+.grading-datum-value { flex: 1; }
+
+/* Mini bars */
+.mini-bar {
+  position: relative; height: 5px; border-radius: 3px;
+  background: #f0f0f0; flex: 1; min-width: 80px; overflow: hidden;
+}
+.mini-bar-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.mini-bar-fill.q1 { background: #EF9F27; }
+.mini-bar-fill.q2 { background: #1D9E75; }
+.mini-bar-fill.q3 { background: #2E86DE; }
+.mini-bar-fill.q4 { background: #534AB7; }
+.mini-bar-label { font-size: 0.72rem; color: #555; min-width: 36px; text-align: right; }
+
+/* Inline tags for chosen elements */
+.grading-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.grading-tag {
+  font-size: 0.65rem; padding: 2px 7px;
+  border: 1px solid #d8e4ef; color: #0C447C; background: #EBF4FF;
+  border-radius: 999px; white-space: nowrap;
+}
+
+/* Illinois delta */
+.grading-delta { font-weight: 600; font-size: 0.78rem; }
+.grading-delta.improved { color: #1D9E75; }
+.grading-delta.neutral  { color: #888; }
+.grading-delta.slower   { color: #e74c3c; }
+
+/* Focus dots (9 dots row) */
+.grading-dots { display: flex; gap: 4px; }
+.grading-dots .engagement-dot { width: 9px; height: 9px; }
+
+/* Score buttons 1-7 */
+.score-row { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
+.score-btn {
+  width: 30px; height: 30px;
+  border: 1px solid #e0e0e0; background: #fff;
+  border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  color: #555; cursor: pointer; user-select: none;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.score-btn:hover { background: #fafaf7; }
+.score-btn.selected { box-shadow: 0 0 0 2px #1a4a7a inset; color: #fff; border-color: transparent; }
+.score-btn.selected.band-low  { background: #ffb5a6; color: #7a2a0a; box-shadow: 0 0 0 2px #7a2a0a inset; }
+.score-btn.selected.band-mid  { background: #ffe0a0; color: #7a5a0a; box-shadow: 0 0 0 2px #7a5a0a inset; }
+.score-btn.selected.band-high { background: #bde5c6; color: #0a5c35; box-shadow: 0 0 0 2px #0a5c35 inset; }
+
+/* Grading footer */
+.grading-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 14px; font-size: 0.78rem; color: #555;
+  flex-wrap: wrap; gap: 10px;
+}
+.grading-legend { display: flex; align-items: center; gap: 8px; }
+.grading-hint { color: #888; font-style: italic; }
+
 /* Roster current-lesson badge */
 .roster-lesson {
   display: inline-block; margin-top: 8px;

@@ -483,6 +483,197 @@ function renderEngagementGrid() {
   });
 }
 
+// ── Grading view (teacher) ──
+var gradingRecs = {};      // engagement data keyed by student
+var gradingScores = {};    // saved scores: { student: {S2,S1,S4} }
+
+function openGradingView() {
+  document.getElementById('view-roster').style.display = 'none';
+  document.getElementById('view-grading').style.display = 'block';
+  window.scrollTo(0, 0);
+  var table = document.getElementById('grading-table');
+  table.innerHTML = '<tr><td>Loading…</td></tr>';
+  Promise.all([fetchEngagement(), fetchGrades()]).then(function(res) {
+    var eng = res[0] || {}, gr = res[1] || {};
+    gradingRecs = (eng && eng.students) || {};
+    gradingScores = (gr && gr.grades) || {};
+    renderGradingTable();
+  });
+}
+function closeGradingView() {
+  document.getElementById('view-grading').style.display = 'none';
+  document.getElementById('view-roster').style.display = 'block';
+}
+
+// ── Aggregators over engagement data (rec = { L1:{...}, L2:{...}, ... }) ──
+function countLogged(rec, field) {
+  var c = 0;
+  for (var k in rec) if (rec[k] && rec[k][field] !== '' && rec[k][field] !== undefined && rec[k][field] !== null && rec[k][field] !== 0) c++;
+  return c;
+}
+function uniqueValues(rec, field) {
+  var set = {}, out = [];
+  for (var k in rec) {
+    var v = rec[k] && rec[k][field];
+    if (v && !set[v]) { set[v] = true; out.push(v); }
+  }
+  return out;
+}
+function avgField(rec, field) {
+  var sum = 0, n = 0;
+  for (var k in rec) {
+    var v = parseFloat(rec[k] && rec[k][field]);
+    if (!isNaN(v) && v > 0) { sum += v; n++; }
+  }
+  return n > 0 ? sum / n : 0;
+}
+function lessonCount(rec) { var c = 0; for (var k in rec) c++; return c; }
+
+function miniBar(percent) {
+  var p = Math.max(0, Math.min(100, Math.round(percent)));
+  var cls = p <= 25 ? 'q1' : (p <= 50 ? 'q2' : (p <= 75 ? 'q3' : 'q4'));
+  return '<div class="mini-bar"><div class="mini-bar-fill ' + cls + '" style="width:' + p + '%"></div></div>' +
+         '<div class="mini-bar-label">' + p + '%</div>';
+}
+function scoreBand(s) { return s <= 3 ? 'band-low' : (s <= 5 ? 'band-mid' : 'band-high'); }
+
+function renderScoreButtons(student, criterion, selected) {
+  var row = el('div', 'score-row');
+  for (var i = 1; i <= 7; i++) (function(n) {
+    var b = document.createElement('button');
+    b.className = 'score-btn';
+    b.textContent = n;
+    if (selected === n) b.classList.add('selected', scoreBand(n));
+    b.addEventListener('click', function() {
+      if (b.disabled) return;
+      b.disabled = true;
+      saveGradeRemote(student, criterion, n).then(function(j) {
+        b.disabled = false;
+        if (j && j.ok) {
+          if (!gradingScores[student]) gradingScores[student] = {};
+          gradingScores[student][criterion] = n;
+          renderGradingTable();
+        } else {
+          showError('Could not save grade');
+        }
+      });
+    });
+    row.appendChild(b);
+  })(i);
+  return row;
+}
+
+function updateGradingCount() {
+  var graded = 0;
+  STUDENTS.forEach(function(n) {
+    var s = gradingScores[n];
+    if (s && (s.S2 || s.S1 || s.S4)) graded++;
+  });
+  var c = document.getElementById('grading-count');
+  if (c) c.textContent = graded + ' of ' + STUDENTS.length + ' students graded';
+}
+
+function renderGradingTable() {
+  var table = document.getElementById('grading-table');
+  table.innerHTML = '';
+  var head = document.createElement('tr');
+  head.innerHTML = '<th class="name-col">Student</th>' +
+    '<th class="col-s2">S2 · Skill identification</th>' +
+    '<th class="col-s1">S1 · Skill development</th>' +
+    '<th class="col-s4">S4 · Active participation</th>';
+  table.appendChild(head);
+  STUDENTS.forEach(function(name, i) {
+    var rec = gradingRecs[name] || {};
+    var scores = gradingScores[name] || {};
+    var tr = document.createElement('tr');
+    var nameTd = el('td', 'name-col');
+    var c = avatarColor(i);
+    nameTd.innerHTML = '<div class="avatar" style="background:' + c.bg + ';color:' + c.fg + '">' +
+      initialsOf(name) + '</div><div class="name">' + name + '</div>';
+    tr.appendChild(nameTd);
+    tr.appendChild(buildS2Cell(name, rec, scores.S2));
+    tr.appendChild(buildS1Cell(name, rec, scores.S1));
+    tr.appendChild(buildS4Cell(name, rec, scores.S4));
+    table.appendChild(tr);
+  });
+  updateGradingCount();
+}
+
+function buildS2Cell(name, rec, selected) {
+  var td = el('td', 'grading-cell');
+  var logged = countLogged(rec, 'agility_focus');
+  var tags = uniqueValues(rec, 'agility_focus');
+  var exec = avgField(rec, 'agility_execution');
+  var tagHtml = tags.slice(0, 3).map(function(t) {
+    return '<span class="grading-tag">' + focusElementLabel(t) + '</span>';
+  }).join('');
+  if (tags.length > 3) tagHtml += '<span class="grading-tag">+' + (tags.length - 3) + ' more</span>';
+  if (!tagHtml) tagHtml = '<span class="grading-tag" style="opacity:0.5">none</span>';
+  td.innerHTML =
+    '<div class="grading-datum"><span class="grading-datum-label">Lessons logged</span>' +
+      '<span class="grading-datum-value">' + logged + '</span></div>' +
+    '<div class="grading-datum"><span class="grading-datum-label">Elements</span>' +
+      '<span class="grading-datum-value"><div class="grading-tags">' + tagHtml + '</div></span></div>' +
+    '<div class="grading-datum"><span class="grading-datum-label">Execution avg</span>' +
+      miniBar((exec / 4) * 100) + '</div>';
+  td.appendChild(renderScoreButtons(name, 'S2', selected));
+  return td;
+}
+
+function buildS1Cell(name, rec, selected) {
+  var td = el('td', 'grading-cell');
+  var d = studentData[name] || {};
+  var b = parseFloat(d.ag_baseline), r = parseFloat(d.ag_retest);
+  var deltaHtml = '<span class="grading-delta neutral">—</span>';
+  if (!isNaN(b) && !isNaN(r)) {
+    var delta = r - b;
+    if (Math.abs(delta) < 0.005) deltaHtml = '<span class="grading-delta neutral">no change</span>';
+    else if (delta < 0) deltaHtml = '<span class="grading-delta improved">' + delta.toFixed(1) + 's faster</span>';
+    else deltaHtml = '<span class="grading-delta slower">+' + delta.toFixed(1) + 's slower</span>';
+  }
+  function avgOf(fields) {
+    var sum = 0, n = 0;
+    for (var k in rec) fields.forEach(function(f) {
+      var v = parseFloat(rec[k] && rec[k][f]);
+      if (!isNaN(v) && v > 0) { sum += v; n++; }
+    });
+    return n > 0 ? sum / n : 0;
+  }
+  var bad = avgOf(['bserve','bshot','bfoot','btac']);
+  var vol = avgOf(['vserve','vskill','vpos','comm']);
+  td.innerHTML =
+    '<div class="grading-datum"><span class="grading-datum-label">Illinois delta</span>' +
+      '<span class="grading-datum-value">' + deltaHtml + '</span></div>' +
+    '<div class="grading-datum"><span class="grading-datum-label">Badminton avg</span>' +
+      miniBar((bad / 4) * 100) + '</div>' +
+    '<div class="grading-datum"><span class="grading-datum-label">Volleyball avg</span>' +
+      miniBar((vol / 4) * 100) + '</div>';
+  td.appendChild(renderScoreButtons(name, 'S1', selected));
+  return td;
+}
+
+function buildS4Cell(name, rec, selected) {
+  var td = el('td', 'grading-cell');
+  var logged = countLogged(rec, 'effort');
+  var effortAvg = avgField(rec, 'effort');
+  var levelLabel = effortAvg > 0 ? LEVEL_LABELS[Math.round(effortAvg)] : '—';
+  var dots = '';
+  for (var i = 1; i <= 9; i++) {
+    var hasFocus = rec['L' + i] && rec['L' + i].agility_focus;
+    dots += '<span class="engagement-dot' + (hasFocus ? ' on' : '') + '"></span>';
+  }
+  td.innerHTML =
+    '<div class="grading-datum"><span class="grading-datum-label">Engaged</span>' +
+      '<span class="grading-datum-value">' + logged + ' / 9 lessons</span></div>' +
+    '<div class="grading-datum"><span class="grading-datum-label">Effort avg</span>' +
+      miniBar((effortAvg / 4) * 100) +
+      '<span class="mini-bar-label" style="min-width:90px">' + levelLabel + '</span></div>' +
+    '<div class="grading-datum"><span class="grading-datum-label">Focus log</span>' +
+      '<span class="grading-datum-value"><div class="grading-dots">' + dots + '</div></span></div>';
+  td.appendChild(renderScoreButtons(name, 'S4', selected));
+  return td;
+}
+
 // Teacher PINs table — lists every student's PIN with a Reset button
 function refreshTeacherPins() {
   var table = document.getElementById('teacher-pins-table');
@@ -557,6 +748,8 @@ document.getElementById('student-pin-cancel').addEventListener('click', closePin
 document.getElementById('teacher-pins-refresh').addEventListener('click', refreshTeacherPins);
 document.getElementById('teacher-engagement-btn').addEventListener('click', openEngagementView);
 document.getElementById('engagement-back-btn').addEventListener('click', closeEngagementView);
+document.getElementById('teacher-grading-btn').addEventListener('click', openGradingView);
+document.getElementById('grading-back-btn').addEventListener('click', closeGradingView);
 document.getElementById('back-btn').addEventListener('click', closeStudent);
 
 // Boot

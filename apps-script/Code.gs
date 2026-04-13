@@ -28,6 +28,10 @@ var AGILITY_HEADERS = ['Student','Class','ag_baseline','ag_retest'];
 // PINs tab — one row per student per class, holds their 4-digit PIN
 var PIN_HEADERS = ['Student','Class','PIN'];
 
+// Grades tab — one row per student per class, holds S2/S1/S4 scores
+var GRADE_HEADERS = ['Student','Class','S2','S1','S4','timestamp'];
+var GRADE_CRITERIA = ['S2','S1','S4'];
+
 // Settings tab fields
 var SETTINGS_HEADERS = ['Class','CurrentLesson'];
 
@@ -129,6 +133,10 @@ function doGet(e) {
       if (!className) return jsonResponse({ error: 'Missing class' });
       if (e.parameter.pin !== TEACHER_PIN) return jsonResponse({ error: 'Bad PIN' });
       return jsonResponse({ pins: readPinMap(className) });
+    }
+    if (action === 'getGrades') {
+      if (!className) return jsonResponse({ error: 'Missing class' });
+      return jsonResponse({ grades: readGrades(className) });
     }
     return jsonResponse({ error: 'Invalid action' });
   } catch (err) {
@@ -275,6 +283,7 @@ function doPost(e) {
     if (action === 'verifyPin') return verifyPin(body);
     if (action === 'setPin') return setPin(body);
     if (action === 'resetPin') return resetPin(body);
+    if (action === 'saveGrade') return saveGrade(body);
     return jsonResponse({ error: 'Unknown action' });
   } catch (err) {
     return jsonResponse({ error: String(err) });
@@ -391,6 +400,48 @@ function setPin(body) {
   return jsonResponse({ ok: true });
 }
 
+function readGrades(className) {
+  var sheet = getSheet('Grades');
+  var out = {};
+  if (!sheet || sheet.getLastRow() < 2) return out;
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var colS2 = colIndex(headers, 'S2') - 1;
+  var colS1 = colIndex(headers, 'S1') - 1;
+  var colS4 = colIndex(headers, 'S4') - 1;
+  for (var r = 1; r < data.length; r++) {
+    if (data[r][1] !== className) continue;
+    out[data[r][0]] = {
+      S2: data[r][colS2] === '' ? null : parseInt(data[r][colS2], 10),
+      S1: data[r][colS1] === '' ? null : parseInt(data[r][colS1], 10),
+      S4: data[r][colS4] === '' ? null : parseInt(data[r][colS4], 10)
+    };
+  }
+  return out;
+}
+
+function saveGrade(body) {
+  var className = body['class'];
+  var student = body.student;
+  var criterion = body.criterion;
+  var score = parseInt(body.score, 10);
+  if (!className || !student || !criterion) return jsonResponse({ error: 'Missing params' });
+  if (GRADE_CRITERIA.indexOf(criterion) === -1) return jsonResponse({ error: 'Bad criterion' });
+  if (isNaN(score) || score < 1 || score > 7) return jsonResponse({ error: 'Score must be 1-7' });
+  var sheet = getSheet('Grades');
+  if (!sheet) return jsonResponse({ error: 'Grades sheet missing' });
+  var headers = getHeaders(sheet);
+  var row = findRowBy2(sheet, 1, student, 2, className);
+  if (row === -1) {
+    var newRow = [student, className, '', '', '', new Date()];
+    sheet.appendRow(newRow);
+    row = sheet.getLastRow();
+  }
+  sheet.getRange(row, colIndex(headers, criterion)).setValue(score);
+  sheet.getRange(row, colIndex(headers, 'timestamp')).setValue(new Date());
+  return jsonResponse({ ok: true });
+}
+
 function resetPin(body) {
   if (body.teacherPin !== TEACHER_PIN) return jsonResponse({ error: 'Bad teacher PIN' });
   var className = body['class'];
@@ -450,6 +501,11 @@ function setupSheets() {
     (ROSTERS[cls] || []).forEach(function(name) { pnRows.push([name, cls, '']); });
   });
   if (pnRows.length) pn.getRange(2, 1, pnRows.length, PIN_HEADERS.length).setValues(pnRows);
+
+  var gr = book.getSheetByName('Grades') || book.insertSheet('Grades');
+  gr.clear();
+  gr.getRange(1, 1, 1, GRADE_HEADERS.length).setValues([GRADE_HEADERS]);
+  gr.setFrozenRows(1);
 
   var st = book.getSheetByName('Settings') || book.insertSheet('Settings');
   st.clear();

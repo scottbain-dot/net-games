@@ -19,6 +19,7 @@
     <div class="teacher-pins-header">
       <div class="teacher-lesson-setter-label">Student PINs</div>
       <div>
+        <button class="teacher-pins-refresh" id="teacher-grading-btn">Grade students &rsaquo;</button>
         <button class="teacher-pins-refresh" id="teacher-engagement-btn">Engagement grid &rsaquo;</button>
         <button class="teacher-pins-refresh" id="teacher-pins-refresh">Refresh</button>
       </div>
@@ -81,6 +82,32 @@
     </div>
     <div class="engagement-grid-wrap">
       <table class="engagement-grid" id="engagement-grid"></table>
+    </div>
+  </div>
+</div>
+
+<!-- ════ GRADING VIEW (teacher) ════ -->
+<div id="view-grading">
+  <div class="detail-header">
+    <button class="back-btn" id="grading-back-btn">&larr; back</button>
+    <div class="info">
+      <div class="name">Grade students &middot; __CLASS__</div>
+      <div class="sub">Score each student against S2 / S1 / S4</div>
+    </div>
+    <div class="autosave" id="grading-autosave">
+      <span class="dot"></span>
+      <span class="text">auto-saving</span>
+    </div>
+  </div>
+  <div class="grading-body">
+    <table class="grading-table" id="grading-table"></table>
+    <div class="grading-footer">
+      <div id="grading-count">0 of 0 students graded</div>
+      <div class="grading-legend">
+        <span class="legend-dot dot-on"></span> engaged
+        <span class="legend-dot dot-off"></span> not logged
+      </div>
+      <div class="grading-hint">scores save automatically</div>
     </div>
   </div>
 </div>
