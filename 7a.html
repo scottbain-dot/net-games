@@ -567,6 +567,41 @@ body {
 .score-btn.selected.band-mid  { background: #ffe0a0; color: #7a5a0a; box-shadow: 0 0 0 2px #7a5a0a inset; }
 .score-btn.selected.band-high { background: #bde5c6; color: #0a5c35; box-shadow: 0 0 0 2px #0a5c35 inset; }
 
+/* Teacher observation pill groups (inside grading cells) */
+.teacher-pill-group {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid;
+}
+.teacher-pill-group.tpg-s2 { background: #EBF4FF; border-color: #B5D4F4; }
+.teacher-pill-group.tpg-s1 { background: #EAF5EE; border-color: #9FE1CB; }
+.teacher-pill-group.tpg-s4 { background: #F0EEFF; border-color: #AFA9EC; }
+.teacher-pill-label {
+  font-size: 10px; font-weight: 600;
+  color: #555; margin-bottom: 6px;
+  text-transform: none; letter-spacing: 0;
+}
+.teacher-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.teacher-pill {
+  padding: 4px 12px; border-radius: 999px;
+  border: 1px solid #e8e8e8; background: #fff;
+  color: #aaa; font-size: 11px; font-weight: 600;
+  cursor: pointer; user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.teacher-pill:hover { background: #fafaf7; }
+.teacher-pill.selected.tp-s2 { background: #EBF4FF; border-color: #B5D4F4; color: #0C447C; }
+.teacher-pill.selected.tp-s1 { background: #EAF5EE; border-color: #9FE1CB; color: #085041; }
+.teacher-pill.selected.tp-s4 { background: #F0EEFF; border-color: #AFA9EC; color: #3C3489; }
+.teacher-pill:disabled { opacity: 0.6; cursor: wait; }
+
+/* Rubric hint */
+.rubric-hint {
+  margin-top: 6px; font-size: 10px;
+  font-style: italic; color: #bbb; line-height: 1.35;
+}
+
 /* Grading footer */
 .grading-footer {
   display: flex; align-items: center; justify-content: space-between;
@@ -753,11 +788,7 @@ var STUDENTS = ['Freya R', 'Flavio C', 'Karim Y A G', 'Soomin O', 'Chaeyi L', 'M
     <table class="grading-table" id="grading-table"></table>
     <div class="grading-footer">
       <div id="grading-count">0 of 0 students graded</div>
-      <div class="grading-legend">
-        <span class="legend-dot dot-on"></span> engaged
-        <span class="legend-dot dot-off"></span> not logged
-      </div>
-      <div class="grading-hint">scores save automatically</div>
+      <div class="grading-hint">all scores save automatically</div>
     </div>
   </div>
 </div>
@@ -1443,6 +1474,39 @@ function miniBar(percent) {
 }
 function scoreBand(s) { return s <= 3 ? 'band-low' : (s <= 5 ? 'band-mid' : 'band-high'); }
 
+// Three-pill teacher observation input (1/2/3 → saves via saveGradeRemote)
+// colorKey: 's2' | 's1' | 's4' for the coloured tint.
+function renderTeacherPills(student, criterion, colorKey, labels, selected) {
+  var wrap = el('div', 'teacher-pill-group tpg-' + colorKey);
+  var lbl = el('div', 'teacher-pill-label');
+  lbl.textContent = labels.label;
+  wrap.appendChild(lbl);
+  var row = el('div', 'teacher-pills');
+  labels.options.forEach(function(opt, i) {
+    var n = i + 1;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'teacher-pill';
+    b.textContent = opt;
+    if (selected === n) b.classList.add('selected', 'tp-' + colorKey);
+    b.addEventListener('click', function() {
+      if (b.disabled) return;
+      b.disabled = true;
+      saveGradeRemote(student, criterion, n).then(function(j) {
+        b.disabled = false;
+        if (j && j.ok) {
+          if (!gradingScores[student]) gradingScores[student] = {};
+          gradingScores[student][criterion] = n;
+          renderGradingTable();
+        } else { showError('Could not save observation'); }
+      });
+    });
+    row.appendChild(b);
+  });
+  wrap.appendChild(row);
+  return wrap;
+}
+
 function renderScoreButtons(student, criterion, selected) {
   var row = el('div', 'score-row');
   for (var i = 1; i <= 7; i++) (function(n) {
@@ -1473,7 +1537,7 @@ function updateGradingCount() {
   var graded = 0;
   STUDENTS.forEach(function(n) {
     var s = gradingScores[n];
-    if (s && (s.S2 || s.S1 || s.S4)) graded++;
+    if (s && s.S2 && s.S1 && s.S4) graded++;
   });
   var c = document.getElementById('grading-count');
   if (c) c.textContent = graded + ' of ' + STUDENTS.length + ' students graded';
@@ -1497,72 +1561,68 @@ function renderGradingTable() {
     nameTd.innerHTML = '<div class="avatar" style="background:' + c.bg + ';color:' + c.fg + '">' +
       initialsOf(name) + '</div><div class="name">' + name + '</div>';
     tr.appendChild(nameTd);
-    tr.appendChild(buildS2Cell(name, rec, scores.S2));
-    tr.appendChild(buildS1Cell(name, rec, scores.S1));
-    tr.appendChild(buildS4Cell(name, rec, scores.S4));
+    tr.appendChild(buildS2Cell(name, rec, scores));
+    tr.appendChild(buildS1Cell(name, rec, scores));
+    tr.appendChild(buildS4Cell(name, rec, scores));
     table.appendChild(tr);
   });
   updateGradingCount();
 }
 
-function buildS2Cell(name, rec, selected) {
+function buildS2Cell(name, rec, scores) {
   var td = el('td', 'grading-cell');
   var logged = countLogged(rec, 'agility_focus');
   var tags = uniqueValues(rec, 'agility_focus');
-  var exec = avgField(rec, 'agility_execution');
   var tagHtml = tags.slice(0, 3).map(function(t) {
     return '<span class="grading-tag">' + focusElementLabel(t) + '</span>';
   }).join('');
   if (tags.length > 3) tagHtml += '<span class="grading-tag">+' + (tags.length - 3) + ' more</span>';
   if (!tagHtml) tagHtml = '<span class="grading-tag" style="opacity:0.5">none</span>';
   td.innerHTML =
-    '<div class="grading-datum"><span class="grading-datum-label">Lessons logged</span>' +
-      '<span class="grading-datum-value">' + logged + '</span></div>' +
-    '<div class="grading-datum"><span class="grading-datum-label">Elements</span>' +
-      '<span class="grading-datum-value"><div class="grading-tags">' + tagHtml + '</div></span></div>' +
-    '<div class="grading-datum"><span class="grading-datum-label">Execution avg</span>' +
-      miniBar((exec / 4) * 100) + '</div>';
-  td.appendChild(renderScoreButtons(name, 'S2', selected));
+    '<div class="grading-datum"><span class="grading-datum-label">Focus logged</span>' +
+      '<span class="grading-datum-value">' + logged + ' / 9 lessons</span></div>' +
+    '<div class="grading-datum"><span class="grading-datum-label">Elements chosen</span>' +
+      '<span class="grading-datum-value"><div class="grading-tags">' + tagHtml + '</div></span></div>';
+  td.appendChild(renderTeacherPills(name, 's2_teacher', 's2',
+    { label: 'Showed awareness of what to improve?', options: ['rarely','sometimes','clearly'] },
+    scores.s2_teacher));
+  td.appendChild(renderScoreButtons(name, 'S2', scores.S2));
+  var hint = el('div', 'rubric-hint');
+  hint.textContent = '6-7: clearly identifies strengths and areas for improvement. Strong understanding of skill requirements.';
+  td.appendChild(hint);
   return td;
 }
 
-function buildS1Cell(name, rec, selected) {
+function buildS1Cell(name, rec, scores) {
   var td = el('td', 'grading-cell');
   var d = studentData[name] || {};
   var b = parseFloat(d.ag_baseline), r = parseFloat(d.ag_retest);
-  var deltaHtml = '<span class="grading-delta neutral">—</span>';
+  var deltaHtml = '<span class="grading-delta neutral">not yet recorded</span>';
   if (!isNaN(b) && !isNaN(r)) {
     var delta = r - b;
     if (Math.abs(delta) < 0.005) deltaHtml = '<span class="grading-delta neutral">no change</span>';
     else if (delta < 0) deltaHtml = '<span class="grading-delta improved">' + delta.toFixed(1) + 's faster</span>';
     else deltaHtml = '<span class="grading-delta slower">+' + delta.toFixed(1) + 's slower</span>';
   }
-  function avgOf(fields) {
-    var sum = 0, n = 0;
-    for (var k in rec) fields.forEach(function(f) {
-      var v = parseFloat(rec[k] && rec[k][f]);
-      if (!isNaN(v) && v > 0) { sum += v; n++; }
-    });
-    return n > 0 ? sum / n : 0;
-  }
-  var bad = avgOf(['bserve','bshot','bfoot','btac']);
-  var vol = avgOf(['vserve','vskill','vpos','comm']);
   td.innerHTML =
-    '<div class="grading-datum"><span class="grading-datum-label">Illinois delta</span>' +
-      '<span class="grading-datum-value">' + deltaHtml + '</span></div>' +
-    '<div class="grading-datum"><span class="grading-datum-label">Badminton avg</span>' +
-      miniBar((bad / 4) * 100) + '</div>' +
-    '<div class="grading-datum"><span class="grading-datum-label">Volleyball avg</span>' +
-      miniBar((vol / 4) * 100) + '</div>';
-  td.appendChild(renderScoreButtons(name, 'S1', selected));
+    '<div class="grading-datum"><span class="grading-datum-label">Illinois</span>' +
+      '<span class="grading-datum-value">' + deltaHtml + '</span></div>';
+  td.appendChild(renderTeacherPills(name, 's1_badminton_teacher', 's1',
+    { label: 'Badminton skill level', options: ['emerging','developing','consistent'] },
+    scores.s1_badminton_teacher));
+  td.appendChild(renderTeacherPills(name, 's1_volleyball_teacher', 's1',
+    { label: 'Volleyball skill level', options: ['emerging','developing','consistent'] },
+    scores.s1_volleyball_teacher));
+  td.appendChild(renderScoreButtons(name, 'S1', scores.S1));
+  var hint = el('div', 'rubric-hint');
+  hint.textContent = '6-7: significant and consistent improvement. Independently applies effective strategies.';
+  td.appendChild(hint);
   return td;
 }
 
-function buildS4Cell(name, rec, selected) {
+function buildS4Cell(name, rec, scores) {
   var td = el('td', 'grading-cell');
   var logged = countLogged(rec, 'effort');
-  var effortAvg = avgField(rec, 'effort');
-  var levelLabel = effortAvg > 0 ? LEVEL_LABELS[Math.round(effortAvg)] : '—';
   var dots = '';
   for (var i = 1; i <= 9; i++) {
     var hasFocus = rec['L' + i] && rec['L' + i].agility_focus;
@@ -1571,12 +1631,15 @@ function buildS4Cell(name, rec, selected) {
   td.innerHTML =
     '<div class="grading-datum"><span class="grading-datum-label">Engaged</span>' +
       '<span class="grading-datum-value">' + logged + ' / 9 lessons</span></div>' +
-    '<div class="grading-datum"><span class="grading-datum-label">Effort avg</span>' +
-      miniBar((effortAvg / 4) * 100) +
-      '<span class="mini-bar-label" style="min-width:90px">' + levelLabel + '</span></div>' +
     '<div class="grading-datum"><span class="grading-datum-label">Focus log</span>' +
       '<span class="grading-datum-value"><div class="grading-dots">' + dots + '</div></span></div>';
-  td.appendChild(renderScoreButtons(name, 'S4', selected));
+  td.appendChild(renderTeacherPills(name, 's4_teacher', 's4',
+    { label: 'Quality of participation observed', options: ['inconsistent','regular','excellent'] },
+    scores.s4_teacher));
+  td.appendChild(renderScoreButtons(name, 'S4', scores.S4));
+  var hint = el('div', 'rubric-hint');
+  hint.textContent = '6-7: consistently highly engaged. Excellent self-management, communication, collaboration.';
+  td.appendChild(hint);
   return td;
 }
 
