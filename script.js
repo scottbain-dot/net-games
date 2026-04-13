@@ -39,29 +39,34 @@
   var EFFORT_SKILL = { key: 'effort', label: 'Effort & focus' };
 
   // ── State ──
-  var studentData = {};
+  var currentLesson = 1;
+  var studentData = {};   // keyed by student name: { bserve, ..., ag_baseline, ag_retest }
   var currentStudent = null;
   var currentIdx = null;
   var teacherMode = false;
   var savesInFlight = 0;
   var saveTextTimeout = null;
 
-  // Init blank data for all students
+  // Seed blank rating state for every student (lesson data filled when card opens).
   STUDENTS.forEach(function(name) {
-    studentData[name] = {};
-    BADMINTON.concat(VOLLEYBALL).forEach(function(s) { studentData[name][s.key] = 0; });
-    studentData[name].effort = 0;
-    studentData[name].ag_baseline = '';
-    studentData[name].ag_retest = '';
+    studentData[name] = blankRatings();
   });
 
-  // ── Helpers ──
+  function blankRatings() {
+    var d = { ag_baseline: '', ag_retest: '' };
+    BADMINTON.concat(VOLLEYBALL).forEach(function(s) { d[s.key] = 0; });
+    d.effort = 0;
+    d.agility_focus = '';
+    d.agility_execution = 0;
+    return d;
+  }
+
+  // ── DOM helpers ──
   function el(tag, cls) {
     var e = document.createElement(tag);
     if (cls) e.className = cls;
     return e;
   }
-
   function showError(msg) {
     var e = document.getElementById('error-banner');
     e.textContent = msg; e.style.display = 'block';
@@ -85,24 +90,51 @@
     }
   }
 
-  // ── Fetch all data ──
-  function fetchData() {
-    fetch(APPS_SCRIPT_URL + '?action=get&class=' + encodeURIComponent(CLASS_NAME))
+  // ── Fetch current lesson from Settings tab ──
+  function fetchSettings() {
+    return fetch(APPS_SCRIPT_URL + '?action=getSettings&class=' + encodeURIComponent(CLASS_NAME))
       .then(function(r) { return r.json(); })
       .then(function(json) {
         if (json.error) throw new Error(json.error);
-        json.students.forEach(function(s) {
-          var name = s.Student;
-          if (studentData[name]) {
-            for (var k in s) { if (k !== 'Student') studentData[name][k] = s[k]; }
-          }
-        });
-        document.getElementById('loading').style.display = 'none';
+        currentLesson = parseInt(json.currentLesson, 10) || 1;
       })
       .catch(function(err) {
-        console.error('Fetch error:', err);
-        showError('Could not load data. Check connection and reload.');
-        document.getElementById('loading').style.display = 'none';
+        console.error('Settings fetch error:', err);
+        showError('Could not load current lesson. Using L1.');
+        currentLesson = 1;
+      });
+  }
+
+  // ── Fetch one student's per-lesson + agility data ──
+  function fetchStudent(name) {
+    return fetch(APPS_SCRIPT_URL + '?action=getStudent&class=' + encodeURIComponent(CLASS_NAME) +
+                  '&student=' + encodeURIComponent(name))
+      .then(function(r) { return r.json(); })
+      .then(function(json) {
+        if (json.error) throw new Error(json.error);
+        if (typeof json.currentLesson === 'number') currentLesson = json.currentLesson;
+
+        var ratings = blankRatings();
+        // Populate from the current lesson's row if it exists.
+        if (Array.isArray(json.lessons)) {
+          for (var i = 0; i < json.lessons.length; i++) {
+            var row = json.lessons[i];
+            if (String(row.Lesson) === String(currentLesson)) {
+              for (var k in row) {
+                if (k === 'Student' || k === 'Lesson' || k === 'timestamp') continue;
+                ratings[k] = row[k];
+              }
+              break;
+            }
+          }
+        }
+        // Agility times (cross-lesson).
+        if (json.agility) {
+          ratings.ag_baseline = json.agility.ag_baseline || '';
+          ratings.ag_retest = json.agility.ag_retest || '';
+        }
+        studentData[name] = ratings;
+        return ratings;
       });
   }
 
@@ -110,16 +142,13 @@
   function saveField(student, field, value, isAgility) {
     savesInFlight++;
     updateAutosave();
+    var payload = isAgility
+      ? { action: 'saveAgility', 'class': CLASS_NAME, student: student, field: field, value: value }
+      : { action: 'saveLesson', 'class': CLASS_NAME, student: student, lesson: currentLesson, field: field, value: value };
     return fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: isAgility ? 'saveAgility' : 'save',
-        'class': CLASS_NAME,
-        student: student,
-        field: field,
-        value: value
-      })
+      body: JSON.stringify(payload)
     })
     .then(function(r) { return r.json(); })
     .then(function(json) {
@@ -164,11 +193,19 @@
     av.textContent = initials(name);
     document.getElementById('detail-name').textContent = name;
 
-    renderDetail(name);
-
+    // Show loading state while fetching this student's per-lesson data.
+    document.getElementById('detail-body').innerHTML = '';
     document.getElementById('view-roster').style.display = 'none';
     document.getElementById('view-detail').style.display = 'block';
     window.scrollTo(0, 0);
+
+    fetchStudent(name)
+      .then(function() { if (currentStudent === name) renderDetail(name); })
+      .catch(function(err) {
+        console.error('Student fetch error:', err);
+        showError('Could not load your data. Check connection.');
+        if (currentStudent === name) renderDetail(name);
+      });
   }
 
   function closeStudent() {
@@ -183,16 +220,13 @@
     var body = document.getElementById('detail-body');
     body.innerHTML = '';
 
-    // Top grid: Agility + Effort
     var topGrid = el('div', 'section-grid');
     topGrid.appendChild(buildAgilityCard(name, d));
     topGrid.appendChild(buildEffortCard(name, d));
     body.appendChild(topGrid);
 
-    // Progress overview
     body.appendChild(buildOverview(d));
 
-    // Skill detail grid: Badminton + Volleyball
     var skillGrid = el('div', 'section-grid');
     skillGrid.appendChild(buildSkillsCard(name, 'Badminton Skills', 'green', BADMINTON));
     skillGrid.appendChild(buildSkillsCard(name, 'Volleyball Skills', 'coral', VOLLEYBALL));
@@ -211,7 +245,6 @@
     grid.appendChild(buildAgilityBox('Re-test', d.ag_retest, 'ag_retest', name));
     body.appendChild(grid);
 
-    // Diff block (when both values present)
     var b = parseFloat(d.ag_baseline);
     var r = parseFloat(d.ag_retest);
     if (!isNaN(b) && !isNaN(r)) {
@@ -267,7 +300,6 @@
         studentData[student][field] = v;
         saveField(student, field, v, true).then(function() {
           btn.textContent = 'Saved!';
-          // Re-render to refresh diff block + value display
           setTimeout(function() {
             btn.disabled = false;
             btn.textContent = 'Save';
@@ -277,11 +309,11 @@
       });
       box.appendChild(btn);
     } else {
-      var valDiv = el('div', 'value' + (hasValue ? '' : ' empty'));
-      valDiv.textContent = hasValue ? value : '\u2014';
-      box.appendChild(valDiv);
-      var unit = el('div', 'unit'); unit.textContent = 'seconds';
-      box.appendChild(unit);
+      var valDiv2 = el('div', 'value' + (hasValue ? '' : ' empty'));
+      valDiv2.textContent = hasValue ? value : '\u2014';
+      box.appendChild(valDiv2);
+      var unit2 = el('div', 'unit'); unit2.textContent = 'seconds';
+      box.appendChild(unit2);
     }
     return box;
   }
@@ -346,7 +378,6 @@
     return card;
   }
 
-  // ── Skill row with single-fill power bar ──
   function buildSkillRow(student, skill, inline) {
     var item = el('div', 'skill-item');
 
@@ -374,7 +405,6 @@
       item.appendChild(tagsDiv);
     }
 
-    // Power bar
     var bar = el('div', 'rating-bar');
     var fill = el('div', 'rating-fill');
     if (currentVal > 0) fill.classList.add('level-' + currentVal);
@@ -403,11 +433,9 @@
       var newVal = (old === clickedLevel) ? clickedLevel - 1 : clickedLevel;
       studentData[student][skill.key] = newVal;
 
-      // Update fill
       fill.className = 'rating-fill';
       if (newVal > 0) fill.classList.add('level-' + newVal);
 
-      // Update bar label
       label.className = 'rating-label';
       if (newVal === 0) {
         label.classList.add('level-0');
@@ -417,7 +445,6 @@
         label.textContent = LEVEL_LABELS[newVal];
       }
 
-      // Update top-right label
       tap.className = 'skill-tap';
       tap.textContent = LEVEL_LABELS[newVal];
       if (newVal > 0) {
@@ -427,10 +454,7 @@
         tap.style.color = '';
       }
 
-      // Update overview bars
       updateOverviewBars(student);
-
-      // Save
       saveField(student, skill.key, newVal, false);
     });
     item.appendChild(bar);
@@ -489,5 +513,7 @@
 
   // ── Init ──
   renderRoster();
-  fetchData();
+  fetchSettings().then(function() {
+    document.getElementById('loading').style.display = 'none';
+  });
 })();
