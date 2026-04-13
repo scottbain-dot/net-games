@@ -47,3 +47,17 @@ function saveField(student, field, value, isAgility) {
 function setLessonRemote(lesson) {
   return api(null, { action: 'setLesson', 'class': CLASS_NAME, lesson: lesson, pin: TEACHER_PIN });
 }
+function verifyPinRemote(student, pin) {
+  return api(null, { action: 'verifyPin', 'class': CLASS_NAME, student: student, pin: pin });
+}
+function setPinRemote(student, pin, teacherPin) {
+  var payload = { action: 'setPin', 'class': CLASS_NAME, student: student, pin: pin };
+  if (teacherPin) payload.teacherPin = teacherPin;
+  return api(null, payload);
+}
+function fetchAllPins() {
+  return api('action=getAllPins&class=' + encodeURIComponent(CLASS_NAME) + '&pin=' + encodeURIComponent(TEACHER_PIN));
+}
+function resetPinRemote(student) {
+  return api(null, { action: 'resetPin', 'class': CLASS_NAME, student: student, teacherPin: TEACHER_PIN });
+}

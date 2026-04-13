@@ -349,18 +349,58 @@ body {
 .pin-cancel { background: #e8e8e8; color: #1a1a1a; }
 .pin-error { color: #e74c3c; font-size: 0.8rem; margin-top: 10px; min-height: 1.1em; }
 
-/* Initials overlay (student gate) — reuses .pin-overlay / .pin-box */
-#initials-input {
-  width: 180px; padding: 10px; text-align: center;
-  font-size: 1.4rem; letter-spacing: 6px;
+/* Student PIN overlay — reuses .pin-overlay / .pin-box */
+#student-pin-input {
+  width: 160px; padding: 10px; text-align: center;
+  font-size: 1.4rem; letter-spacing: 10px;
   border: 2px solid #e0e0e0; border-radius: 8px;
-  background: #fff; color: #1a1a1a;
-  text-transform: uppercase; font-weight: 700;
+  background: #fff; color: #1a1a1a; font-weight: 700;
 }
-.initials-hint {
+.student-pin-hint {
   font-size: 0.8rem; color: #666; margin: -6px 0 12px;
 }
-.initials-hint strong { color: #1a4a7a; }
+.student-pin-hint strong { color: #1a4a7a; }
+
+/* Teacher PINs panel */
+.teacher-pins-panel {
+  display: none;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.teacher-pins-panel.active { display: block; }
+.teacher-pins-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.teacher-pins-refresh {
+  padding: 4px 10px; font-size: 0.72rem;
+  border: 1px solid #e0e0e0; background: #fff; border-radius: 6px;
+  cursor: pointer; color: #1a1a1a;
+}
+.teacher-pins-refresh:hover { background: #f8f6f2; }
+.teacher-pins-hint {
+  font-size: 0.72rem; color: #888; margin-bottom: 10px;
+}
+.teacher-pins-table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+.teacher-pins-table td {
+  padding: 6px 10px; border-bottom: 1px solid #f2f2f2;
+}
+.teacher-pins-table td.pin-name { font-weight: 500; }
+.teacher-pins-table td.pin-value {
+  font-family: ui-monospace, Menlo, monospace; letter-spacing: 2px; color: #1a4a7a;
+}
+.teacher-pins-table td.pin-value.empty { color: #bbb; font-style: italic; letter-spacing: 0; }
+.teacher-pins-table td.pin-actions { text-align: right; }
+.teacher-pins-table button.pin-reset {
+  padding: 3px 9px; font-size: 0.7rem;
+  border: 1px solid #e67e22; color: #e67e22; background: #fff;
+  border-radius: 6px; cursor: pointer;
+}
+.teacher-pins-table button.pin-reset:hover { background: #fff4ea; }
 
 /* Roster current-lesson badge */
 .roster-lesson {

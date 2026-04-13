@@ -49,35 +49,74 @@ function renderRoster() {
   });
 }
 
-// Chunk 2: initials gate + open/close student
+// Chunk 2: PIN gate + open/close student
+var pinFlow = 'enter';        // 'enter' | 'create-first' | 'create-confirm'
+var pinAttempts = 0;
+var pinPending = '';          // first PIN entry while creating
 function tapStudentCard(name, idx) {
   if (teacherMode) { openStudent(name, idx); return; }
-  promptInitials(name, idx);
+  var d = studentData[name] || {};
+  pinAttempts = 0; pinPending = '';
+  pinFlow = d.hasPin ? 'enter' : 'create-first';
+  openPinOverlay(name, idx);
 }
-function promptInitials(name, idx) {
-  var ov = document.getElementById('initials-overlay');
-  document.getElementById('initials-title').textContent = 'Confirm: ' + name;
-  document.getElementById('initials-hint').innerHTML =
-    'Type the initials for <strong>' + name + '</strong>';
-  document.getElementById('initials-error').textContent = '';
-  var inp = document.getElementById('initials-input');
-  inp.value = '';
-  inp.dataset.target = name;
-  inp.dataset.idx = idx;
+function openPinOverlay(name, idx) {
+  var ov = document.getElementById('student-pin-overlay');
+  var title = document.getElementById('student-pin-title');
+  var hint  = document.getElementById('student-pin-hint');
+  var err   = document.getElementById('student-pin-error');
+  var inp   = document.getElementById('student-pin-input');
+  inp.value = ''; err.textContent = '';
+  inp.dataset.target = name; inp.dataset.idx = idx;
+  if (pinFlow === 'enter') {
+    title.textContent = 'Enter your PIN';
+    hint.innerHTML = 'Welcome back, <strong>' + name + '</strong>';
+  } else if (pinFlow === 'create-first') {
+    title.textContent = 'Create your 4-digit PIN';
+    hint.innerHTML = 'Hi <strong>' + name + '</strong> — pick a PIN only you will remember';
+  } else {
+    title.textContent = 'Confirm your PIN';
+    hint.innerHTML = 'Type the same 4 digits again';
+  }
   ov.classList.add('active');
   setTimeout(function() { inp.focus(); }, 50);
 }
-function checkInitials() {
-  var inp = document.getElementById('initials-input');
+function closePinOverlay() {
+  document.getElementById('student-pin-overlay').classList.remove('active');
+}
+function submitStudentPin() {
+  var inp = document.getElementById('student-pin-input');
+  var err = document.getElementById('student-pin-error');
   var name = inp.dataset.target;
   var idx = parseInt(inp.dataset.idx, 10);
-  var expect = (STUDENT_INITIALS[name] || '').toUpperCase();
-  var got = (inp.value || '').trim().toUpperCase();
-  if (got && got === expect) {
-    document.getElementById('initials-overlay').classList.remove('active');
-    openStudent(name, idx);
+  var pin = (inp.value || '').trim();
+  if (!/^\d{4}$/.test(pin)) { err.textContent = 'Enter 4 digits'; return; }
+
+  if (pinFlow === 'enter') {
+    verifyPinRemote(name, pin).then(function(j) {
+      if (j && j.ok) { closePinOverlay(); openStudent(name, idx); return; }
+      pinAttempts++;
+      if (pinAttempts >= 2) { closePinOverlay(); showError('Wrong PIN — ask your teacher'); return; }
+      err.textContent = 'Wrong PIN — one more try';
+      inp.value = ''; inp.focus();
+    });
+  } else if (pinFlow === 'create-first') {
+    pinPending = pin; pinFlow = 'create-confirm';
+    openPinOverlay(name, idx);
   } else {
-    document.getElementById('initials-error').textContent = 'Try again';
+    if (pin !== pinPending) {
+      err.textContent = 'Did not match — try again';
+      pinPending = ''; pinFlow = 'create-first';
+      inp.value = ''; inp.focus(); return;
+    }
+    setPinRemote(name, pin).then(function(j) {
+      if (j && j.ok) {
+        if (studentData[name]) studentData[name].hasPin = true;
+        closePinOverlay(); openStudent(name, idx);
+      } else {
+        err.textContent = (j && j.error) || 'Could not save PIN';
+      }
+    });
   }
 }
 function openStudent(name, idx) {
@@ -359,11 +398,47 @@ function renderTeacherLessonSetter() {
   })(i);
 }
 
+// Teacher PINs table — lists every student's PIN with a Reset button
+function refreshTeacherPins() {
+  var table = document.getElementById('teacher-pins-table');
+  if (!table) return;
+  table.innerHTML = '<tr><td colspan="3" class="teacher-pins-hint">Loading…</td></tr>';
+  fetchAllPins().then(function(j) {
+    var pins = (j && j.pins) || {};
+    table.innerHTML = '';
+    STUDENTS.forEach(function(name) {
+      var tr = document.createElement('tr');
+      var pin = pins[name] || '';
+      tr.innerHTML = '<td class="pin-name">' + name + '</td>' +
+        '<td class="pin-value' + (pin ? '' : ' empty') + '">' + (pin || 'no PIN yet') + '</td>' +
+        '<td class="pin-actions"></td>';
+      var btn = document.createElement('button');
+      btn.className = 'pin-reset'; btn.textContent = 'Reset';
+      btn.addEventListener('click', function() {
+        if (!confirm('Reset PIN for ' + name + '?')) return;
+        btn.disabled = true; btn.textContent = 'Resetting…';
+        resetPinRemote(name).then(function(r) {
+          if (r && r.ok) {
+            if (studentData[name]) studentData[name].hasPin = false;
+            refreshTeacherPins();
+          } else {
+            btn.disabled = false; btn.textContent = 'Reset';
+            showError('Reset failed');
+          }
+        });
+      });
+      tr.querySelector('.pin-actions').appendChild(btn);
+      table.appendChild(tr);
+    });
+  });
+}
+
 // Chunk 8: DOM event handlers + boot
 document.getElementById('teacher-btn').addEventListener('click', function() {
   if (teacherMode) {
     teacherMode = false; this.textContent = 'Teacher \u203A';
     document.getElementById('teacher-lesson-setter').classList.remove('active');
+    document.getElementById('teacher-pins-panel').classList.remove('active');
     if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
     return;
   }
@@ -378,7 +453,9 @@ function checkPin() {
     document.getElementById('pin-overlay').classList.remove('active');
     document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
     document.getElementById('teacher-lesson-setter').classList.add('active');
+    document.getElementById('teacher-pins-panel').classList.add('active');
     renderTeacherLessonSetter();
+    refreshTeacherPins();
     if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
   } else { document.getElementById('pin-error').textContent = 'Wrong PIN'; }
 }
@@ -387,11 +464,12 @@ document.getElementById('pin-input').addEventListener('keydown', function(e) { i
 document.getElementById('pin-cancel').addEventListener('click', function() {
   document.getElementById('pin-overlay').classList.remove('active');
 });
-document.getElementById('initials-ok').addEventListener('click', checkInitials);
-document.getElementById('initials-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') checkInitials(); });
-document.getElementById('initials-cancel').addEventListener('click', function() {
-  document.getElementById('initials-overlay').classList.remove('active');
+document.getElementById('student-pin-ok').addEventListener('click', submitStudentPin);
+document.getElementById('student-pin-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') submitStudentPin();
 });
+document.getElementById('student-pin-cancel').addEventListener('click', closePinOverlay);
+document.getElementById('teacher-pins-refresh').addEventListener('click', refreshTeacherPins);
 document.getElementById('back-btn').addEventListener('click', closeStudent);
 
 // Boot

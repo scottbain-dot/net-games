@@ -25,6 +25,9 @@ var LESSON_HEADERS = ['Student','Lesson'].concat(LESSON_FIELDS).concat(['timesta
 // Agility tab fields (baseline + retest, separate from per-lesson rows)
 var AGILITY_HEADERS = ['Student','Class','ag_baseline','ag_retest'];
 
+// PINs tab — one row per student per class, holds their 4-digit PIN
+var PIN_HEADERS = ['Student','Class','PIN'];
+
 // Settings tab fields
 var SETTINGS_HEADERS = ['Class','CurrentLesson'];
 
@@ -122,6 +125,11 @@ function doGet(e) {
       if (!className) return jsonResponse({ error: 'Missing class' });
       return jsonResponse(readEngagement(className));
     }
+    if (action === 'getAllPins') {
+      if (!className) return jsonResponse({ error: 'Missing class' });
+      if (e.parameter.pin !== TEACHER_PIN) return jsonResponse({ error: 'Bad PIN' });
+      return jsonResponse({ pins: readPinMap(className) });
+    }
     return jsonResponse({ error: 'Invalid action' });
   } catch (err) {
     return jsonResponse({ error: String(err) });
@@ -207,7 +215,24 @@ function readAllCurrent(className) {
     }
   }
 
+  // hasPin flags so the frontend can choose create-PIN vs enter-PIN flow
+  var pinMap = readPinMap(className);
+  for (var n3 in out.students) {
+    out.students[n3].hasPin = !!(pinMap[n3] && String(pinMap[n3]).length > 0);
+  }
+
   return out;
+}
+
+function readPinMap(className) {
+  var sheet = getSheet('Pins');
+  var map = {};
+  if (!sheet || sheet.getLastRow() < 2) return map;
+  var data = sheet.getDataRange().getValues();
+  for (var r = 1; r < data.length; r++) {
+    if (data[r][1] === className) map[data[r][0]] = String(data[r][2] || '');
+  }
+  return map;
 }
 
 function blankStudentRatings() {
@@ -247,6 +272,9 @@ function doPost(e) {
     if (action === 'saveLesson') return saveLesson(body);
     if (action === 'saveAgility') return saveAgility(body);
     if (action === 'setLesson') return setLesson(body);
+    if (action === 'verifyPin') return verifyPin(body);
+    if (action === 'setPin') return setPin(body);
+    if (action === 'resetPin') return resetPin(body);
     return jsonResponse({ error: 'Unknown action' });
   } catch (err) {
     return jsonResponse({ error: String(err) });
@@ -323,6 +351,58 @@ function saveAgility(body) {
   return jsonResponse({ ok: true });
 }
 
+function verifyPin(body) {
+  var className = body['class'];
+  var student = body.student;
+  var pin = String(body.pin || '');
+  if (!className || !student) return jsonResponse({ error: 'Missing params' });
+  var map = readPinMap(className);
+  var stored = String(map[student] || '');
+  if (!stored) return jsonResponse({ error: 'No PIN set' });
+  if (stored === pin) return jsonResponse({ ok: true });
+  return jsonResponse({ error: 'Wrong PIN' });
+}
+
+function setPin(body) {
+  var className = body['class'];
+  var student = body.student;
+  var pin = String(body.pin || '');
+  var teacherPin = body.teacherPin;
+  if (!className || !student) return jsonResponse({ error: 'Missing params' });
+  if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: 'PIN must be 4 digits' });
+
+  var sheet = getSheet('Pins');
+  if (!sheet) return jsonResponse({ error: 'Pins sheet missing' });
+
+  var row = findRowBy2(sheet, 1, student, 2, className);
+  var existing = '';
+  if (row !== -1) existing = String(sheet.getRange(row, 3).getValue() || '');
+
+  // Allow if: no existing PIN (first-time create) OR teacher PIN matches (reset).
+  if (existing && teacherPin !== TEACHER_PIN) {
+    return jsonResponse({ error: 'PIN already set — ask teacher to reset' });
+  }
+
+  if (row === -1) {
+    sheet.appendRow([student, className, pin]);
+  } else {
+    sheet.getRange(row, 3).setValue(pin);
+  }
+  return jsonResponse({ ok: true });
+}
+
+function resetPin(body) {
+  if (body.teacherPin !== TEACHER_PIN) return jsonResponse({ error: 'Bad teacher PIN' });
+  var className = body['class'];
+  var student = body.student;
+  if (!className || !student) return jsonResponse({ error: 'Missing params' });
+  var sheet = getSheet('Pins');
+  if (!sheet) return jsonResponse({ error: 'Pins sheet missing' });
+  var row = findRowBy2(sheet, 1, student, 2, className);
+  if (row !== -1) sheet.getRange(row, 3).setValue('');
+  return jsonResponse({ ok: true });
+}
+
 function setLesson(body) {
   if (body.pin !== TEACHER_PIN) return jsonResponse({ error: 'Bad PIN' });
   var className = body['class'];
@@ -360,6 +440,16 @@ function setupSheets() {
     (ROSTERS[cls] || []).forEach(function(name) { agRows.push([name, cls, '', '']); });
   });
   if (agRows.length) ag.getRange(2, 1, agRows.length, AGILITY_HEADERS.length).setValues(agRows);
+
+  var pn = book.getSheetByName('Pins') || book.insertSheet('Pins');
+  pn.clear();
+  pn.getRange(1, 1, 1, PIN_HEADERS.length).setValues([PIN_HEADERS]);
+  pn.setFrozenRows(1);
+  var pnRows = [];
+  CLASSES.forEach(function(cls) {
+    (ROSTERS[cls] || []).forEach(function(name) { pnRows.push([name, cls, '']); });
+  });
+  if (pnRows.length) pn.getRange(2, 1, pnRows.length, PIN_HEADERS.length).setValues(pnRows);
 
   var st = book.getSheetByName('Settings') || book.insertSheet('Settings');
   st.clear();
