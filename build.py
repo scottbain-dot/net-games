@@ -16,10 +16,10 @@ APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFhJyvCrF6ThHNMs7bLe
 TEACHER_PIN = '1770'
 
 STUDENTS_7A = [
-    'Aaliya S','Ben T','Chloe M','Daniel R','Emma K',
-    'Felix W','Grace L','Hugo B','Isla J','James P',
-    'Kira N','Luca F','Maya D','Noah C','Olivia H',
-    'Patrick G','Quinn A','Rosa E','Sam V','Tara U'
+    'Freya Roesner','Flavio CIcuzza','Karim Yasser Ahmed Gamil','Soomin Oh','Chaeyi Lim',
+    'Michelle Schirmbeck','Woojun Jung','Kian Wagner','Nico Stafflage','Louis Hirata',
+    'Ella benzin','Lena Lukat','Austin Wiita','Jihoo Park','Ari Ruiz',
+    'Yilei Li','Joon Song','Rubin Lee'
 ]
 
 STUDENTS_8A = [
