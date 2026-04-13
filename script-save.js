@@ -64,3 +64,12 @@ function resetPinRemote(student) {
 function fetchEngagement() {
   return api('action=getEngagement&class=' + encodeURIComponent(CLASS_NAME));
 }
+function fetchGrades() {
+  return api('action=getGrades&class=' + encodeURIComponent(CLASS_NAME));
+}
+function saveGradeRemote(student, criterion, score) {
+  return api(null, {
+    action: 'saveGrade', 'class': CLASS_NAME,
+    student: student, criterion: criterion, score: score
+  });
+}
