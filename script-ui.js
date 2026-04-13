@@ -159,3 +159,46 @@ function renderDetail(name) {
   skillGrid.appendChild(buildSkillsCard(name, 'Volleyball Skills', 'coral', VOLLEYBALL, d));
   body.appendChild(skillGrid);
 }
+
+// Chunk 4: agility test card + effort card
+function buildAgilityCard(name, d) {
+  var card = el('div', 'section-card');
+  var h = el('div', 'section-header blue');
+  h.textContent = 'Illinois Agility Test \u00b7 Teacher Recorded';
+  card.appendChild(h);
+  var body = el('div', 'agility-body');
+  var grid = el('div', 'agility-grid');
+  grid.appendChild(buildAgilityBox('Baseline', d.ag_baseline, 'ag_baseline', name));
+  grid.appendChild(buildAgilityBox('Re-test', d.ag_retest, 'ag_retest', name));
+  body.appendChild(grid);
+  var b = parseFloat(d.ag_baseline), r = parseFloat(d.ag_retest);
+  if (!isNaN(b) && !isNaN(r)) {
+    var diff = el('div', 'agility-diff'); var delta = r - b;
+    if (delta < 0) {
+      diff.classList.add('improved');
+      diff.innerHTML = 'Improved by <strong>' + Math.abs(delta).toFixed(2) + 's</strong>';
+    } else if (delta > 0) {
+      diff.innerHTML = 'Slower by <strong>' + delta.toFixed(2) + 's</strong>';
+    } else { diff.innerHTML = '<strong>No change</strong>'; }
+    body.appendChild(diff);
+  }
+  if (!teacherMode) {
+    var note = el('div', 'agility-note');
+    note.textContent = 'Times will be added by your teacher';
+    body.appendChild(note);
+  }
+  card.appendChild(body);
+  return card;
+}
+function buildEffortCard(name, d) {
+  var card = el('div', 'section-card');
+  var h = el('div', 'section-header purple'); h.textContent = 'Effort & Focus';
+  card.appendChild(h);
+  var body = el('div', 'effort-body');
+  var prompt = el('div', 'effort-prompt');
+  prompt.textContent = 'How hard did you push yourself today?';
+  body.appendChild(prompt);
+  body.appendChild(buildSkillRow(name, EFFORT_SKILL, d, true));
+  card.appendChild(body);
+  return card;
+}
