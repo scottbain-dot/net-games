@@ -503,51 +503,25 @@ var STUDENTS = ['Nicolas v M', 'Seppe M', 'Antonia G', 'Amaya W', 'Peter T', 'Si
     }
   }
 
-  // ── Fetch current lesson from Settings tab ──
-  function fetchSettings() {
-    return fetch(APPS_SCRIPT_URL + '?action=getSettings&class=' + encodeURIComponent(CLASS_NAME))
+  // ── One-shot: load every student's current-lesson data + agility times ──
+  function fetchAllCurrent() {
+    return fetch(APPS_SCRIPT_URL + '?action=getAllCurrent&class=' + encodeURIComponent(CLASS_NAME))
       .then(function(r) { return r.json(); })
       .then(function(json) {
         if (json.error) throw new Error(json.error);
         currentLesson = parseInt(json.currentLesson, 10) || 1;
-      })
-      .catch(function(err) {
-        console.error('Settings fetch error:', err);
-        showError('Could not load current lesson. Using L1.');
-        currentLesson = 1;
-      });
-  }
-
-  // ── Fetch one student's per-lesson + agility data ──
-  function fetchStudent(name) {
-    return fetch(APPS_SCRIPT_URL + '?action=getStudent&class=' + encodeURIComponent(CLASS_NAME) +
-                  '&student=' + encodeURIComponent(name))
-      .then(function(r) { return r.json(); })
-      .then(function(json) {
-        if (json.error) throw new Error(json.error);
-        if (typeof json.currentLesson === 'number') currentLesson = json.currentLesson;
-
-        var ratings = blankRatings();
-        // Populate from the current lesson's row if it exists.
-        if (Array.isArray(json.lessons)) {
-          for (var i = 0; i < json.lessons.length; i++) {
-            var row = json.lessons[i];
-            if (String(row.Lesson) === String(currentLesson)) {
-              for (var k in row) {
-                if (k === 'Student' || k === 'Lesson' || k === 'timestamp') continue;
-                ratings[k] = row[k];
-              }
-              break;
-            }
+        if (json.students) {
+          for (var name in json.students) {
+            var ratings = blankRatings();
+            var src = json.students[name];
+            for (var k in src) { if (src[k] !== undefined) ratings[k] = src[k]; }
+            studentData[name] = ratings;
           }
         }
-        // Agility times (cross-lesson).
-        if (json.agility) {
-          ratings.ag_baseline = json.agility.ag_baseline || '';
-          ratings.ag_retest = json.agility.ag_retest || '';
-        }
-        studentData[name] = ratings;
-        return ratings;
+      })
+      .catch(function(err) {
+        console.error('Initial fetch error:', err);
+        showError('Could not load data. Check connection and reload.');
       });
   }
 
@@ -606,19 +580,11 @@ var STUDENTS = ['Nicolas v M', 'Seppe M', 'Antonia G', 'Amaya W', 'Peter T', 'Si
     av.textContent = initials(name);
     document.getElementById('detail-name').textContent = name;
 
-    // Show loading state while fetching this student's per-lesson data.
-    document.getElementById('detail-body').innerHTML = '';
+    renderDetail(name);
+
     document.getElementById('view-roster').style.display = 'none';
     document.getElementById('view-detail').style.display = 'block';
     window.scrollTo(0, 0);
-
-    fetchStudent(name)
-      .then(function() { if (currentStudent === name) renderDetail(name); })
-      .catch(function(err) {
-        console.error('Student fetch error:', err);
-        showError('Could not load your data. Check connection.');
-        if (currentStudent === name) renderDetail(name);
-      });
   }
 
   function closeStudent() {
@@ -926,7 +892,7 @@ var STUDENTS = ['Nicolas v M', 'Seppe M', 'Antonia G', 'Amaya W', 'Peter T', 'Si
 
   // ── Init ──
   renderRoster();
-  fetchSettings().then(function() {
+  fetchAllCurrent().then(function() {
     document.getElementById('loading').style.display = 'none';
   });
 })();
