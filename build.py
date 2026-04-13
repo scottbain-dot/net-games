@@ -16,10 +16,10 @@ APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFhJyvCrF6ThHNMs7bLe
 TEACHER_PIN = '1770'
 
 STUDENTS_7A = [
-    'Freya Roesner','Flavio CIcuzza','Karim Yasser Ahmed Gamil','Soomin Oh','Chaeyi Lim',
-    'Michelle Schirmbeck','Woojun Jung','Kian Wagner','Nico Stafflage','Louis Hirata',
-    'Ella benzin','Lena Lukat','Austin Wiita','Jihoo Park','Ari Ruiz',
-    'Yilei Li','Joon Song','Rubin Lee'
+    'Freya R','Flavio C','Karim Y A G','Soomin O','Chaeyi L',
+    'Michelle S','Woojun J','Kian W','Nico S','Louis',
+    'Ella B','Lena L','Austin W','Jihoo P','Ari R',
+    'Yilei L','Joon S','Rubin L'
 ]
 
 STUDENTS_8A = [
