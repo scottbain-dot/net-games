@@ -16,15 +16,17 @@ APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFhJyvCrF6ThHNMs7bLe
 TEACHER_PIN = '1770'
 
 STUDENTS_7A = [
-    'Aaliya S','Ben T','Chloe M','Daniel R','Emma K',
-    'Felix W','Grace L','Hugo B','Isla J','James P',
-    'Kira N','Luca F','Maya D','Noah C','Olivia H',
-    'Patrick G','Quinn A','Rosa E','Sam V','Tara U'
+    'Freya R','Flavio C','Karim Y A G','Soomin O','Chaeyi L',
+    'Michelle S','Woojun J','Kian W','Nico S','Louis H',
+    'Ella B','Lena L','Austin W','Jihoo P','Ari R',
+    'Yilei L','Joon S','Rubin L'
 ]
 
 STUDENTS_8A = [
-    'Student 1','Student 2','Student 3','Student 4','Student 5',
-    'Student 6','Student 7','Student 8','Student 9','Student 10'
+    'Nicolas v M','Seppe M','Antonia G','Amaya W','Peter T',
+    'Silas V','Seoyeon J','Taehyun S','Dylan T','Ryan S',
+    'Josh R','David L','Vihaan M','Philipp N',"Alec O'D",
+    'Bora G','Katharina V','Kinley C'
 ]
 
 def js_array(names):
