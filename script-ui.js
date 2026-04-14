@@ -756,6 +756,7 @@ document.getElementById('teacher-btn').addEventListener('click', function() {
     teacherMode = false; this.textContent = 'Teacher \u203A';
     document.getElementById('teacher-lesson-setter').classList.remove('active');
     document.getElementById('teacher-pins-panel').classList.remove('active');
+    document.body.classList.remove('teacher-active');
     if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
     return;
   }
@@ -771,6 +772,7 @@ function checkPin() {
     document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
     document.getElementById('teacher-lesson-setter').classList.add('active');
     document.getElementById('teacher-pins-panel').classList.add('active');
+    document.body.classList.add('teacher-active');
     renderTeacherLessonSetter();
     refreshTeacherPins();
     if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }

@@ -669,7 +669,7 @@ body {
 /* ── Intro panel (above roster) ── */
 .intro-panel {
   display: grid;
-  grid-template-columns: 1.25fr repeat(3, 1fr) 0.9fr;
+  grid-template-columns: 1.25fr repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 22px;
 }
@@ -790,3 +790,5 @@ body {
 .phase-vol{background:#FAECE7;color:#712B13}
 .phase-choice{background:#F0EEFF;color:#3C3489}
 .phase-test{background:#EBF4FF;color:#0C447C}
+body.teacher-active .intro-panel,
+body.teacher-active .lessons-bar { display: none; }
