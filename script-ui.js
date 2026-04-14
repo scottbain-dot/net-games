@@ -34,6 +34,15 @@ function updateAutosave() {
 function updateRosterLessonBadge() {
   var n = document.getElementById('roster-lesson-num');
   if (n) n.textContent = 'L' + currentLesson;
+  var items = document.querySelectorAll('#lessons-grid .lesson-item');
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var ln = parseInt(it.getAttribute('data-lesson'), 10);
+    it.classList.remove('current', 'done', 'upcoming');
+    if (ln === currentLesson) it.classList.add('current');
+    else if (ln < currentLesson) it.classList.add('done');
+    else it.classList.add('upcoming');
+  }
 }
 function renderRoster() {
   var grid = document.getElementById('student-grid');
