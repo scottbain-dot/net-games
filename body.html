@@ -1,0 +1,204 @@
+<div id="loading"><div class="spinner"></div> Loading...</div>
+<div class="error-banner" id="error-banner"></div>
+
+<!-- ════ ROSTER VIEW ════ -->
+<div id="view-roster">
+  <div class="intro-panel">
+    <div class="intro-card intro-hero">
+      <div class="intro-super">__CLASS__ &middot; Net Games</div>
+      <div class="intro-title">Move for Skills</div>
+      <div class="intro-subtitle">9 lessons &middot; 3 criteria</div>
+    </div>
+    <div class="intro-card intro-crit intro-s2">
+      <div class="intro-crit-head">
+        <div class="intro-crit-title">Skill<br>Identification</div>
+        <span class="intro-badge s2">S2</span>
+      </div>
+      <div class="intro-body">Pick your <strong>agility focus</strong> every lesson and work on it deliberately</div>
+    </div>
+    <div class="intro-card intro-crit intro-s1">
+      <div class="intro-crit-head">
+        <div class="intro-crit-title">Skill<br>Development</div>
+        <span class="intro-badge s1">S1</span>
+      </div>
+      <div class="intro-body">Improve your skills and <strong>beat your Illinois baseline</strong> at the re-test</div>
+    </div>
+    <div class="intro-card intro-crit intro-s4">
+      <div class="intro-crit-head">
+        <div class="intro-crit-title">Active<br>Participation</div>
+        <span class="intro-badge s4">S4</span>
+      </div>
+      <div class="intro-body"><strong>Show up fully</strong> every lesson &mdash; communicate, collaborate, give effort</div>
+    </div>
+    <div class="intro-card intro-illinois">
+      <div class="intro-illinois-icon">&#8853;</div>
+      <div class="intro-illinois-title">Illinois<br>Agility Test</div>
+      <div class="intro-illinois-dates">L1 baseline<br>L9 re-test</div>
+    </div>
+  </div>
+  <div class="lessons-bar">
+    <div class="lessons-label">Unit overview &middot; 9 lessons</div>
+    <div class="lessons-grid" id="lessons-grid">
+      <div class="lesson-item" data-lesson="1">
+        <div class="l-num">L1</div>
+        <div class="l-phase phase-test">Illinois</div>
+        <div class="l-content">Intro + free play + baseline</div>
+      </div>
+      <div class="lesson-item" data-lesson="2">
+        <div class="l-num">L2</div>
+        <div class="l-phase phase-bad">Badminton</div>
+        <div class="l-content">Serve &amp; clear</div>
+      </div>
+      <div class="lesson-item" data-lesson="3">
+        <div class="l-num">L3</div>
+        <div class="l-phase phase-bad">Badminton</div>
+        <div class="l-content">Footwork &amp; net play</div>
+      </div>
+      <div class="lesson-item" data-lesson="4">
+        <div class="l-num">L4</div>
+        <div class="l-phase phase-bad">Badminton</div>
+        <div class="l-content">Match play &amp; tactics</div>
+      </div>
+      <div class="lesson-item" data-lesson="5">
+        <div class="l-num">L5</div>
+        <div class="l-phase phase-vol">Volleyball</div>
+        <div class="l-content">Serve &amp; forearm pass</div>
+      </div>
+      <div class="lesson-item" data-lesson="6">
+        <div class="l-num">L6</div>
+        <div class="l-phase phase-vol">Volleyball</div>
+        <div class="l-content">Setting &amp; positioning</div>
+      </div>
+      <div class="lesson-item" data-lesson="7">
+        <div class="l-num">L7</div>
+        <div class="l-phase phase-vol">Volleyball</div>
+        <div class="l-content">Match play &amp; rotation</div>
+      </div>
+      <div class="lesson-item" data-lesson="8">
+        <div class="l-num">L8</div>
+        <div class="l-phase phase-test">Illinois</div>
+        <div class="l-content">Re-test + reflection</div>
+      </div>
+      <div class="lesson-item" data-lesson="9">
+        <div class="l-num">L9</div>
+        <div class="l-phase phase-choice">Choice</div>
+        <div class="l-content">Badminton / volleyball / football tennis / table tennis</div>
+      </div>
+    </div>
+  </div>
+  <div class="roster-header">
+    <div>
+      <div class="roster-lesson">Current lesson: <strong id="roster-lesson-num">L1</strong></div>
+    </div>
+    <button class="teacher-btn" id="teacher-btn">Teacher &rsaquo;</button>
+  </div>
+  <div class="teacher-lesson-setter" id="teacher-lesson-setter">
+    <div class="teacher-lesson-setter-label">Set current lesson for __CLASS__</div>
+    <div class="lesson-pills" id="teacher-lesson-pills"></div>
+  </div>
+  <div class="teacher-pins-panel" id="teacher-pins-panel">
+    <div class="teacher-pins-header">
+      <div class="teacher-lesson-setter-label">Student PINs</div>
+      <div>
+        <button class="teacher-pins-refresh" id="teacher-grading-btn">Grade students &rsaquo;</button>
+        <button class="teacher-pins-refresh" id="teacher-engagement-btn">Engagement grid &rsaquo;</button>
+        <button class="teacher-pins-refresh" id="teacher-pins-refresh">Refresh</button>
+      </div>
+    </div>
+    <div class="teacher-pins-hint">Tap <em>Reset</em> to clear a PIN — the student will be asked to create a new one next time they tap their card.</div>
+    <table class="teacher-pins-table" id="teacher-pins-table"></table>
+  </div>
+  <div class="student-grid" id="student-grid"></div>
+</div>
+
+<!-- ════ DETAIL VIEW ════ -->
+<div id="view-detail">
+  <div class="detail-header">
+    <button class="back-btn" id="back-btn">&larr; back</button>
+    <div class="avatar" id="detail-avatar"></div>
+    <div class="info">
+      <div class="name" id="detail-name"></div>
+      <div class="sub">Class __CLASS__ &middot; Net Games</div>
+    </div>
+    <div class="autosave" id="autosave">
+      <span class="dot"></span>
+      <span class="text">auto-saving</span>
+    </div>
+  </div>
+  <div class="lesson-pills-wrap">
+    <div class="lesson-pills-label">Lesson</div>
+    <div class="lesson-pills" id="detail-lesson-pills"></div>
+    <div class="lesson-pills-note" id="lesson-pills-note"></div>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+
+<!-- ════ PIN OVERLAY (teacher) ════ -->
+<div class="pin-overlay" id="pin-overlay">
+  <div class="pin-box">
+    <h3>Enter Teacher PIN</h3>
+    <input type="password" id="pin-input" maxlength="4" inputmode="numeric">
+    <div class="pin-error" id="pin-error"></div>
+    <div class="pin-btns">
+      <button class="pin-cancel" id="pin-cancel">Cancel</button>
+      <button class="pin-ok" id="pin-ok">Enter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ENGAGEMENT VIEW (teacher) ════ -->
+<div id="view-engagement">
+  <div class="detail-header">
+    <button class="back-btn" id="engagement-back-btn">&larr; back</button>
+    <div class="info">
+      <div class="name">Agility Engagement &middot; __CLASS__</div>
+      <div class="sub">Which lessons each student logged a focus</div>
+    </div>
+  </div>
+  <div class="engagement-body">
+    <div class="engagement-legend">
+      <span class="legend-dot dot-on"></span> logged focus
+      <span class="legend-dot dot-off"></span> no entry
+      <span class="legend-hint">Hover a dot to see the chosen element</span>
+    </div>
+    <div class="engagement-grid-wrap">
+      <table class="engagement-grid" id="engagement-grid"></table>
+    </div>
+  </div>
+</div>
+
+<!-- ════ GRADING VIEW (teacher) ════ -->
+<div id="view-grading">
+  <div class="detail-header">
+    <button class="back-btn" id="grading-back-btn">&larr; back</button>
+    <div class="info">
+      <div class="name">Grade students &middot; __CLASS__</div>
+      <div class="sub">Score each student against S2 / S1 / S4</div>
+    </div>
+    <div class="autosave" id="grading-autosave">
+      <span class="dot"></span>
+      <span class="text">auto-saving</span>
+    </div>
+  </div>
+  <div class="grading-body">
+    <table class="grading-table" id="grading-table"></table>
+    <div class="grading-footer">
+      <div id="grading-count">0 of 0 students graded</div>
+      <div class="grading-hint">all scores save automatically</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ STUDENT PIN OVERLAY (create / enter) ════ -->
+<div class="pin-overlay" id="student-pin-overlay">
+  <div class="pin-box">
+    <h3 id="student-pin-title">Enter your PIN</h3>
+    <div class="student-pin-hint" id="student-pin-hint"></div>
+    <input type="password" id="student-pin-input" maxlength="4" inputmode="numeric" autocomplete="off">
+    <div class="pin-error" id="student-pin-error"></div>
+    <div class="pin-btns">
+      <button class="pin-cancel" id="student-pin-cancel">Cancel</button>
+      <button class="pin-ok" id="student-pin-ok">Enter</button>
+    </div>
+  </div>
+</div>
