@@ -149,7 +149,19 @@ function closeStudent() {
 }
 
 // Chunk 3: lesson pills + detail entry + viewed-ratings selector
-function canEdit() { return teacherMode || viewedLesson === currentLesson; }
+function canEdit() { return true; }
+function storeViewedEdit(name, key, value) {
+  if (viewedLesson === currentLesson) {
+    if (!studentData[name]) studentData[name] = {};
+    studentData[name][key] = value;
+  } else {
+    if (!studentHistory[name]) studentHistory[name] = {};
+    if (!studentHistory[name]['L' + viewedLesson]) {
+      studentHistory[name]['L' + viewedLesson] = { Student: name, Lesson: viewedLesson };
+    }
+    studentHistory[name]['L' + viewedLesson][key] = value;
+  }
+}
 function renderLessonPills() {
   var box = document.getElementById('detail-lesson-pills');
   box.innerHTML = '';
@@ -163,10 +175,8 @@ function renderLessonPills() {
   })(i);
   var note = document.getElementById('lesson-pills-note');
   note.className = 'lesson-pills-note';
-  if (viewedLesson !== currentLesson && !teacherMode) {
-    note.textContent = 'Read-only — past lesson'; note.classList.add('readonly');
-  } else if (viewedLesson !== currentLesson) {
-    note.textContent = 'Editing past lesson';
+  if (viewedLesson !== currentLesson) {
+    note.textContent = 'Editing lesson L' + viewedLesson;
   } else { note.textContent = ''; }
 }
 function switchLesson(n) {
@@ -272,7 +282,7 @@ function buildFocusCard(name, d) {
     if (editable) b.addEventListener('click', function() {
       var next = (selected === e.key) ? '' : e.key;
       d.agility_focus = next;
-      if (viewedLesson === currentLesson && studentData[name]) studentData[name].agility_focus = next;
+      storeViewedEdit(name, 'agility_focus', next);
       Array.prototype.forEach.call(grid.children, function(c) { c.classList.remove('active'); });
       if (next) b.classList.add('active');
       selected = next;
@@ -390,7 +400,7 @@ function buildSkillRow(student, skill, d, inline) {
     var old = parseInt(d[skill.key]) || 0;
     var nv = (old === clicked) ? clicked - 1 : clicked;
     d[skill.key] = nv;
-    if (viewedLesson === currentLesson && studentData[student]) studentData[student][skill.key] = nv;
+    storeViewedEdit(student, skill.key, nv);
     fill.className = 'rating-fill'; if (nv > 0) fill.classList.add('level-' + nv);
     label.className = 'rating-label';
     if (nv === 0) { label.classList.add('level-0'); label.textContent = 'tap to rate'; }
