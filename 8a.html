@@ -1458,7 +1458,8 @@ function buildAgilityBox(label, value, field, student) {
       var val = parseFloat(inp.value);
       if (isNaN(val)) return;
       btn.disabled = true; btn.textContent = 'Saving\u2026';
-      if (studentData[student]) studentData[student][field] = val;
+      if (!studentData[student]) studentData[student] = {};
+      studentData[student][field] = val;
       saveField(student, field, val, true).then(function() {
         btn.textContent = 'Saved!';
         setTimeout(function() {
