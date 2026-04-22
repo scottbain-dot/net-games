@@ -120,7 +120,8 @@ function submitStudentPin() {
     }
     setPinRemote(name, pin).then(function(j) {
       if (j && j.ok) {
-        if (studentData[name]) studentData[name].hasPin = true;
+        if (!studentData[name]) studentData[name] = {};
+        studentData[name].hasPin = true;
         closePinOverlay(); openStudent(name, idx);
       } else {
         err.textContent = (j && j.error) || 'Could not save PIN';
