@@ -47,13 +47,13 @@ var ROSTERS = {
     'Freya R','Flavio C','Karim Y A G','Soomin O','Chaeyi L',
     'Michelle S','Woojun J','Kian W','Nico S','Louis H',
     'Ella B','Lena L','Austin W','Jihoo P','Ari R',
-    'Yilei L','Joon S','Rubin L'
+    'Yilei L','Joon S','Rubin L','Minh V'
   ],
   '8A': [
     'Nicolas v M','Seppe M','Antonia G','Amaya W','Peter T',
     'Silas V','Seoyeon J','Taehyun S','Dylan T','Ryan S',
     'Josh R','David L','Vihaan M','Philipp N',"Alec O'D",
-    'Bora G','Katharina V','Kinley C'
+    'Bora G','Katharina V','Kinley C','Ray S'
   ]
 };
 
