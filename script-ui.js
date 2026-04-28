@@ -104,6 +104,15 @@ function submitStudentPin() {
   if (pinFlow === 'enter') {
     verifyPinRemote(name, pin).then(function(j) {
       if (j && j.ok) { closePinOverlay(); openStudent(name, idx); return; }
+      // Teacher reset their PIN since this page loaded — let them create a new one.
+      if (j && j.error === 'No PIN set') {
+        if (!studentData[name]) studentData[name] = {};
+        studentData[name].hasPin = false;
+        pinAttempts = 0; pinPending = '';
+        pinFlow = 'create-first';
+        openPinOverlay(name, idx);
+        return;
+      }
       pinAttempts++;
       if (pinAttempts >= 2) { closePinOverlay(); showError('Wrong PIN — ask your teacher'); return; }
       err.textContent = 'Wrong PIN — one more try';
@@ -184,14 +193,20 @@ function switchLesson(n) {
   if (!currentStudent || n === viewedLesson) return;
   viewedLesson = n;
   var name = currentStudent;
-  if (n === currentLesson) { renderLessonPills(); renderDetail(name); return; }
-  if (studentHistory[name] && studentHistory[name]['L' + n] !== undefined) {
-    renderLessonPills(); renderDetail(name); return;
-  }
+  // Update pill highlight + render whatever we have right away so the UI
+  // doesn't appear frozen during the (slow) Apps Script fetch.
+  renderLessonPills();
+  renderDetail(name);
+  if (n === currentLesson) return;
+  if (studentHistory[name] && studentHistory[name]['L' + n] !== undefined) return;
   fetchStudentHistory(name).then(function() {
-    if (currentStudent === name && viewedLesson === n) {
-      renderLessonPills(); renderDetail(name);
-    }
+    if (currentStudent === name && viewedLesson === n) renderDetail(name);
+  }).catch(function(err) {
+    console.error(err);
+    // If the fetch failed, drop viewedLesson back so a retry click works.
+    if (currentStudent === name && viewedLesson === n) viewedLesson = currentLesson;
+    showError('Could not load lesson — check your connection.');
+    if (currentStudent === name) { renderLessonPills(); renderDetail(name); }
   });
 }
 function getViewed(name) {

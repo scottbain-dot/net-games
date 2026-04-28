@@ -236,13 +236,22 @@ function readAllCurrent(className) {
   return out;
 }
 
+// Normalize a PIN cell — Sheets coerces "0123" into the number 123 on write,
+// so any PIN with a leading zero comes back missing digits. Re-pad to 4.
+function normalizePin(raw) {
+  if (raw === '' || raw === null || raw === undefined) return '';
+  var s = String(raw);
+  if (/^\d+$/.test(s) && s.length > 0 && s.length < 4) s = ('0000' + s).slice(-4);
+  return s;
+}
+
 function readPinMap(className) {
   var sheet = getSheet('Pins');
   var map = {};
   if (!sheet || sheet.getLastRow() < 2) return map;
   var data = sheet.getDataRange().getValues();
   for (var r = 1; r < data.length; r++) {
-    if (data[r][1] === className) map[data[r][0]] = String(data[r][2] || '');
+    if (data[r][1] === className) map[data[r][0]] = normalizePin(data[r][2]);
   }
   return map;
 }
@@ -397,10 +406,12 @@ function setPin(body) {
   }
 
   if (row === -1) {
-    sheet.appendRow([student, className, pin]);
-  } else {
-    sheet.getRange(row, 3).setValue(pin);
+    sheet.appendRow([student, className, '']);
+    row = sheet.getLastRow();
   }
+  var cell = sheet.getRange(row, 3);
+  cell.setNumberFormat('@');
+  cell.setValue(pin);
   return jsonResponse({ ok: true });
 }
 
@@ -506,6 +517,8 @@ function setupSheets() {
   pn.clear();
   pn.getRange(1, 1, 1, PIN_HEADERS.length).setValues([PIN_HEADERS]);
   pn.setFrozenRows(1);
+  // Keep the PIN column text-formatted so leading zeros survive setValue.
+  pn.getRange('C:C').setNumberFormat('@');
   var pnRows = [];
   CLASSES.forEach(function(cls) {
     (ROSTERS[cls] || []).forEach(function(name) { pnRows.push([name, cls, '']); });
