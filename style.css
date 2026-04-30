@@ -385,6 +385,8 @@ body {
 .teacher-pins-hint {
   font-size: 0.72rem; color: #888; margin-bottom: 10px;
 }
+.teacher-pins-panel.pins-hidden .teacher-pins-hint,
+.teacher-pins-panel.pins-hidden .teacher-pins-table { display: none; }
 .teacher-pins-table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
 .teacher-pins-table td {
   padding: 6px 10px; border-bottom: 1px solid #f2f2f2;

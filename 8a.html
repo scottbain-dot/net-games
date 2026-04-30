@@ -392,6 +392,8 @@ body {
 .teacher-pins-hint {
   font-size: 0.72rem; color: #888; margin-bottom: 10px;
 }
+.teacher-pins-panel.pins-hidden .teacher-pins-hint,
+.teacher-pins-panel.pins-hidden .teacher-pins-table { display: none; }
 .teacher-pins-table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
 .teacher-pins-table td {
   padding: 6px 10px; border-bottom: 1px solid #f2f2f2;
@@ -909,6 +911,7 @@ var STUDENTS = ['Nicolas v M', 'Seppe M', 'Antonia G', 'Amaya W', 'Peter T', 'Si
       <div>
         <button class="teacher-pins-refresh" id="teacher-grading-btn">Grade students &rsaquo;</button>
         <button class="teacher-pins-refresh" id="teacher-engagement-btn">Engagement grid &rsaquo;</button>
+        <button class="teacher-pins-refresh" id="teacher-pins-toggle">Show PINs</button>
         <button class="teacher-pins-refresh" id="teacher-pins-refresh">Refresh</button>
       </div>
     </div>
@@ -1955,6 +1958,17 @@ document.getElementById('student-pin-input').addEventListener('keydown', functio
   if (e.key === 'Enter') submitStudentPin();
 });
 document.getElementById('student-pin-cancel').addEventListener('click', closePinOverlay);
+function applyPinsHidden(hidden) {
+  var panel = document.getElementById('teacher-pins-panel');
+  var btn = document.getElementById('teacher-pins-toggle');
+  panel.classList.toggle('pins-hidden', hidden);
+  if (btn) btn.textContent = hidden ? 'Show PINs' : 'Hide PINs';
+}
+applyPinsHidden(true);
+document.getElementById('teacher-pins-toggle').addEventListener('click', function() {
+  var panel = document.getElementById('teacher-pins-panel');
+  applyPinsHidden(!panel.classList.contains('pins-hidden'));
+});
 document.getElementById('teacher-pins-refresh').addEventListener('click', refreshTeacherPins);
 document.getElementById('teacher-engagement-btn').addEventListener('click', openEngagementView);
 document.getElementById('engagement-back-btn').addEventListener('click', closeEngagementView);

@@ -815,6 +815,17 @@ document.getElementById('student-pin-input').addEventListener('keydown', functio
   if (e.key === 'Enter') submitStudentPin();
 });
 document.getElementById('student-pin-cancel').addEventListener('click', closePinOverlay);
+function applyPinsHidden(hidden) {
+  var panel = document.getElementById('teacher-pins-panel');
+  var btn = document.getElementById('teacher-pins-toggle');
+  panel.classList.toggle('pins-hidden', hidden);
+  if (btn) btn.textContent = hidden ? 'Show PINs' : 'Hide PINs';
+}
+applyPinsHidden(true);
+document.getElementById('teacher-pins-toggle').addEventListener('click', function() {
+  var panel = document.getElementById('teacher-pins-panel');
+  applyPinsHidden(!panel.classList.contains('pins-hidden'));
+});
 document.getElementById('teacher-pins-refresh').addEventListener('click', refreshTeacherPins);
 document.getElementById('teacher-engagement-btn').addEventListener('click', openEngagementView);
 document.getElementById('engagement-back-btn').addEventListener('click', closeEngagementView);
