@@ -13,18 +13,30 @@ function api(path, payload) {
   return fetch(APPS_SCRIPT_URL + (payload ? '' : '?' + path), opts)
     .then(function(r) { return r.json(); });
 }
+// Retry an api() call once after `delay` ms on network/parse failure or
+// 5xx-style errors. Apps Script cold-starts and classroom wifi are flaky;
+// a single retry rescues most transient failures.
+function apiWithRetry(path, payload, delay) {
+  return api(path, payload).catch(function(err) {
+    return new Promise(function(resolve, reject) {
+      setTimeout(function() {
+        api(path, payload).then(resolve, reject);
+      }, delay || 700);
+    });
+  });
+}
 function fetchAllCurrent() {
   return api('action=getAllCurrent&class=' + encodeURIComponent(CLASS_NAME)).then(function(j) {
     if (j.error) throw new Error(j.error);
     currentLesson = parseInt(j.currentLesson, 10) || 1;
     viewedLesson = currentLesson;
     if (j.students) for (var n in j.students) studentData[n] = j.students[n];
-  }).catch(function(err) { console.error(err); showError('Could not load data.'); });
+  });
 }
 function fetchStudentHistory(name) {
-  return api('action=getStudent&class=' + encodeURIComponent(CLASS_NAME) +
+  return apiWithRetry('action=getStudent&class=' + encodeURIComponent(CLASS_NAME) +
              '&student=' + encodeURIComponent(name)).then(function(j) {
-    if (j.error) throw new Error(j.error);
+    if (j && j.error) throw new Error(j.error);
     var h = {};
     (j.lessons || []).forEach(function(row) { h['L' + row.Lesson] = row; });
     studentHistory[name] = h;
@@ -36,9 +48,9 @@ function saveField(student, field, value, isAgility) {
   var p = isAgility
     ? { action: 'saveAgility', 'class': CLASS_NAME, student: student, field: field, value: value }
     : { action: 'saveLesson', 'class': CLASS_NAME, student: student, lesson: viewedLesson, field: field, value: value };
-  return api(null, p).then(function(j) {
+  return apiWithRetry(null, p).then(function(j) {
     savesInFlight--; updateAutosave();
-    if (j.error) throw new Error(j.error);
+    if (j && j.error) throw new Error(j.error);
   }).catch(function(err) {
     savesInFlight--; updateAutosave();
     console.error(err); showError('Save failed — tap again to retry.');
@@ -48,12 +60,12 @@ function setLessonRemote(lesson) {
   return api(null, { action: 'setLesson', 'class': CLASS_NAME, lesson: lesson, pin: TEACHER_PIN });
 }
 function verifyPinRemote(student, pin) {
-  return api(null, { action: 'verifyPin', 'class': CLASS_NAME, student: student, pin: pin });
+  return apiWithRetry(null, { action: 'verifyPin', 'class': CLASS_NAME, student: student, pin: pin });
 }
 function setPinRemote(student, pin, teacherPin) {
   var payload = { action: 'setPin', 'class': CLASS_NAME, student: student, pin: pin };
   if (teacherPin) payload.teacherPin = teacherPin;
-  return api(null, payload);
+  return apiWithRetry(null, payload);
 }
 function fetchAllPins() {
   return api('action=getAllPins&class=' + encodeURIComponent(CLASS_NAME) + '&pin=' + encodeURIComponent(TEACHER_PIN));

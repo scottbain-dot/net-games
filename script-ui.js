@@ -75,6 +75,7 @@ function openPinOverlay(name, idx) {
   var hint  = document.getElementById('student-pin-hint');
   var err   = document.getElementById('student-pin-error');
   var inp   = document.getElementById('student-pin-input');
+  setPinBusy(false);
   inp.value = ''; err.textContent = '';
   inp.dataset.target = name; inp.dataset.idx = idx;
   if (pinFlow === 'enter') {
@@ -93,6 +94,15 @@ function openPinOverlay(name, idx) {
 function closePinOverlay() {
   document.getElementById('student-pin-overlay').classList.remove('active');
 }
+function setPinBusy(busy) {
+  var ok = document.getElementById('student-pin-ok');
+  var cancel = document.getElementById('student-pin-cancel');
+  var inp = document.getElementById('student-pin-input');
+  var err = document.getElementById('student-pin-error');
+  ok.disabled = busy; cancel.disabled = busy; inp.disabled = busy;
+  ok.textContent = busy ? 'Checking…' : 'Enter';
+  if (busy) err.textContent = '';
+}
 function submitStudentPin() {
   var inp = document.getElementById('student-pin-input');
   var err = document.getElementById('student-pin-error');
@@ -102,7 +112,9 @@ function submitStudentPin() {
   if (!/^\d{4}$/.test(pin)) { err.textContent = 'Enter 4 digits'; return; }
 
   if (pinFlow === 'enter') {
+    setPinBusy(true);
     verifyPinRemote(name, pin).then(function(j) {
+      setPinBusy(false);
       if (j && j.ok) { closePinOverlay(); openStudent(name, idx); return; }
       // Teacher reset their PIN since this page loaded — let them create a new one.
       if (j && j.error === 'No PIN set') {
@@ -114,9 +126,15 @@ function submitStudentPin() {
         return;
       }
       pinAttempts++;
-      if (pinAttempts >= 2) { closePinOverlay(); showError('Wrong PIN — ask your teacher'); return; }
-      err.textContent = 'Wrong PIN — one more try';
+      err.textContent = pinAttempts >= 3
+        ? 'Wrong PIN — try again or ask your teacher to reset it'
+        : 'Wrong PIN — try again';
       inp.value = ''; inp.focus();
+    }).catch(function(e) {
+      setPinBusy(false);
+      console.error(e);
+      err.textContent = 'Connection problem — try again';
+      inp.focus();
     });
   } else if (pinFlow === 'create-first') {
     pinPending = pin; pinFlow = 'create-confirm';
@@ -127,7 +145,9 @@ function submitStudentPin() {
       pinPending = ''; pinFlow = 'create-first';
       inp.value = ''; inp.focus(); return;
     }
+    setPinBusy(true);
     setPinRemote(name, pin).then(function(j) {
+      setPinBusy(false);
       if (j && j.ok) {
         if (!studentData[name]) studentData[name] = {};
         studentData[name].hasPin = true;
@@ -135,6 +155,11 @@ function submitStudentPin() {
       } else {
         err.textContent = (j && j.error) || 'Could not save PIN';
       }
+    }).catch(function(e) {
+      setPinBusy(false);
+      console.error(e);
+      err.textContent = 'Connection problem — try again';
+      inp.focus();
     });
   }
 }
@@ -189,6 +214,10 @@ function renderLessonPills() {
     note.textContent = 'Editing lesson L' + viewedLesson;
   } else { note.textContent = ''; }
 }
+function setLessonLoadingNote(msg) {
+  var note = document.getElementById('lesson-pills-note');
+  if (note) note.textContent = msg || '';
+}
 function switchLesson(n) {
   if (!currentStudent || n === viewedLesson) return;
   viewedLesson = n;
@@ -199,13 +228,17 @@ function switchLesson(n) {
   renderDetail(name);
   if (n === currentLesson) return;
   if (studentHistory[name] && studentHistory[name]['L' + n] !== undefined) return;
+  setLessonLoadingNote('Loading lesson L' + n + '…');
   fetchStudentHistory(name).then(function() {
-    if (currentStudent === name && viewedLesson === n) renderDetail(name);
+    if (currentStudent === name && viewedLesson === n) {
+      renderLessonPills();
+      renderDetail(name);
+    }
   }).catch(function(err) {
     console.error(err);
     // If the fetch failed, drop viewedLesson back so a retry click works.
     if (currentStudent === name && viewedLesson === n) viewedLesson = currentLesson;
-    showError('Could not load lesson — check your connection.');
+    showError('Could not load lesson — tap the lesson again to retry.');
     if (currentStudent === name) { renderLessonPills(); renderDetail(name); }
   });
 }
@@ -833,9 +866,22 @@ document.getElementById('teacher-grading-btn').addEventListener('click', openGra
 document.getElementById('grading-back-btn').addEventListener('click', closeGradingView);
 document.getElementById('back-btn').addEventListener('click', closeStudent);
 
-// Boot
+// Boot — retry-with-button on failure so we never hand students a roster
+// that's missing hasPin info (they'd all get routed to the create-PIN flow
+// and hit "PIN already set" errors).
+function bootLoad() {
+  var loading = document.getElementById('loading');
+  loading.innerHTML = '<div class="spinner"></div> Loading...';
+  loading.style.display = 'flex';
+  fetchAllCurrent().then(function() {
+    updateRosterLessonBadge();
+    loading.style.display = 'none';
+  }).catch(function(err) {
+    console.error(err);
+    loading.innerHTML = '<div style="text-align:center"><div style="margin-bottom:14px;color:#e74c3c">Could not load class data.</div>' +
+      '<button id="boot-retry" style="padding:10px 22px;background:#2E86DE;color:#fff;border:none;border-radius:8px;font-size:0.95rem;cursor:pointer">Retry</button></div>';
+    document.getElementById('boot-retry').addEventListener('click', bootLoad);
+  });
+}
 renderRoster();
-fetchAllCurrent().then(function() {
-  updateRosterLessonBadge();
-  document.getElementById('loading').style.display = 'none';
-});
+bootLoad();
