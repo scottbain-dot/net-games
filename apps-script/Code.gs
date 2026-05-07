@@ -113,9 +113,6 @@ function doGet(e) {
     var action = e.parameter.action;
     var className = e.parameter['class'];
 
-    if (action === 'getSettings') {
-      return jsonResponse({ currentLesson: readCurrentLesson(className) });
-    }
     if (action === 'getStudent') {
       var student = e.parameter.student;
       if (!className || !student) return jsonResponse({ error: 'Missing params' });
@@ -148,22 +145,11 @@ function doGet(e) {
   }
 }
 
-function readCurrentLesson(className) {
-  var sheet = getSheet('Settings');
-  if (!sheet) return 1;
-  var row = findRowBy(sheet, 1, className);
-  if (row === -1) return 1;
-  var v = sheet.getRange(row, 2).getValue();
-  var n = parseInt(v, 10);
-  return (isNaN(n) || n < 1) ? 1 : n;
-}
-
 function readStudent(className, student) {
   var out = {
     student: student,
     lessons: [],
-    agility: { ag_baseline: '', ag_retest: '' },
-    currentLesson: readCurrentLesson(className)
+    agility: { ag_baseline: '', ag_retest: '' }
   };
   var sheet = getSheet(className);
   if (sheet && sheet.getLastRow() > 1) {
@@ -191,29 +177,17 @@ function readStudent(className, student) {
 }
 
 function readRoster(className) {
-  return { students: ROSTERS[className] || [], currentLesson: readCurrentLesson(className) };
+  return { students: ROSTERS[className] || [] };
 }
 
-// One-shot load for the whole class at current lesson — keeps the frontend fast.
+// One-shot load of the static per-student data the roster page needs:
+// hasPin (controls create-vs-enter flow) and agility test times. Per-lesson
+// reflections are fetched on demand via getStudent when a pill is tapped.
 function readAllCurrent(className) {
-  var currentLesson = readCurrentLesson(className);
-  var out = { currentLesson: currentLesson, students: {} };
-  (ROSTERS[className] || []).forEach(function(n) { out.students[n] = blankStudentRatings(); });
-
-  var sheet = getSheet(className);
-  if (sheet && sheet.getLastRow() > 1) {
-    var data = sheet.getDataRange().getValues();
-    var headers = data[0];
-    for (var r = 1; r < data.length; r++) {
-      if (String(data[r][1]) !== String(currentLesson)) continue;
-      var name = data[r][0];
-      if (!out.students[name]) out.students[name] = blankStudentRatings();
-      for (var c = 2; c < headers.length; c++) {
-        if (headers[c] === 'timestamp') continue;
-        out.students[name][headers[c]] = data[r][c];
-      }
-    }
-  }
+  var out = { students: {} };
+  (ROSTERS[className] || []).forEach(function(n) {
+    out.students[n] = { ag_baseline: '', ag_retest: '' };
+  });
 
   var ag = getSheet('Agility');
   if (ag && ag.getLastRow() > 1) {
@@ -221,13 +195,12 @@ function readAllCurrent(className) {
     for (var r2 = 1; r2 < agData.length; r2++) {
       if (agData[r2][1] !== className) continue;
       var n2 = agData[r2][0];
-      if (!out.students[n2]) out.students[n2] = blankStudentRatings();
+      if (!out.students[n2]) out.students[n2] = { ag_baseline: '', ag_retest: '' };
       out.students[n2].ag_baseline = agData[r2][2];
       out.students[n2].ag_retest = agData[r2][3];
     }
   }
 
-  // hasPin flags so the frontend can choose create-PIN vs enter-PIN flow
   var pinMap = readPinMap(className);
   for (var n3 in out.students) {
     out.students[n3].hasPin = !!(pinMap[n3] && String(pinMap[n3]).length > 0);
@@ -266,7 +239,7 @@ function blankStudentRatings() {
 }
 
 function readEngagement(className) {
-  var out = { students: {}, currentLesson: readCurrentLesson(className) };
+  var out = { students: {} };
   (ROSTERS[className] || []).forEach(function(n) { out.students[n] = {}; });
   var sheet = getSheet(className);
   if (!sheet || sheet.getLastRow() < 2) return out;
@@ -292,7 +265,6 @@ function doPost(e) {
     var action = body.action;
     if (action === 'saveLesson') return saveLesson(body);
     if (action === 'saveAgility') return saveAgility(body);
-    if (action === 'setLesson') return setLesson(body);
     if (action === 'verifyPin') return verifyPin(body);
     if (action === 'setPin') return setPin(body);
     if (action === 'resetPin') return resetPin(body);
@@ -473,22 +445,6 @@ function resetPin(body) {
   var row = findRowBy2(sheet, 1, student, 2, className);
   if (row !== -1) sheet.getRange(row, 3).setValue('');
   return jsonResponse({ ok: true });
-}
-
-function setLesson(body) {
-  if (body.pin !== TEACHER_PIN) return jsonResponse({ error: 'Bad PIN' });
-  var className = body['class'];
-  var lesson = parseInt(body.lesson, 10);
-  if (!className || !lesson || lesson < 1 || lesson > 9) return jsonResponse({ error: 'Bad params' });
-
-  var sheet = getSheet('Settings');
-  if (!sheet) return jsonResponse({ error: 'Settings missing' });
-
-  var row = findRowBy(sheet, 1, className);
-  if (row === -1) sheet.appendRow([className, lesson]);
-  else sheet.getRange(row, 2).setValue(lesson);
-
-  return jsonResponse({ ok: true, currentLesson: lesson });
 }
 
 // ---------- Sheet setup (run ONCE from editor) ----------

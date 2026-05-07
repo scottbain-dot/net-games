@@ -671,10 +671,21 @@ body {
 .lesson-pills-note.today {
   color: #0a5c35; background: #d4f0e4; border: 1px solid #9FE1CB;
 }
-.lesson-pills-note.past {
-  color: #7a4a0a; background: #fff4ea; border: 1px solid #f5cda0;
+.lesson-pills-note.pick {
+  color: #1a4a7a; background: #e8f4ff; border: 1px solid #c0d8f0;
 }
 .lesson-pills-note.readonly { color: #e67e22; font-weight: 600; }
+
+.pick-lesson-card {
+  background: #fff;
+  border: 1px dashed #c0d8f0;
+  border-radius: 12px;
+  padding: 28px 22px;
+  margin: 14px 0;
+  text-align: center;
+}
+.pick-lesson-title { font-size: 1.05rem; font-weight: 700; color: #1a4a7a; margin-bottom: 8px; }
+.pick-lesson-sub { font-size: 0.85rem; color: #6b8aaa; line-height: 1.5; }
 
 /* ── Intro panel (above roster) ── */
 .intro-panel {
