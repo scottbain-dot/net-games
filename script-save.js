@@ -1,10 +1,9 @@
 // State + Apps Script data layer. UI helpers come from script-ui.js.
 var savesInFlight = 0;
 var saveTextTimeout = null;
-var studentData = {};     // current-lesson snapshot per student
-var studentHistory = {};  // lazy full-lesson history per student
-var currentLesson = 1;
-var viewedLesson = 1;
+var studentData = {};     // per-student static data: hasPin, ag_baseline, ag_retest
+var studentHistory = {};  // per-student per-lesson history (lazy)
+var viewedLesson = 0;     // 0 = none picked yet — student must choose
 
 function api(path, payload) {
   var opts = payload
@@ -13,9 +12,9 @@ function api(path, payload) {
   return fetch(APPS_SCRIPT_URL + (payload ? '' : '?' + path), opts)
     .then(function(r) { return r.json(); });
 }
-// Retry an api() call once after `delay` ms on network/parse failure or
-// 5xx-style errors. Apps Script cold-starts and classroom wifi are flaky;
-// a single retry rescues most transient failures.
+// Retry an api() call once after `delay` ms on network/parse failure.
+// Apps Script cold-starts and classroom wifi are flaky; a single retry
+// rescues most transient failures.
 function apiWithRetry(path, payload, delay) {
   return api(path, payload).catch(function(err) {
     return new Promise(function(resolve, reject) {
@@ -28,24 +27,8 @@ function apiWithRetry(path, payload, delay) {
 function fetchAllCurrent() {
   return api('action=getAllCurrent&class=' + encodeURIComponent(CLASS_NAME)).then(function(j) {
     if (j.error) throw new Error(j.error);
-    currentLesson = parseInt(j.currentLesson, 10) || 1;
-    viewedLesson = currentLesson;
     if (j.students) for (var n in j.students) studentData[n] = j.students[n];
   });
-}
-// Lightweight check of just the current lesson — much cheaper than
-// fetchAllCurrent. Returns true if the value changed since last load.
-// Resolves false on any failure so callers can carry on with cached data.
-function refreshCurrentLesson() {
-  return apiWithRetry('action=getSettings&class=' + encodeURIComponent(CLASS_NAME))
-    .then(function(j) {
-      if (!j || j.error) return false;
-      var n = parseInt(j.currentLesson, 10);
-      if (isNaN(n) || n < 1 || n > 9) return false;
-      var changed = n !== currentLesson;
-      currentLesson = n;
-      return changed;
-    }).catch(function(err) { console.error(err); return false; });
 }
 function fetchStudentHistory(name) {
   return apiWithRetry('action=getStudent&class=' + encodeURIComponent(CLASS_NAME) +
@@ -58,6 +41,10 @@ function fetchStudentHistory(name) {
   });
 }
 function saveField(student, field, value, isAgility) {
+  if (!isAgility && (!viewedLesson || viewedLesson < 1 || viewedLesson > 9)) {
+    showError('Pick a lesson before saving.');
+    return Promise.resolve();
+  }
   savesInFlight++; updateAutosave();
   var p = isAgility
     ? { action: 'saveAgility', 'class': CLASS_NAME, student: student, field: field, value: value }
@@ -69,9 +56,6 @@ function saveField(student, field, value, isAgility) {
     savesInFlight--; updateAutosave();
     console.error(err); showError('Save failed — tap again to retry.');
   });
-}
-function setLessonRemote(lesson) {
-  return api(null, { action: 'setLesson', 'class': CLASS_NAME, lesson: lesson, pin: TEACHER_PIN });
 }
 function verifyPinRemote(student, pin) {
   return apiWithRetry(null, { action: 'verifyPin', 'class': CLASS_NAME, student: student, pin: pin });

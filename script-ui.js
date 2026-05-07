@@ -31,19 +31,6 @@ function updateAutosave() {
     }, 1400);
   }
 }
-function updateRosterLessonBadge() {
-  var n = document.getElementById('roster-lesson-num');
-  if (n) n.textContent = 'L' + currentLesson;
-  var items = document.querySelectorAll('#lessons-grid .lesson-item');
-  for (var i = 0; i < items.length; i++) {
-    var it = items[i];
-    var ln = parseInt(it.getAttribute('data-lesson'), 10);
-    it.classList.remove('current', 'done', 'upcoming');
-    if (ln === currentLesson) it.classList.add('current');
-    else if (ln < currentLesson) it.classList.add('done');
-    else it.classList.add('upcoming');
-  }
-}
 function renderRoster() {
   var grid = document.getElementById('student-grid');
   grid.innerHTML = '';
@@ -63,13 +50,6 @@ var pinFlow = 'enter';        // 'enter' | 'create-first' | 'create-confirm'
 var pinAttempts = 0;
 var pinPending = '';          // first PIN entry while creating
 function tapStudentCard(name, idx) {
-  // Tab-left-open guard: kick off a current-lesson refresh in the
-  // background so by the time the student finishes typing their PIN, we
-  // already have the right "today" value. Without this, a stale tab will
-  // save reflections to whatever lesson was current when it loaded.
-  refreshCurrentLesson().then(function(changed) {
-    if (changed) updateRosterLessonBadge();
-  });
   if (teacherMode) { openStudent(name, idx); return; }
   var d = studentData[name] || {};
   pinAttempts = 0; pinPending = '';
@@ -121,20 +101,8 @@ function submitStudentPin() {
   if (pinFlow === 'enter') {
     setPinBusy(true);
     verifyPinRemote(name, pin).then(function(j) {
-      if (j && j.ok) {
-        // Make sure currentLesson is fresh before opening the dashboard.
-        // If the lesson moved since the page loaded, re-pull studentData
-        // (which is filtered by currentLesson on the server) so the right
-        // lesson's data is shown and reflections save to the right row.
-        return refreshCurrentLesson().then(function(changed) {
-          if (changed) return fetchAllCurrent().catch(function() {});
-        }).then(function() {
-          setPinBusy(false);
-          closePinOverlay();
-          openStudent(name, idx);
-        });
-      }
       setPinBusy(false);
+      if (j && j.ok) { closePinOverlay(); openStudent(name, idx); return; }
       // Teacher reset their PIN since this page loaded — let them create a new one.
       if (j && j.error === 'No PIN set') {
         if (!studentData[name]) studentData[name] = {};
@@ -184,7 +152,7 @@ function submitStudentPin() {
 }
 function openStudent(name, idx) {
   currentStudent = name; currentIdx = idx;
-  viewedLesson = currentLesson;
+  viewedLesson = 0;  // student must explicitly pick the lesson they're working on
   var c = avatarColor(idx);
   var av = document.getElementById('detail-avatar');
   av.style.background = c.bg; av.style.color = c.fg;
@@ -195,59 +163,22 @@ function openStudent(name, idx) {
   document.getElementById('view-roster').style.display = 'none';
   document.getElementById('view-detail').style.display = 'block';
   window.scrollTo(0, 0);
-  startCurrentLessonPoll();
 }
 function closeStudent() {
-  stopCurrentLessonPoll();
   document.getElementById('view-detail').style.display = 'none';
   document.getElementById('view-roster').style.display = 'block';
   currentStudent = null; currentIdx = null;
 }
-// Poll every 60s — if the teacher advances the lesson while the student
-// has the dashboard open, follow along automatically (provided they were
-// on the previous "today"). Past-lesson browsing is preserved.
-var currentLessonPollTimer = null;
-function startCurrentLessonPoll() {
-  stopCurrentLessonPoll();
-  currentLessonPollTimer = setInterval(function() {
-    var prev = currentLesson;
-    refreshCurrentLesson().then(function(changed) {
-      if (!changed) return;
-      updateRosterLessonBadge();
-      if (!currentStudent) return;
-      if (viewedLesson === prev) {
-        // They were on what we thought was today — follow to the new today.
-        viewedLesson = currentLesson;
-        fetchAllCurrent().then(function() {
-          if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
-        }).catch(function() {
-          if (currentStudent) renderLessonPills();
-        });
-        showError('Today\'s lesson is now L' + currentLesson);
-      } else {
-        renderLessonPills();
-      }
-    });
-  }, 60000);
-}
-function stopCurrentLessonPoll() {
-  if (currentLessonPollTimer) clearInterval(currentLessonPollTimer);
-  currentLessonPollTimer = null;
-}
 
 // Chunk 3: lesson pills + detail entry + viewed-ratings selector
-function canEdit() { return true; }
+function canEdit() { return viewedLesson >= 1 && viewedLesson <= 9; }
 function storeViewedEdit(name, key, value) {
-  if (viewedLesson === currentLesson) {
-    if (!studentData[name]) studentData[name] = {};
-    studentData[name][key] = value;
-  } else {
-    if (!studentHistory[name]) studentHistory[name] = {};
-    if (!studentHistory[name]['L' + viewedLesson]) {
-      studentHistory[name]['L' + viewedLesson] = { Student: name, Lesson: viewedLesson };
-    }
-    studentHistory[name]['L' + viewedLesson][key] = value;
+  if (!canEdit()) return;
+  if (!studentHistory[name]) studentHistory[name] = {};
+  if (!studentHistory[name]['L' + viewedLesson]) {
+    studentHistory[name]['L' + viewedLesson] = { Student: name, Lesson: viewedLesson };
   }
+  studentHistory[name]['L' + viewedLesson][key] = value;
 }
 function renderLessonPills() {
   var box = document.getElementById('detail-lesson-pills');
@@ -255,19 +186,18 @@ function renderLessonPills() {
   for (var i = 1; i <= 9; i++) (function(n) {
     var pill = el('span', 'lesson-pill');
     pill.textContent = 'L' + n;
-    if (n === currentLesson) pill.classList.add('current');
     if (n === viewedLesson) pill.classList.add('active');
     pill.addEventListener('click', function() { switchLesson(n); });
     box.appendChild(pill);
   })(i);
   var note = document.getElementById('lesson-pills-note');
   note.className = 'lesson-pills-note';
-  if (viewedLesson === currentLesson) {
+  if (viewedLesson >= 1 && viewedLesson <= 9) {
     note.classList.add('today');
-    note.textContent = '✓ Saving to L' + currentLesson + ' (today)';
+    note.textContent = '✓ Saving to L' + viewedLesson;
   } else {
-    note.classList.add('past');
-    note.textContent = '⚠ Saving to past lesson L' + viewedLesson + ' — today is L' + currentLesson;
+    note.classList.add('pick');
+    note.textContent = '← Pick a lesson to start';
   }
 }
 function setLessonLoadingNote(msg) {
@@ -282,7 +212,6 @@ function switchLesson(n) {
   // doesn't appear frozen during the (slow) Apps Script fetch.
   renderLessonPills();
   renderDetail(name);
-  if (n === currentLesson) return;
   if (studentHistory[name] && studentHistory[name]['L' + n] !== undefined) return;
   setLessonLoadingNote('Loading lesson L' + n + '…');
   fetchStudentHistory(name).then(function() {
@@ -292,8 +221,8 @@ function switchLesson(n) {
     }
   }).catch(function(err) {
     console.error(err);
-    // If the fetch failed, drop viewedLesson back so a retry click works.
-    if (currentStudent === name && viewedLesson === n) viewedLesson = currentLesson;
+    // Drop viewedLesson back to "no selection" so a retry click works.
+    if (currentStudent === name && viewedLesson === n) viewedLesson = 0;
     showError('Could not load lesson — tap the lesson again to retry.');
     if (currentStudent === name) { renderLessonPills(); renderDetail(name); }
   });
@@ -301,7 +230,6 @@ function switchLesson(n) {
 function getViewed(name) {
   var cur = studentData[name] || {};
   var base = { ag_baseline: cur.ag_baseline || '', ag_retest: cur.ag_retest || '' };
-  if (viewedLesson === currentLesson) { for (var k in cur) base[k] = cur[k]; return base; }
   var rec = studentHistory[name] && studentHistory[name]['L' + viewedLesson];
   if (rec) for (var k2 in rec) {
     if (k2 !== 'Student' && k2 !== 'Lesson' && k2 !== 'timestamp') base[k2] = rec[k2];
@@ -312,6 +240,16 @@ function renderDetail(name) {
   var d = getViewed(name);
   var body = document.getElementById('detail-body');
   body.innerHTML = '';
+  if (!canEdit()) {
+    // Agility test data is class-wide so it's still useful — show it alone
+    // and prompt for a lesson before any per-lesson reflection is rendered.
+    body.appendChild(buildAgilityCard(name, d));
+    var pickCard = el('div', 'pick-lesson-card');
+    pickCard.innerHTML = '<div class="pick-lesson-title">Pick a lesson to log your reflection</div>' +
+      '<div class="pick-lesson-sub">Use the L1–L9 pills above. Your teacher will tell you which lesson you\'re on.</div>';
+    body.appendChild(pickCard);
+    return;
+  }
   var topGrid = el('div', 'section-grid');
   topGrid.appendChild(buildAgilityCard(name, d));
   topGrid.appendChild(buildEffortCard(name, d));
@@ -533,34 +471,6 @@ function updateOverviewBars(d) {
     }
   });
 }
-function renderTeacherLessonSetter() {
-  var box = document.getElementById('teacher-lesson-pills');
-  if (!box) return;
-  box.innerHTML = '';
-  for (var i = 1; i <= 9; i++) (function(n) {
-    var p = el('span', 'lesson-pill');
-    p.textContent = 'L' + n;
-    if (n === currentLesson) p.classList.add('current', 'active');
-    p.addEventListener('click', function() {
-      if (p.classList.contains('saving')) return;
-      p.classList.add('saving');
-      setLessonRemote(n).then(function(j) {
-        p.classList.remove('saving');
-        if (j && !j.error) {
-          currentLesson = n;
-          if (!currentStudent) viewedLesson = n;
-          updateRosterLessonBadge();
-          renderTeacherLessonSetter();
-          if (currentStudent && viewedLesson === currentLesson) {
-            renderLessonPills(); renderDetail(currentStudent);
-          }
-        } else { showError('Could not set lesson'); }
-      });
-    });
-    box.appendChild(p);
-  })(i);
-}
-
 // Engagement grid — students × L1..L9, dot if that lesson has an agility_focus
 function openEngagementView() {
   document.getElementById('view-roster').style.display = 'none';
@@ -870,7 +780,6 @@ function refreshTeacherPins() {
 document.getElementById('teacher-btn').addEventListener('click', function() {
   if (teacherMode) {
     teacherMode = false; this.textContent = 'Teacher \u203A';
-    document.getElementById('teacher-lesson-setter').classList.remove('active');
     document.getElementById('teacher-pins-panel').classList.remove('active');
     document.body.classList.remove('teacher-active');
     if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
@@ -886,10 +795,8 @@ function checkPin() {
     teacherMode = true;
     document.getElementById('pin-overlay').classList.remove('active');
     document.getElementById('teacher-btn').textContent = 'Teacher Mode \u2713';
-    document.getElementById('teacher-lesson-setter').classList.add('active');
     document.getElementById('teacher-pins-panel').classList.add('active');
     document.body.classList.add('teacher-active');
-    renderTeacherLessonSetter();
     refreshTeacherPins();
     if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
   } else { document.getElementById('pin-error').textContent = 'Wrong PIN'; }
@@ -930,7 +837,6 @@ function bootLoad() {
   loading.innerHTML = '<div class="spinner"></div> Loading...';
   loading.style.display = 'flex';
   fetchAllCurrent().then(function() {
-    updateRosterLessonBadge();
     loading.style.display = 'none';
   }).catch(function(err) {
     console.error(err);
