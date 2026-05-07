@@ -63,6 +63,13 @@ var pinFlow = 'enter';        // 'enter' | 'create-first' | 'create-confirm'
 var pinAttempts = 0;
 var pinPending = '';          // first PIN entry while creating
 function tapStudentCard(name, idx) {
+  // Tab-left-open guard: kick off a current-lesson refresh in the
+  // background so by the time the student finishes typing their PIN, we
+  // already have the right "today" value. Without this, a stale tab will
+  // save reflections to whatever lesson was current when it loaded.
+  refreshCurrentLesson().then(function(changed) {
+    if (changed) updateRosterLessonBadge();
+  });
   if (teacherMode) { openStudent(name, idx); return; }
   var d = studentData[name] || {};
   pinAttempts = 0; pinPending = '';
@@ -114,8 +121,20 @@ function submitStudentPin() {
   if (pinFlow === 'enter') {
     setPinBusy(true);
     verifyPinRemote(name, pin).then(function(j) {
+      if (j && j.ok) {
+        // Make sure currentLesson is fresh before opening the dashboard.
+        // If the lesson moved since the page loaded, re-pull studentData
+        // (which is filtered by currentLesson on the server) so the right
+        // lesson's data is shown and reflections save to the right row.
+        return refreshCurrentLesson().then(function(changed) {
+          if (changed) return fetchAllCurrent().catch(function() {});
+        }).then(function() {
+          setPinBusy(false);
+          closePinOverlay();
+          openStudent(name, idx);
+        });
+      }
       setPinBusy(false);
-      if (j && j.ok) { closePinOverlay(); openStudent(name, idx); return; }
       // Teacher reset their PIN since this page loaded — let them create a new one.
       if (j && j.error === 'No PIN set') {
         if (!studentData[name]) studentData[name] = {};
@@ -176,11 +195,44 @@ function openStudent(name, idx) {
   document.getElementById('view-roster').style.display = 'none';
   document.getElementById('view-detail').style.display = 'block';
   window.scrollTo(0, 0);
+  startCurrentLessonPoll();
 }
 function closeStudent() {
+  stopCurrentLessonPoll();
   document.getElementById('view-detail').style.display = 'none';
   document.getElementById('view-roster').style.display = 'block';
   currentStudent = null; currentIdx = null;
+}
+// Poll every 60s — if the teacher advances the lesson while the student
+// has the dashboard open, follow along automatically (provided they were
+// on the previous "today"). Past-lesson browsing is preserved.
+var currentLessonPollTimer = null;
+function startCurrentLessonPoll() {
+  stopCurrentLessonPoll();
+  currentLessonPollTimer = setInterval(function() {
+    var prev = currentLesson;
+    refreshCurrentLesson().then(function(changed) {
+      if (!changed) return;
+      updateRosterLessonBadge();
+      if (!currentStudent) return;
+      if (viewedLesson === prev) {
+        // They were on what we thought was today — follow to the new today.
+        viewedLesson = currentLesson;
+        fetchAllCurrent().then(function() {
+          if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
+        }).catch(function() {
+          if (currentStudent) renderLessonPills();
+        });
+        showError('Today\'s lesson is now L' + currentLesson);
+      } else {
+        renderLessonPills();
+      }
+    });
+  }, 60000);
+}
+function stopCurrentLessonPoll() {
+  if (currentLessonPollTimer) clearInterval(currentLessonPollTimer);
+  currentLessonPollTimer = null;
 }
 
 // Chunk 3: lesson pills + detail entry + viewed-ratings selector
@@ -210,9 +262,13 @@ function renderLessonPills() {
   })(i);
   var note = document.getElementById('lesson-pills-note');
   note.className = 'lesson-pills-note';
-  if (viewedLesson !== currentLesson) {
-    note.textContent = 'Editing lesson L' + viewedLesson;
-  } else { note.textContent = ''; }
+  if (viewedLesson === currentLesson) {
+    note.classList.add('today');
+    note.textContent = '✓ Saving to L' + currentLesson + ' (today)';
+  } else {
+    note.classList.add('past');
+    note.textContent = '⚠ Saving to past lesson L' + viewedLesson + ' — today is L' + currentLesson;
+  }
 }
 function setLessonLoadingNote(msg) {
   var note = document.getElementById('lesson-pills-note');

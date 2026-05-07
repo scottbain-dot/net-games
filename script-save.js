@@ -33,6 +33,20 @@ function fetchAllCurrent() {
     if (j.students) for (var n in j.students) studentData[n] = j.students[n];
   });
 }
+// Lightweight check of just the current lesson — much cheaper than
+// fetchAllCurrent. Returns true if the value changed since last load.
+// Resolves false on any failure so callers can carry on with cached data.
+function refreshCurrentLesson() {
+  return apiWithRetry('action=getSettings&class=' + encodeURIComponent(CLASS_NAME))
+    .then(function(j) {
+      if (!j || j.error) return false;
+      var n = parseInt(j.currentLesson, 10);
+      if (isNaN(n) || n < 1 || n > 9) return false;
+      var changed = n !== currentLesson;
+      currentLesson = n;
+      return changed;
+    }).catch(function(err) { console.error(err); return false; });
+}
 function fetchStudentHistory(name) {
   return apiWithRetry('action=getStudent&class=' + encodeURIComponent(CLASS_NAME) +
              '&student=' + encodeURIComponent(name)).then(function(j) {

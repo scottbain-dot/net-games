@@ -670,10 +670,18 @@ body {
 .lesson-pill.active.current { background: #2E86DE; border-color: #2E86DE; color: #fff; }
 .lesson-pill.saving { opacity: 0.6; cursor: wait; }
 .lesson-pills-note {
-  font-size: 0.72rem; color: #888; font-style: italic;
+  font-size: 0.78rem; color: #888;
   margin-left: auto;
+  padding: 4px 10px; border-radius: 8px;
+  font-weight: 600;
 }
-.lesson-pills-note.readonly { color: #e67e22; font-style: normal; font-weight: 600; }
+.lesson-pills-note.today {
+  color: #0a5c35; background: #d4f0e4; border: 1px solid #9FE1CB;
+}
+.lesson-pills-note.past {
+  color: #7a4a0a; background: #fff4ea; border: 1px solid #f5cda0;
+}
+.lesson-pills-note.readonly { color: #e67e22; font-weight: 600; }
 
 /* ── Intro panel (above roster) ── */
 .intro-panel {
@@ -1098,6 +1106,20 @@ function fetchAllCurrent() {
     if (j.students) for (var n in j.students) studentData[n] = j.students[n];
   });
 }
+// Lightweight check of just the current lesson — much cheaper than
+// fetchAllCurrent. Returns true if the value changed since last load.
+// Resolves false on any failure so callers can carry on with cached data.
+function refreshCurrentLesson() {
+  return apiWithRetry('action=getSettings&class=' + encodeURIComponent(CLASS_NAME))
+    .then(function(j) {
+      if (!j || j.error) return false;
+      var n = parseInt(j.currentLesson, 10);
+      if (isNaN(n) || n < 1 || n > 9) return false;
+      var changed = n !== currentLesson;
+      currentLesson = n;
+      return changed;
+    }).catch(function(err) { console.error(err); return false; });
+}
 function fetchStudentHistory(name) {
   return apiWithRetry('action=getStudent&class=' + encodeURIComponent(CLASS_NAME) +
              '&student=' + encodeURIComponent(name)).then(function(j) {
@@ -1218,6 +1240,13 @@ var pinFlow = 'enter';        // 'enter' | 'create-first' | 'create-confirm'
 var pinAttempts = 0;
 var pinPending = '';          // first PIN entry while creating
 function tapStudentCard(name, idx) {
+  // Tab-left-open guard: kick off a current-lesson refresh in the
+  // background so by the time the student finishes typing their PIN, we
+  // already have the right "today" value. Without this, a stale tab will
+  // save reflections to whatever lesson was current when it loaded.
+  refreshCurrentLesson().then(function(changed) {
+    if (changed) updateRosterLessonBadge();
+  });
   if (teacherMode) { openStudent(name, idx); return; }
   var d = studentData[name] || {};
   pinAttempts = 0; pinPending = '';
@@ -1269,8 +1298,20 @@ function submitStudentPin() {
   if (pinFlow === 'enter') {
     setPinBusy(true);
     verifyPinRemote(name, pin).then(function(j) {
+      if (j && j.ok) {
+        // Make sure currentLesson is fresh before opening the dashboard.
+        // If the lesson moved since the page loaded, re-pull studentData
+        // (which is filtered by currentLesson on the server) so the right
+        // lesson's data is shown and reflections save to the right row.
+        return refreshCurrentLesson().then(function(changed) {
+          if (changed) return fetchAllCurrent().catch(function() {});
+        }).then(function() {
+          setPinBusy(false);
+          closePinOverlay();
+          openStudent(name, idx);
+        });
+      }
       setPinBusy(false);
-      if (j && j.ok) { closePinOverlay(); openStudent(name, idx); return; }
       // Teacher reset their PIN since this page loaded — let them create a new one.
       if (j && j.error === 'No PIN set') {
         if (!studentData[name]) studentData[name] = {};
@@ -1331,11 +1372,44 @@ function openStudent(name, idx) {
   document.getElementById('view-roster').style.display = 'none';
   document.getElementById('view-detail').style.display = 'block';
   window.scrollTo(0, 0);
+  startCurrentLessonPoll();
 }
 function closeStudent() {
+  stopCurrentLessonPoll();
   document.getElementById('view-detail').style.display = 'none';
   document.getElementById('view-roster').style.display = 'block';
   currentStudent = null; currentIdx = null;
+}
+// Poll every 60s — if the teacher advances the lesson while the student
+// has the dashboard open, follow along automatically (provided they were
+// on the previous "today"). Past-lesson browsing is preserved.
+var currentLessonPollTimer = null;
+function startCurrentLessonPoll() {
+  stopCurrentLessonPoll();
+  currentLessonPollTimer = setInterval(function() {
+    var prev = currentLesson;
+    refreshCurrentLesson().then(function(changed) {
+      if (!changed) return;
+      updateRosterLessonBadge();
+      if (!currentStudent) return;
+      if (viewedLesson === prev) {
+        // They were on what we thought was today — follow to the new today.
+        viewedLesson = currentLesson;
+        fetchAllCurrent().then(function() {
+          if (currentStudent) { renderLessonPills(); renderDetail(currentStudent); }
+        }).catch(function() {
+          if (currentStudent) renderLessonPills();
+        });
+        showError('Today\'s lesson is now L' + currentLesson);
+      } else {
+        renderLessonPills();
+      }
+    });
+  }, 60000);
+}
+function stopCurrentLessonPoll() {
+  if (currentLessonPollTimer) clearInterval(currentLessonPollTimer);
+  currentLessonPollTimer = null;
 }
 
 // Chunk 3: lesson pills + detail entry + viewed-ratings selector
@@ -1365,9 +1439,13 @@ function renderLessonPills() {
   })(i);
   var note = document.getElementById('lesson-pills-note');
   note.className = 'lesson-pills-note';
-  if (viewedLesson !== currentLesson) {
-    note.textContent = 'Editing lesson L' + viewedLesson;
-  } else { note.textContent = ''; }
+  if (viewedLesson === currentLesson) {
+    note.classList.add('today');
+    note.textContent = '✓ Saving to L' + currentLesson + ' (today)';
+  } else {
+    note.classList.add('past');
+    note.textContent = '⚠ Saving to past lesson L' + viewedLesson + ' — today is L' + currentLesson;
+  }
 }
 function setLessonLoadingNote(msg) {
   var note = document.getElementById('lesson-pills-note');
