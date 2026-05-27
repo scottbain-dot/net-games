@@ -815,31 +815,35 @@ function repairSheet(sheet, label, valueFields, apply) {
 
 // ---------- Grade report (read from raw rows, write to GradeReport tab) ----------
 // Builds a trustworthy grading worksheet straight from the stored lesson rows
-// — independent of the web UI. For every student it lays out the objective
-// evidence for each criterion, a transparent suggested 1-7, and whatever the
-// app has already saved, so you can grade from data and spot UI/data drift.
+// — independent of the web UI. For every student it lays out the evidence for
+// each criterion, a transparent suggested 1-7, and whatever the app already
+// saved, so you can grade from data and spot UI/data drift.
 //
-// Suggested scores (a defensible STARTING POINT, not a verdict — most inputs
-// are student self-reports, so adjust with your own observation / the pills):
-//   S2 Skill Identification  = 50% focus-coverage + 50% avg self-rated execution
-//   S1 Skill Development     = 60% avg self-rated skill + 40% Illinois improvement
-//   S4 Active Participation  = 50% effort-coverage + 50% avg effort
-// Coverage is measured against "lessons run" = number of distinct lessons that
-// appear in the class tab (override by passing a number, e.g. gradeReport(7)).
-function gradeReport(expectedLessons) {
+// Suggested scores:
+//   S2 Skill Identification = consistency of logging a focus (60%) + variety,
+//        i.e. clearly working on DIFFERENT elements over time (40%).
+//   S1 Skill Development    = purely Illinois improvement, scored as PERCENT
+//        improvement so a faster starting time earns more credit for the same
+//        gain (faster times are harder to improve). Needs baseline + retest.
+//   S4 Active Participation = the teacher's own 1-7 (passthrough — no formula).
+//
+// Tunables (optional args):
+//   gradeReport(lessons, varietyTarget, s1TargetPct)
+//   - lessons:      coverage denominator. Default = distinct lessons in the tab.
+//   - varietyTarget: # distinct elements that counts as full variety. Default 4.
+//   - s1TargetPct:  % Illinois improvement that scores a 7. Default 0.15 (15%).
+function gradeReport(expectedLessons, varietyTarget, s1TargetPct) {
   var book = ss();
-  var BAD = ['bserve', 'bshot', 'bfoot', 'btac'];
-  var VOL = ['vserve', 'vskill', 'vpos', 'comm'];
+  var VARIETY_TARGET = varietyTarget || 4;
+  var S1_TARGET = s1TargetPct || 0.15;
   var header = ['Class', 'Student', 'Lessons run',
-    'S2 focus logged', 'S2 elements', 'S2 avg exec', 'S2 pill', 'S2 saved', 'S2 SUGGEST',
-    'S1 Illinois', 'S1 avg badminton', 'S1 avg volleyball', 'S1 bad pill', 'S1 vol pill', 'S1 saved', 'S1 SUGGEST',
-    'S4 effort logged', 'S4 avg effort', 'S4 pill', 'S4 saved', 'S4 SUGGEST'];
+    'S2 focus logged', 'S2 distinct elements', 'S2 pill', 'S2 saved', 'S2 SUGGEST',
+    'S1 baseline', 'S1 retest', 'S1 change', 'S1 % improvement', 'S1 saved', 'S1 SUGGEST',
+    'S4 pill', 'S4 saved (teacher)', 'S4 SUGGEST'];
   var rows = [header];
 
-  var avg = function(a) { return a.length ? a.reduce(function(x, y) { return x + y; }, 0) / a.length : null; };
   var clamp = function(x) { return Math.max(0, Math.min(1, x)); };
   var band = function(x) { return Math.max(1, Math.min(7, Math.round(1 + 6 * x))); };
-  var fmt = function(x) { return x == null ? '' : x.toFixed(1); };
   var pill = function(v) { return (v == null || v === '') ? '' : v; };
 
   CLASSES.forEach(function(cls) {
@@ -867,44 +871,38 @@ function gradeReport(expectedLessons) {
 
     (ROSTERS[cls] || []).forEach(function(name) {
       var lrows = byStudent[name] || [];
-      var focusLogged = 0, elems = {}, execVals = [], badVals = [], volVals = [], effortVals = [];
+      var focusLogged = 0, elems = {};
       lrows.forEach(function(row) {
         var af = row[col['agility_focus']];
         if (af !== '' && af != null) { focusLogged++; elems[af] = true; }
-        var ex = row[col['agility_execution']]; if (ex > 0) execVals.push(ex);
-        var ef = row[col['effort']]; if (ef > 0) effortVals.push(ef);
-        BAD.forEach(function(k) { var v = row[col[k]]; if (v > 0) badVals.push(v); });
-        VOL.forEach(function(k) { var v = row[col[k]]; if (v > 0) volVals.push(v); });
       });
-      var avgExec = avg(execVals), avgBad = avg(badVals), avgVol = avg(volVals), avgEff = avg(effortVals);
+      var distinctElems = Object.keys(elems).length;
 
       var g = grades[name] || {};
       var b = parseFloat(agMap[name] && agMap[name].b), rt = parseFloat(agMap[name] && agMap[name].r);
-      var delta = null, illinois = '';
-      if (!isNaN(b) && !isNaN(rt)) {
-        delta = rt - b;
-        illinois = delta < 0 ? delta.toFixed(1) + 's faster' : (delta > 0 ? '+' + delta.toFixed(1) + 's slower' : 'no change');
+      var change = '', pct = '', s1sug = '';
+      var haveTimes = !isNaN(b) && !isNaN(rt) && b > 0;
+      if (haveTimes) {
+        var d = rt - b;
+        change = (d < 0 ? d.toFixed(1) : (d > 0 ? '+' + d.toFixed(1) : '0')) + 's';
+        var improvePct = (b - rt) / b;           // positive = got faster
+        pct = (improvePct * 100).toFixed(1) + '%';
+        s1sug = band(clamp(improvePct / S1_TARGET));
       }
 
-      var s2sug = '', s1sug = '', s4sug = '';
-      if (focusLogged > 0 || execVals.length > 0) {
-        s2sug = band(0.5 * clamp(focusLogged / lessonsRun) + 0.5 * ((avgExec || 0) / 4));
+      var s2sug = '';
+      if (focusLogged > 0) {
+        var coverage = clamp(focusLogged / lessonsRun);
+        var variety = clamp(distinctElems / VARIETY_TARGET);
+        s2sug = band(0.6 * coverage + 0.4 * variety);
       }
-      if (avgBad != null || avgVol != null || delta != null) {
-        var parts = [];
-        if (avgBad != null) parts.push(avgBad / 4);
-        if (avgVol != null) parts.push(avgVol / 4);
-        var skillNorm = parts.length ? avg(parts) : 0;
-        s1sug = delta != null ? band(0.6 * skillNorm + 0.4 * clamp(-delta / 2)) : band(skillNorm);
-      }
-      if (effortVals.length > 0) {
-        s4sug = band(0.5 * clamp(effortVals.length / lessonsRun) + 0.5 * ((avgEff || 0) / 4));
-      }
+
+      var s4sug = pill(g.S4);  // S4 is the teacher's own 1-7, passed straight through
 
       rows.push([cls, name, lessonsRun,
-        focusLogged, Object.keys(elems).length, fmt(avgExec), pill(g.s2_teacher), pill(g.S2), s2sug,
-        illinois, fmt(avgBad), fmt(avgVol), pill(g.s1_badminton_teacher), pill(g.s1_volleyball_teacher), pill(g.S1), s1sug,
-        effortVals.length, fmt(avgEff), pill(g.s4_teacher), pill(g.S4), s4sug]);
+        focusLogged, distinctElems, pill(g.s2_teacher), pill(g.S2), s2sug,
+        haveTimes ? b : '', haveTimes ? rt : '', change, pct, pill(g.S1), s1sug,
+        pill(g.s4_teacher), pill(g.S4), s4sug]);
     });
   });
 
@@ -913,7 +911,7 @@ function gradeReport(expectedLessons) {
   sh.getRange(1, 1, rows.length, header.length).setValues(rows);
   sh.setFrozenRows(1);
   sh.autoResizeColumns(1, header.length);
-  return 'GradeReport tab updated — ' + (rows.length - 1) + ' students. (lessons run auto-detected per class)';
+  return 'GradeReport tab updated — ' + (rows.length - 1) + ' students.';
 }
 
 // Additive migration — run once if Grades tab already exists and you don't
