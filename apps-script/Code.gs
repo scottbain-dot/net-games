@@ -563,6 +563,88 @@ function auditDuplicates() {
   return text;
 }
 
+// ---------- Per-student coverage / loss triage (run from editor) ----------
+// Separates "lost data" from "never did it" by cross-referencing each
+// student's saved work against whether they set a PIN. A student who set a
+// PIN clearly opened and used the app, so a PIN with little/no saved data is
+// a strong sign their saves were lost. Writes a readable table to an "Audit"
+// tab (only creates/overwrites that one tab — never touches class data).
+//
+// Status meanings:
+//   CORRUPTED  — has duplicate (Student, Lesson) rows; work exists but is
+//                split across rows. Recoverable by merging (see auditDuplicates).
+//   LOST?      — set a PIN (used the app) but saved nothing. Almost certainly
+//                lost. Ask the student to re-enter; their data is gone.
+//   PARTIAL?   — set a PIN and has rows, but the fullest lesson has <=2 of 11
+//                fields. Could be partial loss or just light use — verify.
+//   NO ACTIVITY— no PIN and no rows. Most likely never started.
+//   OK         — has data and no duplicates.
+function dataCoverageReport() {
+  var TOTAL_FIELDS = LESSON_FIELDS.length;
+  var header = ['Class', 'Student', 'Set PIN?', 'Lessons w/ data',
+                'Duplicate lessons', 'Best lesson fill', 'Status'];
+  var summary = [header];
+
+  CLASSES.forEach(function(cls) {
+    var roster = ROSTERS[cls] || [];
+    var pinMap = readPinMap(cls);
+    var perStudent = {};
+    roster.forEach(function(n) { perStudent[n] = {}; });
+
+    var sheet = getSheet(cls);
+    if (sheet && sheet.getLastRow() > 1) {
+      var data = sheet.getDataRange().getValues();
+      var headers = data[0];
+      var fieldCols = LESSON_FIELDS.map(function(f) { return headers.indexOf(f); });
+      for (var r = 1; r < data.length; r++) {
+        var student = data[r][0];
+        if (!student) continue;
+        if (!perStudent[student]) perStudent[student] = {};
+        var filled = 0;
+        fieldCols.forEach(function(ci) {
+          if (ci === -1) return;
+          var v = data[r][ci];
+          if (v !== '' && v !== null && v !== undefined && v !== 0) filled++;
+        });
+        var lkey = 'L' + data[r][1];
+        if (!perStudent[student][lkey]) perStudent[student][lkey] = { count: 0, fill: 0 };
+        perStudent[student][lkey].count++;
+        perStudent[student][lkey].fill = Math.max(perStudent[student][lkey].fill, filled);
+      }
+    }
+
+    roster.forEach(function(n) {
+      var lessons = perStudent[n] || {};
+      var keys = Object.keys(lessons);
+      var dup = keys.filter(function(k) { return lessons[k].count > 1; });
+      var bestFill = 0;
+      keys.forEach(function(k) { bestFill = Math.max(bestFill, lessons[k].fill); });
+      var withData = keys.filter(function(k) { return lessons[k].fill > 0; }).length;
+      var hasPin = !!(pinMap[n] && String(pinMap[n]).length > 0);
+
+      var status;
+      if (dup.length > 0) status = 'CORRUPTED';
+      else if (withData === 0 && hasPin) status = 'LOST?';
+      else if (withData === 0 && !hasPin) status = 'NO ACTIVITY';
+      else if (bestFill <= 2 && hasPin) status = 'PARTIAL?';
+      else status = 'OK';
+
+      summary.push([cls, n, hasPin ? 'yes' : 'no', withData,
+                    dup.length ? dup.join(' ') : '',
+                    bestFill + ' / ' + TOTAL_FIELDS, status]);
+    });
+  });
+
+  var book = ss();
+  var au = book.getSheetByName('Audit') || book.insertSheet('Audit');
+  au.clear();
+  au.getRange(1, 1, summary.length, header.length).setValues(summary);
+  au.setFrozenRows(1);
+  au.autoResizeColumns(1, header.length);
+
+  return 'Audit tab updated — ' + (summary.length - 1) + ' students reviewed.';
+}
+
 // Additive migration — run once if Grades tab already exists and you don't
 // want to wipe its data. Adds any missing columns from GRADE_HEADERS.
 function upgradeGradesSchema() {
