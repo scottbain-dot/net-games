@@ -692,6 +692,121 @@ function studentDetail(className, student) {
   return text;
 }
 
+// ---------- Duplicate-row repair (merge split records) ----------
+// Merges duplicate (Student, Lesson) rows on the class tabs and duplicate
+// (Student, Class) rows on Grades back into a single row, so work that the
+// old unlocked writes split across two rows is reconstructed.
+//
+// Merge rule, per field: take the one "set" value (non-zero / non-blank). If
+// two rows disagree on a field, keep the one from the row with the later
+// timestamp and note it as a conflict. The merged row keeps the latest
+// timestamp; the extra row(s) are deleted.
+//
+// SAFETY:
+//   repairDuplicates()      → DRY RUN. Changes nothing; logs the exact plan.
+//   repairDuplicates(true)  → APPLY. First copies 7A/8A/Grades to timestamped
+//                             backup tabs, then merges. Holds the script lock
+//                             so it can't race live student saves.
+// Always run the dry run, read the plan, THEN apply.
+function repairDuplicates(apply) {
+  var book = ss();
+  var lock = LockService.getScriptLock();
+  if (apply) {
+    try { lock.waitLock(30000); }
+    catch (e) { return 'Could not acquire lock — students may be saving. Try again in a moment.'; }
+  }
+  try {
+    var out = [];
+    if (apply) {
+      var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmm');
+      ['7A', '8A', 'Grades'].forEach(function(name) {
+        var sh = book.getSheetByName(name);
+        if (sh) book.getSheetByName(name).copyTo(book).setName('bak_' + name + '_' + stamp);
+      });
+      out.push('Backups created with suffix _' + stamp + '. Merging…');
+    } else {
+      out.push('DRY RUN — nothing changed. Review the plan, then run repairDuplicates(true) to apply.');
+    }
+
+    CLASSES.forEach(function(cls) {
+      out = out.concat(repairSheet(getSheet(cls), cls, LESSON_FIELDS, apply));
+    });
+    out = out.concat(repairSheet(getSheet('Grades'), 'Grades', GRADE_CRITERIA, apply));
+
+    if (out.length === 1) out.push('No duplicates to merge.');
+    var text = out.join('\n');
+    Logger.log(text);
+    return text;
+  } finally {
+    if (apply) lock.releaseLock();
+  }
+}
+
+// Merge duplicate rows within one sheet, keyed on columns 1+2. Returns a list
+// of human-readable plan lines. Only mutates the sheet when apply is true.
+function repairSheet(sheet, label, valueFields, apply) {
+  var out = [];
+  if (!sheet || sheet.getLastRow() < 2) return out;
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var tsCol = headers.indexOf('timestamp');
+
+  var groups = {};
+  for (var r = 1; r < data.length; r++) {
+    if (data[r][0] === '') continue;
+    var key = data[r][0] + '||' + data[r][1];
+    (groups[key] = groups[key] || []).push(r);
+  }
+
+  var deletions = [];
+  Object.keys(groups).forEach(function(key) {
+    var idxs = groups[key];
+    if (idxs.length < 2) return;
+    var survivor = idxs[0];
+    var merged = data[survivor].slice();
+    var conflicts = [];
+
+    valueFields.forEach(function(f) {
+      var ci = headers.indexOf(f);
+      if (ci === -1) return;
+      var chosen = null, chosenTs = null;
+      idxs.forEach(function(ri) {
+        var v = data[ri][ci];
+        if (v === '' || v === null || v === undefined || v === 0) return; // unset
+        var ts = tsCol !== -1 ? data[ri][tsCol] : null;
+        if (chosen === null) { chosen = v; chosenTs = ts; }
+        else if (v !== chosen) {
+          if (ts && chosenTs && ts > chosenTs) { chosen = v; chosenTs = ts; }
+          if (conflicts.indexOf(f) === -1) conflicts.push(f);
+        }
+      });
+      if (chosen !== null) merged[ci] = chosen;
+    });
+
+    if (tsCol !== -1) {
+      var latest = null;
+      idxs.forEach(function(ri) { var t = data[ri][tsCol]; if (t && (!latest || t > latest)) latest = t; });
+      if (latest) merged[tsCol] = latest;
+    }
+
+    var dupRows = idxs.slice(1).map(function(ri) { return ri + 1; });
+    out.push(label + ': merge ' + data[survivor][0] + ' / ' + data[survivor][1] +
+             ' → keep row ' + (survivor + 1) + ', remove row(s) ' + dupRows.join(', ') +
+             (conflicts.length ? '  [conflict on ' + conflicts.join(', ') + ' — kept latest]' : ''));
+
+    if (apply) {
+      sheet.getRange(survivor + 1, 1, 1, merged.length).setValues([merged]);
+      dupRows.forEach(function(rw) { deletions.push(rw); });
+    }
+  });
+
+  if (apply && deletions.length) {
+    deletions.sort(function(a, b) { return b - a; });
+    deletions.forEach(function(rw) { sheet.deleteRow(rw); });
+  }
+  return out;
+}
+
 // Additive migration — run once if Grades tab already exists and you don't
 // want to wipe its data. Adds any missing columns from GRADE_HEADERS.
 function upgradeGradesSchema() {
