@@ -822,8 +822,9 @@ function repairSheet(sheet, label, valueFields, apply) {
 // Suggested scores:
 //   S2 Skill Identification = consistency of logging a focus (60%) + variety,
 //        i.e. clearly working on DIFFERENT elements over time (40%).
-//   S1 Skill Development    = Illinois improvement in SECONDS, on a generous
-//        curve where 2s+ = 7 (incredible) and small gains still score well.
+//   S1 Skill Development    = Illinois improvement in SECONDS. Any genuine
+//        improvement floors at 4 and scales to 7 at 2s+ (incredible); no change
+//        is a 3, slower drops to 2/1.
 //        A "faster is harder to improve" handicap scales each student's gain by
 //        (cohort-average baseline / their baseline), capped at >=1 so it only
 //        ever boosts fast starters and never penalises slower ones.
@@ -847,16 +848,16 @@ function gradeReport(expectedLessons, varietyTarget, s1IncredibleSeconds) {
   var clamp = function(x) { return Math.max(0, Math.min(1, x)); };
   var band = function(x) { return Math.max(1, Math.min(7, Math.round(1 + 6 * x))); };
   var pill = function(v) { return (v == null || v === '') ? '' : v; };
-  // Generous concave scale: fractions of the "incredible" target map to bands.
-  var s1Band = function(eff, T) {
-    var f = eff / T;
-    if (f >= 1.00) return 7;
-    if (f >= 0.75) return 6;
-    if (f >= 0.55) return 5;
-    if (f >= 0.35) return 4;
-    if (f >= 0.20) return 3;
-    if (f >= 0.05) return 2;
-    return 1;
+  // Any genuine improvement floors at 4 and scales to 7 at the "incredible"
+  // target; no change sits at 3, slower drops to 2/1. T = incredible seconds.
+  var s1Band = function(adj, T) {
+    if (adj >= T) return 7;
+    if (adj >= 0.65 * T) return 6;
+    if (adj >= 0.35 * T) return 5;
+    if (adj > 0.05) return 4;            // any real improvement
+    if (adj >= -0.05) return 3;          // essentially no change
+    if (adj > -0.5 * T) return 2;        // a little slower
+    return 1;                            // much slower
   };
 
   CLASSES.forEach(function(cls) {
