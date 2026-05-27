@@ -645,6 +645,53 @@ function dataCoverageReport() {
   return 'Audit tab updated — ' + (summary.length - 1) + ' students reviewed.';
 }
 
+// ---------- Single-student detail (run from editor to answer one email) ----------
+// Dumps, lesson by lesson (L1..L9), exactly what is stored for one student:
+// whether a row exists, how many fields are filled (and which), the last-save
+// timestamp, and a DUPLICATE flag. Use this to verify a "I can't see my data
+// after lesson N" report — e.g. studentDetail('7A', 'Soomin O').
+// Read-only. Output appears under Executions and as the return string.
+function studentDetail(className, student) {
+  var sheet = getSheet(className);
+  var lines = ['Detail for "' + student + '" in ' + className + ':'];
+  var byLesson = {};
+
+  if (sheet && sheet.getLastRow() > 1) {
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0];
+    var fieldCols = LESSON_FIELDS.map(function(f) { return headers.indexOf(f); });
+    var tsCol = headers.indexOf('timestamp');
+    for (var r = 1; r < data.length; r++) {
+      if (data[r][0] !== student) continue;
+      var filled = [];
+      LESSON_FIELDS.forEach(function(f, i) {
+        var ci = fieldCols[i];
+        if (ci === -1) return;
+        var v = data[r][ci];
+        if (v !== '' && v !== null && v !== undefined && v !== 0) filled.push(f);
+      });
+      var lkey = 'L' + data[r][1];
+      if (!byLesson[lkey]) byLesson[lkey] = [];
+      byLesson[lkey].push({ row: r + 1, filled: filled, ts: tsCol !== -1 ? data[r][tsCol] : '' });
+    }
+  }
+
+  for (var L = 1; L <= 9; L++) {
+    var recs = byLesson['L' + L];
+    if (!recs) { lines.push('L' + L + ': NO ROW — nothing was ever saved'); continue; }
+    var dupFlag = recs.length > 1 ? '  *** ' + recs.length + ' DUPLICATE ROWS ***' : '';
+    recs.forEach(function(rec) {
+      lines.push('L' + L + ': row ' + rec.row + ' — ' + rec.filled.length + '/' +
+                 LESSON_FIELDS.length + ' fields [' + rec.filled.join(', ') + '] · last save ' +
+                 rec.ts + dupFlag);
+    });
+  }
+
+  var text = lines.join('\n');
+  Logger.log(text);
+  return text;
+}
+
 // Additive migration — run once if Grades tab already exists and you don't
 // want to wipe its data. Adds any missing columns from GRADE_HEADERS.
 function upgradeGradesSchema() {
