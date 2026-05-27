@@ -742,6 +742,12 @@ function repairDuplicates(apply) {
   }
 }
 
+// Friendly wrappers so you can run these straight from the editor's Run
+// menu (which can't pass arguments). Pick the function name, click Run, then
+// read the Execution log at the bottom.
+function previewRepair() { return repairDuplicates(false); }  // safe — changes nothing
+function applyRepair()   { return repairDuplicates(true);  }  // backs up, then merges
+
 // Merge duplicate rows within one sheet, keyed on columns 1+2. Returns a list
 // of human-readable plan lines. Only mutates the sheet when apply is true.
 function repairSheet(sheet, label, valueFields, apply) {
