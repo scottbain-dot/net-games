@@ -18,18 +18,27 @@ function initialsOf(name) {
   var p = name.split(' ');
   return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
 }
-function updateAutosave() {
+// lastOk: undefined while a save is in flight, true/false once it settles.
+function updateAutosave(lastOk) {
   var w = document.getElementById('autosave');
   if (!w) return;
   var t = w.querySelector('.text');
+  clearTimeout(saveTextTimeout);
   if (savesInFlight > 0) {
-    w.classList.add('active', 'pulse'); t.textContent = 'saved';
-  } else {
-    clearTimeout(saveTextTimeout);
-    saveTextTimeout = setTimeout(function() {
-      w.classList.remove('active', 'pulse'); t.textContent = 'auto-saving';
-    }, 1400);
+    w.classList.remove('failed');
+    w.classList.add('active', 'pulse'); t.textContent = 'saving…';
+    return;
   }
+  if (lastOk === false) {
+    w.classList.remove('pulse');
+    w.classList.add('active', 'failed'); t.textContent = 'save failed';
+    return;
+  }
+  w.classList.remove('failed');
+  w.classList.add('active', 'pulse'); t.textContent = 'saved';
+  saveTextTimeout = setTimeout(function() {
+    w.classList.remove('active', 'pulse'); t.textContent = 'auto-saving';
+  }, 1400);
 }
 function renderRoster() {
   var grid = document.getElementById('student-grid');
@@ -323,13 +332,21 @@ function buildFocusCard(name, d) {
     if (selected === e.key) b.classList.add('active');
     b.innerHTML = e.label + '<span class="focus-sub">' + e.sub + '</span>';
     if (editable) b.addEventListener('click', function() {
+      var prev = selected;
       var next = (selected === e.key) ? '' : e.key;
       d.agility_focus = next;
       storeViewedEdit(name, 'agility_focus', next);
       Array.prototype.forEach.call(grid.children, function(c) { c.classList.remove('active'); });
       if (next) b.classList.add('active');
       selected = next;
-      saveField(name, 'agility_focus', next, false);
+      saveField(name, 'agility_focus', next, false).then(function(ok) {
+        if (ok) return;
+        // Save failed — roll back to the previously stored selection.
+        d.agility_focus = prev;
+        storeViewedEdit(name, 'agility_focus', prev);
+        selected = prev;
+        if (currentStudent === name) renderDetail(name);
+      });
     });
     grid.appendChild(b);
   });
@@ -360,10 +377,16 @@ function buildAgilityBox(label, value, field, student) {
     btn.addEventListener('click', function() {
       var val = parseFloat(inp.value);
       if (isNaN(val)) return;
+      var old = (studentData[student] || {})[field];
       btn.disabled = true; btn.textContent = 'Saving\u2026';
       if (!studentData[student]) studentData[student] = {};
       studentData[student][field] = val;
-      saveField(student, field, val, true).then(function() {
+      saveField(student, field, val, true).then(function(ok) {
+        if (!ok) {
+          studentData[student][field] = old;
+          btn.disabled = false; btn.textContent = 'Save';
+          return;
+        }
         btn.textContent = 'Saved!';
         setTimeout(function() {
           btn.disabled = false; btn.textContent = 'Save';
@@ -452,7 +475,13 @@ function buildSkillRow(student, skill, d, inline) {
     tap.className = 'skill-tap'; tap.textContent = LEVEL_LABELS[nv];
     if (nv > 0) { tap.classList.add('rated'); tap.style.color = LEVEL_COLORS[nv]; } else { tap.style.color = ''; }
     updateOverviewBars(d);
-    saveField(student, skill.key, nv, false);
+    saveField(student, skill.key, nv, false).then(function(ok) {
+      if (ok) return;
+      // Save failed — roll back so the bar reflects what's actually stored.
+      d[skill.key] = old;
+      storeViewedEdit(student, skill.key, old);
+      if (currentStudent === student) renderDetail(student);
+    });
   });
   item.appendChild(bar);
   return item;

@@ -40,21 +40,26 @@ function fetchStudentHistory(name) {
     return h;
   });
 }
+// Resolves to true only when the server confirmed the write, false otherwise.
+// Callers must revert their optimistic UI on a false result so a student never
+// sees a change "stick" that didn't actually persist.
 function saveField(student, field, value, isAgility) {
   if (!isAgility && (!viewedLesson || viewedLesson < 1 || viewedLesson > 9)) {
     showError('Pick a lesson before saving.');
-    return Promise.resolve();
+    return Promise.resolve(false);
   }
   savesInFlight++; updateAutosave();
   var p = isAgility
     ? { action: 'saveAgility', 'class': CLASS_NAME, student: student, field: field, value: value }
     : { action: 'saveLesson', 'class': CLASS_NAME, student: student, lesson: viewedLesson, field: field, value: value };
   return apiWithRetry(null, p).then(function(j) {
-    savesInFlight--; updateAutosave();
-    if (j && j.error) throw new Error(j.error);
+    if (!j || j.error) throw new Error((j && j.error) || 'No response');
+    savesInFlight--; updateAutosave(true);
+    return true;
   }).catch(function(err) {
-    savesInFlight--; updateAutosave();
-    console.error(err); showError('Save failed — tap again to retry.');
+    savesInFlight--; updateAutosave(false);
+    console.error(err); showError('Save failed — your last change did NOT save. Try again.');
+    return false;
   });
 }
 function verifyPinRemote(student, pin) {

@@ -106,6 +106,25 @@ function jsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// Serialize every write. Apps Script runs web-app requests concurrently, so a
+// classroom full of students tapping at once would otherwise interleave the
+// read-row / append / setValue steps below — appending to the wrong row or
+// creating duplicate (Student, Lesson) rows. Holding the script lock makes
+// each write atomic relative to the others.
+function withLock(fn) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(25000);
+  } catch (e) {
+    return jsonResponse({ error: 'Busy — retry' });
+  }
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // ---------- GET ----------
 
 function doGet(e) {
@@ -263,12 +282,12 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     var action = body.action;
-    if (action === 'saveLesson') return saveLesson(body);
-    if (action === 'saveAgility') return saveAgility(body);
+    if (action === 'saveLesson') return withLock(function() { return saveLesson(body); });
+    if (action === 'saveAgility') return withLock(function() { return saveAgility(body); });
     if (action === 'verifyPin') return verifyPin(body);
-    if (action === 'setPin') return setPin(body);
-    if (action === 'resetPin') return resetPin(body);
-    if (action === 'saveGrade') return saveGrade(body);
+    if (action === 'setPin') return withLock(function() { return setPin(body); });
+    if (action === 'resetPin') return withLock(function() { return resetPin(body); });
+    if (action === 'saveGrade') return withLock(function() { return saveGrade(body); });
     return jsonResponse({ error: 'Unknown action' });
   } catch (err) {
     return jsonResponse({ error: String(err) });
@@ -492,6 +511,56 @@ function setupSheets() {
   st.setFrozenRows(1);
   var stRows = CLASSES.map(function(c) { return [c, 1]; });
   st.getRange(2, 1, stRows.length, SETTINGS_HEADERS.length).setValues(stRows);
+}
+
+// ---------- Data-integrity audit (read-only, run from editor) ----------
+// Reports duplicate rows that the old unlocked writes could have produced:
+//   - class tabs (7A/8A): duplicate (Student, Lesson)
+//   - Agility/Grades/Pins: duplicate (Student, Class)
+// Duplicates mean writes and reads may target different rows, so values can
+// appear to "not save". Non-destructive — only reads and logs. View output in
+// the editor under Executions, or read the returned string.
+function auditDuplicates() {
+  var report = [];
+
+  CLASSES.forEach(function(cls) {
+    var sheet = getSheet(cls);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    var data = sheet.getDataRange().getValues();
+    var seen = {};
+    for (var r = 1; r < data.length; r++) {
+      if (data[r][0] === '' && data[r][1] === '') continue;
+      var key = data[r][0] + ' || L' + data[r][1];
+      if (seen[key]) {
+        report.push(cls + ': DUPLICATE ' + data[r][0] + ' Lesson ' + data[r][1] +
+                    ' (sheet rows ' + (seen[key] + 1) + ' and ' + (r + 1) + ')');
+      } else {
+        seen[key] = r;
+      }
+    }
+  });
+
+  ['Agility', 'Grades', 'Pins'].forEach(function(tab) {
+    var sheet = getSheet(tab);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    var data = sheet.getDataRange().getValues();
+    var seen = {};
+    for (var r = 1; r < data.length; r++) {
+      if (data[r][0] === '') continue;
+      var key = data[r][0] + ' || ' + data[r][1];
+      if (seen[key]) {
+        report.push(tab + ': DUPLICATE ' + data[r][0] + ' / ' + data[r][1] +
+                    ' (sheet rows ' + (seen[key] + 1) + ' and ' + (r + 1) + ')');
+      } else {
+        seen[key] = r;
+      }
+    }
+  });
+
+  if (report.length === 0) report.push('No duplicate rows found — data integrity looks clean.');
+  var text = report.join('\n');
+  Logger.log(text);
+  return text;
 }
 
 // Additive migration — run once if Grades tab already exists and you don't
