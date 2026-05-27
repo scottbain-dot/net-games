@@ -822,29 +822,43 @@ function repairSheet(sheet, label, valueFields, apply) {
 // Suggested scores:
 //   S2 Skill Identification = consistency of logging a focus (60%) + variety,
 //        i.e. clearly working on DIFFERENT elements over time (40%).
-//   S1 Skill Development    = purely Illinois improvement, scored as PERCENT
-//        improvement so a faster starting time earns more credit for the same
-//        gain (faster times are harder to improve). Needs baseline + retest.
+//   S1 Skill Development    = Illinois improvement in SECONDS. Any genuine
+//        improvement floors at 4 and scales to 7 at 2s+ (incredible); no change
+//        is a 3, slower drops to 2/1.
+//        A "faster is harder to improve" handicap scales each student's gain by
+//        (cohort-average baseline / their baseline), capped at >=1 so it only
+//        ever boosts fast starters and never penalises slower ones.
 //   S4 Active Participation = the teacher's own 1-7 (passthrough — no formula).
 //
 // Tunables (optional args):
-//   gradeReport(lessons, varietyTarget, s1TargetPct)
+//   gradeReport(lessons, varietyTarget, s1IncredibleSeconds)
 //   - lessons:      coverage denominator. Default = distinct lessons in the tab.
 //   - varietyTarget: # distinct elements that counts as full variety. Default 4.
-//   - s1TargetPct:  % Illinois improvement that scores a 7. Default 0.15 (15%).
-function gradeReport(expectedLessons, varietyTarget, s1TargetPct) {
+//   - s1IncredibleSeconds: adjusted seconds that scores a 7. Default 2.
+function gradeReport(expectedLessons, varietyTarget, s1IncredibleSeconds) {
   var book = ss();
   var VARIETY_TARGET = varietyTarget || 4;
-  var S1_TARGET = s1TargetPct || 0.15;
+  var S1_INCREDIBLE = s1IncredibleSeconds || 2;
   var header = ['Class', 'Student', 'Lessons run',
     'S2 focus logged', 'S2 distinct elements', 'S2 pill', 'S2 saved', 'S2 SUGGEST',
-    'S1 baseline', 'S1 retest', 'S1 change', 'S1 % improvement', 'S1 saved', 'S1 SUGGEST',
+    'S1 baseline', 'S1 retest', 'S1 change', 'S1 adj. seconds', 'S1 saved', 'S1 SUGGEST',
     'S4 pill', 'S4 saved (teacher)', 'S4 SUGGEST'];
   var rows = [header];
 
   var clamp = function(x) { return Math.max(0, Math.min(1, x)); };
   var band = function(x) { return Math.max(1, Math.min(7, Math.round(1 + 6 * x))); };
   var pill = function(v) { return (v == null || v === '') ? '' : v; };
+  // Any genuine improvement floors at 4 and scales to 7 at the "incredible"
+  // target; no change sits at 3, slower drops to 2/1. T = incredible seconds.
+  var s1Band = function(adj, T) {
+    if (adj >= T) return 7;
+    if (adj >= 0.65 * T) return 6;
+    if (adj >= 0.35 * T) return 5;
+    if (adj > 0.05) return 4;            // any real improvement
+    if (adj >= -0.05) return 3;          // essentially no change
+    if (adj > -0.5 * T) return 2;        // a little slower
+    return 1;                            // much slower
+  };
 
   CLASSES.forEach(function(cls) {
     var sheet = getSheet(cls);
@@ -856,6 +870,10 @@ function gradeReport(expectedLessons, varietyTarget, s1TargetPct) {
       var ad = ag.getDataRange().getValues();
       for (var i = 1; i < ad.length; i++) if (ad[i][1] === cls) agMap[ad[i][0]] = { b: ad[i][2], r: ad[i][3] };
     }
+    // Cohort mean baseline, used as the handicap reference.
+    var bases = [];
+    for (var k in agMap) { var bb = parseFloat(agMap[k].b); if (!isNaN(bb) && bb > 0) bases.push(bb); }
+    var refBaseline = bases.length ? bases.reduce(function(x, y) { return x + y; }, 0) / bases.length : 0;
 
     var byStudent = {}, lessonsSeen = {}, col = {};
     if (sheet && sheet.getLastRow() > 1) {
@@ -880,28 +898,28 @@ function gradeReport(expectedLessons, varietyTarget, s1TargetPct) {
 
       var g = grades[name] || {};
       var b = parseFloat(agMap[name] && agMap[name].b), rt = parseFloat(agMap[name] && agMap[name].r);
-      var change = '', pct = '', s1sug = '';
+      var change = '', adjStr = '', s1sug = '';
       var haveTimes = !isNaN(b) && !isNaN(rt) && b > 0;
       if (haveTimes) {
-        var d = rt - b;
+        var d = rt - b;                                   // negative = faster
         change = (d < 0 ? d.toFixed(1) : (d > 0 ? '+' + d.toFixed(1) : '0')) + 's';
-        var improvePct = (b - rt) / b;           // positive = got faster
-        pct = (improvePct * 100).toFixed(1) + '%';
-        s1sug = band(clamp(improvePct / S1_TARGET));
+        var raw = b - rt;                                 // positive = improvement
+        var factor = refBaseline > 0 ? Math.max(1, refBaseline / b) : 1;
+        var adj = raw * factor;                           // handicap only ever boosts
+        adjStr = adj.toFixed(2) + 's';
+        s1sug = s1Band(adj, S1_INCREDIBLE);
       }
 
       var s2sug = '';
       if (focusLogged > 0) {
-        var coverage = clamp(focusLogged / lessonsRun);
-        var variety = clamp(distinctElems / VARIETY_TARGET);
-        s2sug = band(0.6 * coverage + 0.4 * variety);
+        s2sug = band(0.6 * clamp(focusLogged / lessonsRun) + 0.4 * clamp(distinctElems / VARIETY_TARGET));
       }
 
       var s4sug = pill(g.S4);  // S4 is the teacher's own 1-7, passed straight through
 
       rows.push([cls, name, lessonsRun,
         focusLogged, distinctElems, pill(g.s2_teacher), pill(g.S2), s2sug,
-        haveTimes ? b : '', haveTimes ? rt : '', change, pct, pill(g.S1), s1sug,
+        haveTimes ? b : '', haveTimes ? rt : '', change, adjStr, pill(g.S1), s1sug,
         pill(g.s4_teacher), pill(g.S4), s4sug]);
     });
   });
