@@ -1,0 +1,616 @@
+<script>
+(function () {
+'use strict';
+
+// ═══════════════════════ utils ═══════════════════════
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = (sel, root) => (root || document).querySelector(sel);
+const PALETTE = [
+  ['#d4f0e4', '#0a5c35'], ['#e8e4ff', '#4a3a9a'], ['#ddeeff', '#1a4a7a'], ['#ffe4d4', '#7a2a0a'],
+  ['#fff0d4', '#7a5a0a'], ['#fde4ee', '#8a2a5a'], ['#d4eeff', '#0a4a7a'], ['#e4ffd4', '#2a6a0a']
+];
+function initials(name) { const p = String(name).trim().split(/\s+/); return ((p[0] || '')[0] || '' ) + ((p[1] || '')[0] || ''); }
+function hashIdx(name) { let h = 0; for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h % PALETTE.length; }
+function avatar(name, cls) { const c = PALETTE[hashIdx(name)]; return `<span class="avatar ${cls || ''}" style="background:${c[0]};color:${c[1]}">${esc(initials(name).toUpperCase())}</span>`; }
+const fmt = (v, d = 1) => (v === null || v === undefined || v === '' || isNaN(v)) ? '—' : Number(v).toFixed(d).replace(/\.0+$/, '');
+const num = v => { if (v === '' || v === null || v === undefined) return null; const n = parseFloat(v); return isNaN(n) ? null : n; };
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200); }
+function banner(kind, html) { const b = $('#banner'); if (!html) { b.className = 'banner'; b.innerHTML = ''; return; } b.className = 'banner show ' + kind; b.innerHTML = html; }
+
+// ═══════════════════════ server bridge ═══════════════════════
+function call(fn, ...args) {
+  return new Promise((resolve, reject) => {
+    if (!window.google || !google.script || !google.script.run) return reject(new Error('Not running inside the Apps Script web app'));
+    google.script.run
+      .withSuccessHandler(resolve)
+      .withFailureHandler(e => reject(new Error(e && e.message ? e.message : String(e))))[fn](...args);
+  });
+}
+
+// ═══════════════════════ outbox ═══════════════════════
+// Every write goes through here. Items are persisted in localStorage until the
+// server confirms them, so a wifi drop or an accidental reload never loses work.
+// Items are tagged with the login that created them and only ever sent for
+// that same login (shared laptops).
+const OUTBOX_KEY = 'pe_tracker_outbox_v2';
+const Outbox = {
+  items: [], draining: false, failed: false, lastError: '', waiters: {},
+  load() { try { this.items = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]'); } catch (e) { this.items = []; } },
+  persist() { try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(this.items)); } catch (e) {} },
+  mine() { return this.items.filter(i => i.owner === S.id.email); },
+  add(fn, payload, label) {
+    const id = String(Date.now()) + Math.random().toString(36).slice(2, 7);
+    this.items.push({ id, fn, payload, label, owner: S.id.email, ts: Date.now() });
+    this.persist();
+    const p = new Promise((res, rej) => { this.waiters[id] = { res, rej }; });
+    this.drain();
+    updateSaveState();
+    return p;
+  },
+  async drain() {
+    if (this.draining) return;
+    this.draining = true;
+    let item, sentOrphan = false;
+    while ((item = this.mine()[0])) {
+      try {
+        await call(item.fn, item.payload);
+        this.items = this.items.filter(i => i.id !== item.id);
+        this.persist();
+        this.failed = false;
+        if (this.waiters[item.id]) { this.waiters[item.id].res(); delete this.waiters[item.id]; }
+        else sentOrphan = true; // queued in an earlier page load — the UI hasn't seen it
+      } catch (e) {
+        this.failed = true; this.lastError = e.message;
+        // Server-side validation errors will never succeed on retry — drop them
+        if (/Teachers only|not on roster|Unknown checkpoint|Missing/i.test(e.message)) {
+          this.items = this.items.filter(i => i.id !== item.id); this.persist();
+          if (this.waiters[item.id]) { this.waiters[item.id].rej(e); delete this.waiters[item.id]; }
+          continue;
+        }
+        break;
+      }
+      updateSaveState();
+    }
+    this.draining = false;
+    updateSaveState();
+    if (sentOrphan) refreshAfterOutbox();
+  },
+  retry() { this.failed = false; updateSaveState(); this.drain(); }
+};
+// Work queued on an earlier visit has just reached the server: reload what we show.
+async function refreshAfterOutbox() {
+  try {
+    if (S.id.role === 'student') { S.me = await call('getStudent', S.me.cls, S.me.student); if (S.view === 'dash') render(); toast('Earlier changes sent ✓'); }
+    else if (S.T.cls) { const d = await call('getClassData', S.T.cls); S.T.data = d; S.T.overview = null; if (['register', 'checkpoints', 'tests', 'students'].indexOf(S.T.tab) !== -1) render(); toast('Earlier changes sent ✓'); }
+  } catch (e) { /* next reload will show it */ }
+}
+// Coalesces rapid teacher taps into one request per (class, lesson/checkpoint).
+const Pending = {
+  map: {}, timer: null,
+  put(key, fn, base, entryKey, entry) {
+    const p = this.map[key] || (this.map[key] = { fn, base, entries: {} });
+    p.entries[entryKey] = Object.assign(p.entries[entryKey] || {}, entry);
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.flush(), 900);
+    updateSaveState();
+  },
+  count() { return Object.keys(this.map).length; },
+  flush() {
+    clearTimeout(this.timer);
+    const m = this.map; this.map = {};
+    Object.keys(m).forEach(key => {
+      const p = m[key];
+      Outbox.add(p.fn, Object.assign({}, p.base, { entries: Object.values(p.entries) }), key).catch(() => {});
+    });
+  }
+};
+window.addEventListener('beforeunload', () => Pending.flush());
+function updateSaveState() {
+  const el = $('#savestate'); if (!el) return;
+  const n = Outbox.mine().length + Pending.count();
+  if (Outbox.failed) { el.className = 'savestate failed'; el.innerHTML = `${n} change${n === 1 ? '' : 's'} not saved · <a href="#" data-act="retry">retry</a>`; }
+  else if (n > 0) { el.className = 'savestate pending'; el.textContent = 'Saving…'; }
+  else { el.className = 'savestate'; el.textContent = 'All saved ✓'; }
+  if (Outbox.failed) banner('warn', `Could not reach the server — your last change is kept on this device and will be re-sent. <span class="tiny">${esc(Outbox.lastError)}</span><button data-act="retry">Retry now</button>`);
+  else banner();
+}
+
+// ═══════════════════════ state ═══════════════════════
+const S = {
+  cfg: null, id: null, appUrl: '',
+  me: null,            // student data being shown (own, or the one a teacher opened)
+  view: 'dash',        // student: dash | cpform
+  cp: null, form: null,
+  T: { cls: '', tab: 'register', lesson: null, cpName: '', sport: '', data: null, overview: null, viewing: null, printMode: 'all' }
+};
+const cfgCheckpoints = () => S.cfg.checkpoints;
+function sportsFor(cp) { return (S.cfg.checkpointScope === 'played' && cp.sportsPlayed.length) ? cp.sportsPlayed : S.cfg.sports; }
+function cpRow(me, cp, sport, skill) { return me.checkpoints.find(r => r.checkpoint === cp && r.sport === sport && r.skill === skill); }
+function cpDone(me, cp) {
+  if (me.checkpoints.some(r => r.checkpoint === cp.name && r.self)) return true;
+  const rf = me.reflections.find(r => r.checkpoint === cp.name);
+  return !!(rf && (rf.wentWell || rf.nextGoal || rf.focus));
+}
+function nextCheckpoint(me) { return cfgCheckpoints().find(cp => !cpDone(me, cp)) || null; }
+function lessonByNumber(n) { return S.cfg.lessons.find(l => l.number === n); }
+
+// ═══════════════════════ boot ═══════════════════════
+async function boot() {
+  try {
+    const b = await call('bootstrap');
+    S.cfg = b.config; S.id = b.identity; S.appUrl = b.appUrl || '';
+    Outbox.load();
+    if (S.id.role === 'student') S.me = b.student;
+    if (S.id.role === 'teacher') {
+      S.T.cls = (URL_CLASS && S.cfg.classes.indexOf(URL_CLASS) !== -1) ? URL_CLASS : (S.cfg.classes[0] || '');
+      if (URL_VIEW) S.T.tab = URL_VIEW;
+    }
+    render();
+    Outbox.drain();
+    if (S.id.role === 'teacher' && S.T.cls) loadClass(S.T.cls);
+  } catch (e) {
+    $('#app').innerHTML = `<div class="notice"><h2>Could not load</h2><p>${esc(e.message)}</p><p><button class="pill-btn primary" data-act="reload">Try again</button></p></div>`;
+  }
+}
+
+// ═══════════════════════ render root ═══════════════════════
+function render() {
+  const app = $('#app');
+  if (S.id.role === 'unknown') { app.innerHTML = renderUnknown(); return; }
+  if (S.id.role === 'student') {
+    app.innerHTML = S.view === 'cpform' ? renderCpForm(S.me, S.cp, false) : renderStudentPage(S.me, false);
+  } else {
+    app.innerHTML = renderTeacher();
+  }
+  updateSaveState();
+  window.scrollTo(0, 0);
+}
+function renderUnknown() {
+  const email = S.id.email;
+  return `<div class="notice">
+    <h2>${email ? 'You are not on the roster yet' : 'Please sign in with your school Google account'}</h2>
+    ${email ? `<p>You are signed in as <code>${esc(email)}</code>, but that address is not on any class list for <b>${esc(S.cfg.unitName)}</b>.</p>
+              <p>Ask your teacher to add this exact email to the <b>Roster</b> tab, then reload this page.</p>`
+            : `<p>This page could not see who you are. Open it in a browser where you are signed in to your school account (not a private window), or ask your teacher to check that the app is shared with "Anyone within the school".</p>`}
+    <p><button class="pill-btn primary" data-act="reload">Reload</button></p>
+  </div>`;
+}
+
+// ═══════════════════════ student dashboard ═══════════════════════
+function renderStudentPage(me, asTeacher) {
+  const cfg = S.cfg;
+  const cps = cfgCheckpoints();
+  const next = nextCheckpoint(me);
+  const head = `<div class="topbar">
+      ${asTeacher ? `<button class="pill-btn" data-act="t-back">&larr; ${esc(S.T.cls)} students</button>` : ''}
+      ${avatar(me.student)}
+      <div><div class="title">${esc(me.student)}</div><div class="sub">${esc(cfg.unitName)} &middot; Class ${esc(me.cls)}${asTeacher ? ' &middot; <b>teacher view</b>' : ''}</div></div>
+      <div class="grow"></div>
+      <div class="savestate" id="savestate"></div>
+    </div>`;
+
+  const strip = `<div class="cp-strip">${cps.map(cp => {
+    const done = cpDone(me, cp), isNext = next && next.name === cp.name;
+    return `<div class="cp-card ${done ? 'done' : ''} ${isNext ? 'next' : ''}">
+      <div class="cp-name">${esc(cp.name)}</div>
+      <div class="small muted">after lesson ${cp.lesson}${lessonByNumber(cp.lesson) ? ' · ' + esc(lessonByNumber(cp.lesson).title) : ''}</div>
+      <div class="cp-status ${done ? 'done' : 'muted'}">${done ? '✓ Entered' : (isNext ? 'Up next' : 'Not yet')}</div>
+      <button class="pill-btn ${isNext && !done ? 'primary' : ''} small" data-act="open-cp" data-cp="${esc(cp.name)}">${done ? 'Edit' : 'Enter now'}</button>
+    </div>`; }).join('')}</div>`;
+
+  const progress = `<div class="card"><div class="card-head">My skills across the unit <span class="right">self-rating &middot; teacher rating</span></div>
+    <div class="card-body"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Skill</th>${cps.map(cp => `<th class="c">${esc(cp.name)}<br><span class="tiny" style="text-transform:none;letter-spacing:0">after L${cp.lesson}</span></th>`).join('')}</tr></thead><tbody>
+    ${cfg.sports.map(sp => `<tr class="sport-row"><td colspan="${cps.length + 1}">${esc(sp)}</td></tr>` +
+      (cfg.skills[sp] || []).map(sk => `<tr><td class="skill">${esc(sk.skill)}${sk.cue ? `<span class="cue">${esc(sk.cue)}</span>` : ''}</td>
+        ${cps.map(cp => { const r = cpRow(me, cp.name, sp, sk.skill); return `<td class="c"><span class="chip-pair">${chip(r && r.self, false)}${chip(r && r.teacher, true)}</span></td>`; }).join('')}</tr>`).join('')).join('')}
+    </tbody></table></div>
+    <div class="legend"><span class="chip lv3">3</span> my rating <span class="chip t lv3">3</span> teacher rating &nbsp;
+      ${cfg.ratingLabels.map((l, i) => `<span><span class="chip lv${i + 1}">${i + 1}</span> ${esc(l)}</span>`).join('')}</div>
+    </div></div>`;
+
+  const lessonsRun = me.lessonsRun || 0;
+  const attended = me.register.filter(r => r.participation).length;
+  const part = `<div class="card"><div class="card-head green">Participation <span class="right">${attended} of ${lessonsRun} lesson${lessonsRun === 1 ? '' : 's'} so far</span></div>
+    <div class="card-body"><div class="dots">${cfg.lessons.map(l => {
+      const r = me.register.find(x => x.lesson === l.number);
+      const lvl = r && r.participation;
+      const isCp = cps.some(c => c.lesson === l.number);
+      return `<div class="dot ${lvl ? 'p' + lvl : ''} ${isCp ? 'cp' : ''}" title="L${l.number} ${esc(l.title)}${lvl ? ' · ' + esc(cfg.participationLabels[lvl - 1]) : ''}${r && r.note ? ' · ' + esc(r.note) : ''}">L${l.number}</div>`; }).join('')}</div>
+    <div class="legend">${cfg.participationLabels.map((l, i) => `<span><span class="dot p${i + 1}" style="display:inline-flex;width:18px;height:18px;border-radius:5px"></span> ${esc(l)}</span>`).join('')}<span class="faint">Your teacher records this each lesson.</span></div>
+    </div></div>`;
+
+  let test = '';
+  if (cfg.test.name) {
+    const b = me.test.baseline, r = me.test.retest;
+    let delta = '';
+    if (b !== null && r !== null) {
+      const d = r - b, better = cfg.test.lowerIsBetter ? d < 0 : d > 0;
+      const word = cfg.test.lowerIsBetter ? (better ? 'Faster' : 'Slower') : (better ? 'Higher' : 'Lower');
+      delta = Math.abs(d) < 1e-9 ? `<div class="delta">No change</div>` : `<div class="delta ${better ? 'good' : 'bad'}">${word} by <b>${fmt(Math.abs(d), 2)} ${esc(cfg.test.unit)}</b>${better ? ' — nice work' : ''}</div>`;
+    }
+    test = `<div class="card"><div class="card-head purple">${esc(cfg.test.name)} <span class="right">teacher recorded</span></div><div class="card-body">
+      <div class="test-grid">
+        <div class="test-box"><div class="label">Baseline</div><div class="value ${b === null ? 'empty' : ''}">${b === null ? '—' : fmt(b, 2)}</div><div class="unit">${esc(cfg.test.unit)}</div></div>
+        <div class="test-box"><div class="label">Re-test</div><div class="value ${r === null ? 'empty' : ''}">${r === null ? '—' : fmt(r, 2)}</div><div class="unit">${esc(cfg.test.unit)}</div></div>
+      </div>${delta}</div></div>`;
+  }
+
+  const refl = `<div class="card"><div class="card-head coral">My reflections</div><div class="card-body">
+    ${me.reflections.filter(r => r.wentWell || r.nextGoal || r.focus).length === 0 ? `<div class="empty">Nothing entered yet — your first checkpoint is ${next ? esc(next.name) : 'coming up'}.</div>` :
+      cps.map(cp => { const r = me.reflections.find(x => x.checkpoint === cp.name); if (!r || !(r.wentWell || r.nextGoal || r.focus)) return ''; return `<div class="refl"><div class="cp">${esc(cp.name)} ${r.focus ? `<span class="tag">focus: ${esc(r.focus)}</span>` : ''}</div>
+        ${r.wentWell ? `<div class="q">${esc(cfg.reflectionPrompts[0])}</div><div class="a">${esc(r.wentWell)}</div>` : ''}
+        ${r.nextGoal ? `<div class="q">${esc(cfg.reflectionPrompts[1])}</div><div class="a">${esc(r.nextGoal)}</div>` : ''}</div>`; }).join('')}
+    </div></div>`;
+
+  let grades = '';
+  const shown = me.grades.filter(g => g.score);
+  if ((asTeacher || cfg.showGradesToStudents) && shown.length) {
+    grades = `<div class="card"><div class="card-head dark">Grades</div><div class="card-body"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Criterion</th><th class="c">Score</th><th>Comment</th></tr></thead><tbody>
+      ${cfg.criteria.map(c => { const g = me.grades.find(x => x.criterion === c.code); if (!g || !g.score) return ''; return `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td class="c"><span class="chip lv3">${g.score}</span></td><td style="white-space:normal">${esc(g.comment)}</td></tr>`; }).join('')}
+      </tbody></table></div></div></div>`;
+  }
+
+  return head + strip + progress + `<div class="grid cols-2">${part}${test}</div>` + refl + grades;
+}
+function chip(v, teacher) {
+  if (!v) return `<span class="chip none">·</span>`;
+  return `<span class="chip ${teacher ? 't' : ''} lv${v}" title="${esc(S.cfg.ratingLabels[v - 1])}${teacher ? ' (teacher)' : ''}">${v}</span>`;
+}
+
+// ═══════════════════════ checkpoint form ═══════════════════════
+function openCpForm(me, cpName) {
+  const cp = cfgCheckpoints().find(c => c.name === cpName); if (!cp) return;
+  const rf = me.reflections.find(r => r.checkpoint === cp.name) || {};
+  const ratings = {};
+  me.checkpoints.filter(r => r.checkpoint === cp.name && r.self).forEach(r => { ratings[r.sport + '|' + r.skill] = r.self; });
+  S.cp = cp; S.form = { ratings, focus: rf.focus || '', wentWell: rf.wentWell || '', nextGoal: rf.nextGoal || '', sending: false };
+  if (S.id.role === 'student') S.view = 'cpform'; else S.T.tab = 'cpform';
+  render();
+}
+function renderCpForm(me, cp, asTeacher) {
+  const cfg = S.cfg, f = S.form;
+  const sports = sportsFor(cp);
+  return `<div class="topbar">
+      <button class="pill-btn" data-act="cp-cancel">&larr; Back</button>
+      <div><div class="title">${esc(cp.name)} checkpoint</div><div class="sub">${esc(me.student)} &middot; after lesson ${cp.lesson}${asTeacher ? ' &middot; <b>entering as teacher</b>' : ''}</div></div>
+      <div class="grow"></div><div class="savestate" id="savestate"></div>
+    </div>
+    <div class="card"><div class="card-body small muted">Have your <b>paper daily log</b> next to you. Look back over the lessons since the last checkpoint, then rate where you honestly are <b>now</b>. ${cfg.ratingLabels.map((l, i) => `<span class="chip lv${i + 1}" style="min-width:20px;height:20px;font-size:.7rem">${i + 1}</span> ${esc(l)}`).join(' &nbsp; ')}</div></div>
+    ${sports.map((sp, si) => `<div class="card"><div class="card-head ${['green', 'coral', 'purple', 'amber'][si % 4]}">${esc(sp)}</div><div class="card-body">
+      ${(cfg.skills[sp] || []).map(sk => { const key = sp + '|' + sk.skill, cur = f.ratings[key] || 0; return `<div class="rate-row">
+        <div><div class="name">${esc(sk.skill)}</div>${sk.cue ? `<div class="cue">${esc(sk.cue)}</div>` : ''}</div>
+        <div class="seg" data-key="${esc(key)}">${[1, 2, 3, 4].map(n => `<button type="button" class="${cur === n ? 'on lv' + n : ''}" data-act="rate" data-key="${esc(key)}" data-n="${n}"><b>${n}</b>${esc(cfg.ratingLabels[n - 1])}</button>`).join('')}</div>
+      </div>`; }).join('')}
+    </div></div>`).join('')}
+    <div class="card"><div class="card-head">Reflection</div><div class="card-body">
+      ${cfg.focus.length ? `<div class="field"><label>The focus element I worked on most (from my daily log)</label>
+        <div class="focus-grid" id="focus-grid">${cfg.focus.map(fe => `<button type="button" class="focus-btn ${f.focus === fe.focus ? 'on' : ''}" data-act="focus" data-v="${esc(fe.focus)}">${esc(fe.focus)}${fe.cue ? `<span>${esc(fe.cue)}</span>` : ''}</button>`).join('')}</div></div>` : ''}
+      <div class="field"><label>${esc(cfg.reflectionPrompts[0])}</label><textarea data-in="wentWell" maxlength="600" placeholder="Two or three sentences…">${esc(f.wentWell)}</textarea></div>
+      <div class="field"><label>${esc(cfg.reflectionPrompts[1])}</label><textarea data-in="nextGoal" maxlength="600" placeholder="Be specific: which skill, what will you do differently?">${esc(f.nextGoal)}</textarea></div>
+      <div class="form-actions">
+        <button class="pill-btn primary" data-act="cp-save" ${f.sending ? 'disabled' : ''}>${f.sending ? 'Saving…' : 'Save checkpoint'}</button>
+        <button class="pill-btn" data-act="cp-cancel">Cancel</button>
+        <span class="status" id="cp-status"></span>
+      </div>
+    </div></div>`;
+}
+async function saveCpForm() {
+  const me = S.me, cp = S.cp, f = S.form;
+  const ratings = [];
+  Object.keys(f.ratings).forEach(k => { const [sport, skill] = k.split('|'); if (f.ratings[k]) ratings.push({ sport, skill, rating: f.ratings[k] }); });
+  if (!ratings.length && !f.wentWell && !f.nextGoal && !f.focus) { toast('Rate at least one skill or write a reflection first'); return; }
+  const payload = { cls: me.cls, student: me.student, checkpoint: cp.name, ratings, focus: f.focus, wentWell: f.wentWell, nextGoal: f.nextGoal };
+  // optimistic local update
+  ratings.forEach(r => { const row = cpRow(me, cp.name, r.sport, r.skill); if (row) row.self = r.rating; else me.checkpoints.push({ checkpoint: cp.name, sport: r.sport, skill: r.skill, self: r.rating, teacher: null }); });
+  let rf = me.reflections.find(r => r.checkpoint === cp.name);
+  if (!rf) { rf = { checkpoint: cp.name }; me.reflections.push(rf); }
+  Object.assign(rf, { focus: f.focus, wentWell: f.wentWell, nextGoal: f.nextGoal });
+  f.sending = true; render();
+  const goBack = () => { if (S.id.role === 'student') S.view = 'dash'; else { S.T.tab = 'student'; syncTeacherCache(me); } render(); };
+  let settled = false;
+  // If the server is unreachable, don't trap the student on this screen: the
+  // checkpoint is safe in the outbox and will be sent when the connection returns.
+  const watch = setInterval(() => {
+    if (settled) { clearInterval(watch); return; }
+    if (Outbox.failed) { clearInterval(watch); settled = true; f.sending = false; goBack(); toast('Saved on this device — will send when the connection returns'); }
+  }, 400);
+  try {
+    await Outbox.add('saveCheckpoint', payload, 'checkpoint ' + cp.name);
+    if (settled) return;
+    settled = true; f.sending = false; goBack(); toast('Checkpoint saved ✓');
+  } catch (e) {
+    if (settled) return;
+    settled = true; f.sending = false; render();
+    const st = $('#cp-status'); if (st) st.textContent = 'Not saved: ' + e.message;
+  }
+}
+// Keep the teacher's class cache in step after entering on a student's behalf
+function syncTeacherCache(me) {
+  const d = S.T.data; if (!d || d.cls !== me.cls) return;
+  d.checkpoints = d.checkpoints.filter(r => r.student !== me.student).concat(me.checkpoints.map(r => Object.assign({ student: me.student }, r)));
+  d.reflections = d.reflections.filter(r => r.student !== me.student).concat(me.reflections.map(r => Object.assign({ student: me.student }, r)));
+}
+
+// ═══════════════════════ teacher ═══════════════════════
+const TABS = [['register', 'Register'], ['checkpoints', 'Skill ratings'], ['tests', 'Test scores'], ['students', 'Students'], ['overview', 'Overview & grades'], ['print', 'Print daily logs']];
+function rosterOf(cls) { return S.cfg.roster.filter(r => r.cls === cls).map(r => r.student); }
+async function loadClass(cls) {
+  S.T.cls = cls; S.T.data = null; S.T.overview = null; S.T.viewing = null;
+  if (S.T.tab === 'student' || S.T.tab === 'cpform') S.T.tab = 'students';
+  render();
+  try {
+    const d = await call('getClassData', cls);
+    if (S.T.cls !== cls) return;
+    S.T.data = d;
+    if (S.T.lesson === null) {
+      const done = d.register.filter(r => r.participation).map(r => r.lesson);
+      const last = done.length ? Math.max(...done) : 0;
+      const nextL = S.cfg.lessons.find(l => l.number > last) || S.cfg.lessons[S.cfg.lessons.length - 1];
+      S.T.lesson = nextL ? nextL.number : null;
+    }
+    if (!S.T.cpName && cfgCheckpoints().length) S.T.cpName = cfgCheckpoints()[0].name;
+    if (!S.T.sport && S.cfg.sports.length) S.T.sport = S.cfg.sports[0];
+    render();
+    if (S.T.tab === 'overview') loadOverview();
+  } catch (e) { banner('err', 'Could not load class: ' + esc(e.message) + ' <button data-act="reload">Reload</button>'); }
+}
+async function loadOverview() {
+  try { const o = await call('getOverview', S.T.cls); S.T.overview = o; if (S.T.tab === 'overview') render(); }
+  catch (e) { toast('Overview failed: ' + e.message); }
+}
+function renderTeacher() {
+  const cfg = S.cfg, T = S.T;
+  if (T.tab === 'student' && S.me) return renderStudentPage(S.me, true);
+  if (T.tab === 'cpform' && S.me && S.cp) return renderCpForm(S.me, S.cp, true);
+  const head = `<div class="topbar">
+      <div><div class="title">${esc(cfg.unitName)}</div><div class="sub">Teacher &middot; ${esc(S.id.email)}</div></div>
+      <div class="grow"></div>
+      <div class="tabs" style="margin:0">${cfg.classes.map(c => `<button class="tab ${c === T.cls ? 'active' : ''}" data-act="t-class" data-cls="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+      <div class="savestate" id="savestate"></div>
+    </div>
+    <div class="tabs">${TABS.map(([k, l]) => `<button class="tab ${T.tab === k ? 'active' : ''}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</div>`;
+  if (!cfg.classes.length) return head + `<div class="notice"><h2>No classes yet</h2><p>Add students to the <b>Roster</b> tab of the Sheet (Class, Student, Email), then reload.</p></div>`;
+  if (!T.data) return head + `<div class="loading"><div class="spinner"></div> Loading ${esc(T.cls)}…</div>`;
+  const body = { register: renderRegister, checkpoints: renderTeacherRatings, tests: renderTests, students: renderStudents, overview: renderOverview, print: renderPrint }[T.tab] || renderRegister;
+  return head + body();
+}
+
+// ── register ──
+function regEntry(student, lesson) { return S.T.data.register.find(r => r.student === student && r.lesson === lesson); }
+function renderRegister() {
+  const cfg = S.cfg, T = S.T, lesson = T.lesson;
+  const L = lessonByNumber(lesson);
+  const names = rosterOf(T.cls);
+  const marked = names.filter(n => { const e = regEntry(n, lesson); return e && e.participation; }).length;
+  return `<div class="subtabs">${cfg.lessons.map(l => { const any = T.data.register.some(r => r.lesson === l.number && r.participation); return `<button class="subtab ${l.number === lesson ? 'active' : ''}" data-act="t-lesson" data-n="${l.number}" title="${esc(l.title)}">L${l.number}${any ? ' ✓' : ''}<span class="tiny">${esc(l.sport || (l.checkpoint ? l.checkpoint : '—'))}</span></button>`; }).join('')}</div>
+    <div class="card"><div class="card-head green">L${lesson} · ${esc(L ? L.title : '')} <span class="right">${marked} of ${names.length} marked</span></div><div class="card-body">
+      <div class="toolbar"><span class="small muted">Tap once per student. Notes are optional (e.g. "absent", "injured", "led warm-up").</span><div class="grow"></div>
+        <button class="pill-btn small" data-act="reg-all" data-n="2">Mark all unmarked as "${esc(cfg.participationLabels[1])}"</button></div>
+      ${names.map(n => { const e = regEntry(n, lesson) || {}; return `<div class="reg-row">
+        <div class="name">${avatar(n)} ${esc(n)}</div>
+        <div class="ppills">${[1, 2, 3].map(v => `<button type="button" class="${e.participation === v ? 'on p' + v : ''}" data-act="reg" data-student="${esc(n)}" data-n="${v}">${esc(cfg.participationLabels[v - 1])}</button>`).join('')}</div>
+        <input type="text" placeholder="note" maxlength="200" value="${esc(e.note || '')}" data-in="reg-note" data-student="${esc(n)}">
+      </div>`; }).join('')}
+    </div></div>`;
+}
+function setRegister(student, lesson, patch) {
+  let e = regEntry(student, lesson);
+  if (!e) { e = { student, lesson, participation: null, note: '' }; S.T.data.register.push(e); }
+  Object.assign(e, patch);
+  Pending.put('reg|' + S.T.cls + '|' + lesson, 'saveRegister', { cls: S.T.cls, lesson }, student, Object.assign({ student }, patch));
+}
+
+// ── teacher skill ratings ──
+function renderTeacherRatings() {
+  const cfg = S.cfg, T = S.T;
+  const cp = cfgCheckpoints().find(c => c.name === T.cpName) || cfgCheckpoints()[0];
+  if (!cp) return `<div class="empty">No checkpoints defined — add Early / Middle / End in the Checkpoint column of the Lessons tab.</div>`;
+  const sports = sportsFor(cp); if (sports.indexOf(T.sport) === -1) T.sport = sports[0];
+  const skills = cfg.skills[T.sport] || [];
+  const names = rosterOf(T.cls);
+  return `<div class="subtabs">${cfgCheckpoints().map(c => `<button class="subtab ${c.name === cp.name ? 'active' : ''}" data-act="t-cp" data-v="${esc(c.name)}">${esc(c.name)}<span class="tiny">after L${c.lesson}</span></button>`).join('')}</div>
+    <div class="subtabs">${sports.map(sp => `<button class="subtab ${sp === T.sport ? 'active' : ''}" data-act="t-sport" data-v="${esc(sp)}">${esc(sp)}</button>`).join('')}</div>
+    <div class="card"><div class="card-head coral">${esc(cp.name)} · ${esc(T.sport)} <span class="right">tap a cell to cycle 1 → 4 → blank</span></div><div class="card-body">
+      <div class="toolbar"><span class="small muted">The small number is the student's own rating. Your rating shows on their dashboard next to it.</span><div class="grow"></div>
+        <button class="pill-btn small" data-act="tr-copy-self">Fill blanks from self-ratings</button></div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Student</th><th class="c">Entered?</th>${skills.map(s => `<th class="c" title="${esc(s.cue)}">${esc(s.skill)}</th>`).join('')}</tr></thead><tbody>
+      ${names.map(n => { const me = { checkpoints: T.data.checkpoints.filter(r => r.student === n), reflections: T.data.reflections.filter(r => r.student === n) }; const done = cpDone(me, cp);
+        return `<tr><td><b>${esc(n)}</b></td><td class="c">${done ? '<span style="color:var(--green)">✓</span>' : '<span class="faint">–</span>'}</td>
+        ${skills.map(s => { const r = T.data.checkpoints.find(x => x.student === n && x.checkpoint === cp.name && x.sport === T.sport && x.skill === s.skill) || {};
+          return `<td class="cell"><button type="button" class="cyc ${r.teacher ? 'lv' + r.teacher : ''}" data-act="tr" data-student="${esc(n)}" data-skill="${esc(s.skill)}">${r.teacher || '–'}<small>self ${r.self || '–'}</small></button></td>`; }).join('')}</tr>`; }).join('')}
+      </tbody></table></div></div></div>`;
+}
+function setTeacherRating(student, skill, rating) {
+  const T = S.T;
+  let r = T.data.checkpoints.find(x => x.student === student && x.checkpoint === T.cpName && x.sport === T.sport && x.skill === skill);
+  if (!r) { r = { student, checkpoint: T.cpName, sport: T.sport, skill, self: null, teacher: null }; T.data.checkpoints.push(r); }
+  r.teacher = rating;
+  Pending.put('tr|' + T.cls + '|' + T.cpName, 'saveTeacherRatings', { cls: T.cls, checkpoint: T.cpName }, student + '|' + T.sport + '|' + skill, { student, sport: T.sport, skill, rating });
+}
+
+// ── tests ──
+function renderTests() {
+  const cfg = S.cfg, T = S.T, names = rosterOf(T.cls);
+  if (!cfg.test.name) return `<div class="empty">No test configured. Set <b>test_name</b> on the Config tab (e.g. Illinois Agility Test) to use this.</div>`;
+  return `<div class="card"><div class="card-head purple">${esc(cfg.test.name)} <span class="right">${esc(cfg.test.unit)} · ${cfg.test.lowerIsBetter ? 'lower is better' : 'higher is better'}</span></div><div class="card-body">
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Student</th><th class="c">Baseline</th><th class="c">Re-test</th><th class="c">Change</th></tr></thead><tbody>
+    ${names.map(n => { const t = T.data.tests[n] || {}; const b = num(t.baseline), r = num(t.retest); let ch = '—';
+      if (b !== null && r !== null) { const d = r - b, better = cfg.test.lowerIsBetter ? d < 0 : d > 0; ch = `<span style="color:${Math.abs(d) < 1e-9 ? 'var(--muted)' : (better ? 'var(--green)' : 'var(--red)')}">${d > 0 ? '+' : ''}${fmt(d, 2)}</span>`; }
+      return `<tr><td><b>${esc(n)}</b></td>
+        <td class="c"><input class="num-in" type="number" step="0.01" inputmode="decimal" value="${b === null ? '' : b}" data-in="test" data-field="baseline" data-student="${esc(n)}"></td>
+        <td class="c"><input class="num-in" type="number" step="0.01" inputmode="decimal" value="${r === null ? '' : r}" data-in="test" data-field="retest" data-student="${esc(n)}"></td>
+        <td class="c">${ch}</td></tr>`; }).join('')}
+    </tbody></table></div><div class="hint">Values save automatically a moment after you type them.</div></div></div>`;
+}
+function setTest(student, field, value) {
+  const T = S.T; const t = T.data.tests[student] || (T.data.tests[student] = { baseline: null, retest: null });
+  t[field] = num(value);
+  const entry = { student }; entry[field] = num(value);
+  Pending.put('test|' + T.cls, 'saveTests', { cls: T.cls }, student + '|' + field, entry);
+}
+
+// ── students ──
+function renderStudents() {
+  const T = S.T, names = rosterOf(T.cls), cps = cfgCheckpoints();
+  return `<div class="card"><div class="card-head">Students · ${esc(T.cls)} <span class="right">open a student to see their dashboard or enter a checkpoint for them</span></div><div class="card-body">
+    <div class="student-list">${names.map(n => { const me = { checkpoints: T.data.checkpoints.filter(r => r.student === n), reflections: T.data.reflections.filter(r => r.student === n) };
+      const done = cps.filter(c => cpDone(me, c)).length;
+      return `<button class="student-card" data-act="t-open-student" data-student="${esc(n)}">${avatar(n)}<div><div class="n">${esc(n)}</div><div class="s">${done} of ${cps.length} checkpoints entered</div></div></button>`; }).join('')}</div>
+  </div></div>`;
+}
+async function openStudentAsTeacher(name) {
+  const T = S.T;
+  T.viewing = name; S.me = null; T.tab = 'student';
+  $('#app').innerHTML = `<div class="loading"><div class="spinner"></div> Loading ${esc(name)}…</div>`;
+  try {
+    const d = await call('getStudent', T.cls, name);
+    if (T.viewing !== name) return;
+    S.me = d; render();
+  } catch (e) { T.tab = 'students'; render(); toast('Could not load: ' + e.message); }
+}
+
+// ── overview & grades ──
+function renderOverview() {
+  const cfg = S.cfg, T = S.T;
+  if (!T.overview) { if (!T._loadingOv) { T._loadingOv = true; loadOverview().finally(() => { T._loadingOv = false; }); } return `<div class="loading"><div class="spinner"></div> Building overview…</div>`; }
+  const evLabel = { test: cfg.test.name || 'test', reflection: 'checkpoints & reflections', participation: 'register', skills: 'teacher skill ratings', none: 'no automatic evidence' };
+  return `<div class="card"><div class="card-body small muted">
+      <b>Suggested</b> scores (dashed) are computed from the evidence: ${cfg.criteria.map(c => `<b>${esc(c.code)}</b> ← ${esc(evLabel[c.evidence])}`).join(' · ')}. They are a starting point only. Tap a number to set the <b>final</b> grade; ✎ adds a comment. "Build grade report tab" in the Sheet menu exports all of this.
+    </div></div>
+    <div class="card"><div class="card-head dark">Overview · ${esc(T.cls)} <span class="right"><a href="#" data-act="ov-refresh" style="color:#fff">refresh</a></span></div><div class="card-body"><div class="tbl-wrap">
+    <table class="tbl ov"><thead><tr><th class="sticky">Student</th><th class="c">Lessons</th><th class="c">Particip.</th><th class="c">Checkpoints</th>${cfg.test.name ? `<th class="c">${esc(cfg.test.name)}</th>` : ''}${cfg.sports.map(sp => `<th class="c">${esc(sp)}<br><span class="tiny" style="text-transform:none;letter-spacing:0">teacher / self</span></th>`).join('')}<th>Grades <span class="tiny" style="text-transform:none;letter-spacing:0">(dashed = suggested)</span></th></tr></thead><tbody>
+    ${T.overview.map(o => `<tr><td class="sticky"><b>${esc(o.student)}</b></td>
+      <td class="c">${o.lessonsAttended}/${o.lessonsRun}</td>
+      <td class="c">${o.participationAvg === null ? '—' : fmt(o.participationAvg, 1) + '<span class="tiny muted">/3</span>'}</td>
+      <td class="c">${o.checkpointsSubmitted}/${cfgCheckpoints().length}<span class="sug-note">${o.reflectionsComplete} reflections</span></td>
+      ${cfg.test.name ? `<td class="c">${o.test.change === null ? '<span class="faint">—</span>' : `<span style="color:${(cfg.test.lowerIsBetter ? o.test.change < 0 : o.test.change > 0) ? 'var(--green)' : 'var(--red)'}">${o.test.change > 0 ? '+' : ''}${fmt(o.test.change, 2)}</span><span class="sug-note">adj ${fmt(o.test.adjusted, 2)}</span>`}</td>` : ''}
+      ${cfg.sports.map(sp => `<td class="c">${fmt(o.teacherBySport[sp], 1)} / ${fmt(o.selfBySport[sp], 1)}</td>`).join('')}
+      <td class="grade-cell">${cfg.criteria.map(c => { const f = o.final[c.code] || {}, sug = o.suggested[c.code]; return `<div class="grade-line"><span class="grade-code" title="${esc(c.name)}">${esc(c.code)}</span><div class="score-row">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button type="button" class="${f.score === n ? 'on' : ''} ${sug === n && f.score !== n ? 'sug' : ''}" data-act="grade" data-student="${esc(o.student)}" data-code="${esc(c.code)}" data-n="${n}">${n}</button>`).join('')}<button type="button" title="${esc(f.comment || 'Add comment')}" data-act="grade-comment" data-student="${esc(o.student)}" data-code="${esc(c.code)}" style="${f.comment ? 'background:#eef4fb;color:var(--blue)' : ''}">✎</button></div>${f.comment ? `<span class="grade-comment" title="${esc(f.comment)}">💬</span>` : ''}</div>`; }).join('')}</td>
+    </tr>`).join('')}
+    </tbody></table></div></div></div>`;
+}
+function setGrade(student, code, patch) {
+  const o = S.T.overview.find(x => x.student === student); if (!o) return;
+  o.final[code] = Object.assign(o.final[code] || {}, patch);
+  Pending.put('grade|' + S.T.cls, 'saveGrades', { cls: S.T.cls }, student + '|' + code, Object.assign({ student, criterion: code }, patch));
+}
+
+// ── print daily logs ──
+function renderPrint() {
+  const T = S.T, cfg = S.cfg;
+  const names = T.printMode === 'blank' ? [''] : rosterOf(T.cls);
+  return `<div class="toolbar no-print">
+      <button class="subtab ${T.printMode === 'all' ? 'active' : ''}" data-act="print-mode" data-v="all">One sheet per student (${rosterOf(T.cls).length})</button>
+      <button class="subtab ${T.printMode === 'blank' ? 'active' : ''}" data-act="print-mode" data-v="blank">Blank sheet</button>
+      <div class="grow"></div>
+      <span class="small muted">A4 portrait · one page each</span>
+      <button class="pill-btn primary" data-act="print">Print</button>
+    </div>
+    ${names.map(n => renderSheet(n)).join('')}`;
+}
+function renderSheet(name) {
+  const cfg = S.cfg, cps = cfgCheckpoints();
+  const focusList = cfg.focus;
+  return `<div class="sheet">
+    <div class="s-head"><div><div class="u">${esc(cfg.unitName)} · Daily log${S.T.cls ? ' · ' + esc(S.T.cls) : ''}</div><div class="n">${name ? esc(name) : '<span class="blank">&nbsp;</span>'}</div></div>
+      <div style="text-align:right;font-size:8.5pt;color:#555">Fill in one line at the end of every lesson.<br>At each ★ checkpoint, enter your ratings on the dashboard.</div></div>
+    <div class="s-cols">
+      <div class="s-box two"><h4>Focus elements (write the number)</h4>${focusList.length ? `<ol>${focusList.map(f => `<li><b>${esc(f.focus)}</b>${f.cue ? ` <span>· ${esc(f.cue)}</span>` : ''}</li>`).join('')}</ol>` : '<div style="font-size:9pt;color:#666">Write the skill you focused on.</div>'}</div>
+      <div class="s-box"><h4>Scales</h4><ul>
+        <li><b>How well did I do it?</b> ${cfg.ratingLabels.map((l, i) => `${i + 1} = ${esc(l)}`).join(' · ')}</li>
+        <li><b>Effort:</b> ${cfg.participationLabels.map((l, i) => `${i + 1} = ${esc(l)}`).join(' · ')}</li>
+        <li><b>Skills we rate at checkpoints:</b> ${cfg.sports.map(sp => `<i>${esc(sp)}</i> — ${(cfg.skills[sp] || []).map(s => esc(s.skill)).join(', ')}`).join('; ')}</li>
+      </ul></div>
+    </div>
+    <table><thead><tr><th style="width:8mm">L</th><th style="width:16mm">Date</th><th>Lesson</th><th style="width:12mm">Focus #</th><th style="width:22mm">Did it</th><th style="width:17mm">Effort</th><th>One thing I learned / will change next time</th><th style="width:9mm">Tchr</th></tr></thead><tbody>
+    ${cfg.lessons.map(l => { const isCp = cps.some(c => c.lesson === l.number); return `<tr class="${isCp ? 'cp' : ''}"><td class="tall"><b>${l.number}</b></td><td>${esc(l.date || '')}</td><td class="ttl">${esc(l.title)}${l.sport ? ` <span style="color:#666">(${esc(l.sport)})</span>` : ''}</td><td></td><td class="circ">1 2 3 4</td><td class="circ">1 2 3</td><td></td><td></td></tr>`; }).join('')}
+    </tbody></table>
+    <div class="s-foot"><span>Checkpoints: ${cps.map(c => `<b>${esc(c.name)}</b> after L${c.lesson}`).join(' · ')}</span><span>${cfg.test.name ? `${esc(cfg.test.name)} baseline: ______ ${esc(cfg.test.unit)} &nbsp; re-test: ______ ${esc(cfg.test.unit)}` : ''}</span></div>
+  </div>`;
+}
+
+// ═══════════════════════ events ═══════════════════════
+const actions = {
+  reload() { location.reload(); },
+  retry() { Outbox.retry(); },
+  'open-cp'(t) { openCpForm(S.me, t.dataset.cp); },
+  'cp-cancel'() { if (S.id.role === 'student') S.view = 'dash'; else S.T.tab = 'student'; render(); },
+  'cp-save'() { saveCpForm(); },
+  rate(t) {
+    const key = t.dataset.key, n = parseInt(t.dataset.n, 10);
+    S.form.ratings[key] = S.form.ratings[key] === n ? 0 : n;
+    const seg = t.parentElement;
+    Array.from(seg.children).forEach(b => { b.className = ''; });
+    if (S.form.ratings[key]) t.className = 'on lv' + n;
+  },
+  focus(t) {
+    const v = t.dataset.v; S.form.focus = S.form.focus === v ? '' : v;
+    Array.from(t.parentElement.children).forEach(b => b.classList.toggle('on', b.dataset.v === S.form.focus));
+  },
+  't-class'(t) { S.T.lesson = null; loadClass(t.dataset.cls); },
+  't-tab'(t) { S.T.tab = t.dataset.tab; S.T.viewing = null; render(); if (S.T.tab === 'overview' && !S.T.overview) loadOverview(); },
+  't-back'() { S.T.tab = 'students'; S.T.viewing = null; render(); },
+  't-lesson'(t) { S.T.lesson = parseInt(t.dataset.n, 10); render(); },
+  't-cp'(t) { S.T.cpName = t.dataset.v; render(); },
+  't-sport'(t) { S.T.sport = t.dataset.v; render(); },
+  't-open-student'(t) { openStudentAsTeacher(t.dataset.student); },
+  reg(t) {
+    const student = t.dataset.student, n = parseInt(t.dataset.n, 10);
+    const e = regEntry(student, S.T.lesson);
+    setRegister(student, S.T.lesson, { participation: e && e.participation === n ? null : n });
+    render();
+  },
+  'reg-all'(t) {
+    const n = parseInt(t.dataset.n, 10);
+    rosterOf(S.T.cls).forEach(s => { const e = regEntry(s, S.T.lesson); if (!e || !e.participation) setRegister(s, S.T.lesson, { participation: n }); });
+    render();
+  },
+  tr(t) {
+    const student = t.dataset.student, skill = t.dataset.skill;
+    const r = S.T.data.checkpoints.find(x => x.student === student && x.checkpoint === S.T.cpName && x.sport === S.T.sport && x.skill === skill);
+    const cur = r && r.teacher ? r.teacher : 0;
+    const next = cur >= 4 ? null : cur + 1;
+    setTeacherRating(student, skill, next);
+    t.className = 'cyc ' + (next ? 'lv' + next : '');
+    t.innerHTML = (next || '–') + `<small>self ${r && r.self ? r.self : '–'}</small>`;
+  },
+  'tr-copy-self'() {
+    let n = 0;
+    S.T.data.checkpoints.forEach(r => { if (r.checkpoint === S.T.cpName && r.sport === S.T.sport && r.self && !r.teacher) { setTeacherRating(r.student, r.skill, r.self); n++; } });
+    render(); toast(n ? `Filled ${n} blank${n === 1 ? '' : 's'} from self-ratings` : 'Nothing to fill');
+  },
+  grade(t) {
+    const student = t.dataset.student, code = t.dataset.code, n = parseInt(t.dataset.n, 10);
+    const o = S.T.overview.find(x => x.student === student); const cur = o && o.final[code] && o.final[code].score;
+    setGrade(student, code, { score: cur === n ? null : n });
+    render();
+  },
+  'grade-comment'(t) {
+    const student = t.dataset.student, code = t.dataset.code;
+    const o = S.T.overview.find(x => x.student === student); const cur = (o && o.final[code] && o.final[code].comment) || '';
+    const v = window.prompt(`Comment for ${student} · ${code}`, cur);
+    if (v === null) return;
+    setGrade(student, code, { comment: v.trim() }); render();
+  },
+  'ov-refresh'() { S.T.overview = null; render(); loadOverview(); },
+  'print-mode'(t) { S.T.printMode = t.dataset.v; render(); },
+  print() { window.print(); }
+};
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]'); if (!t) return;
+  if (t.tagName === 'A') e.preventDefault();
+  const fn = actions[t.dataset.act]; if (fn) fn(t, e);
+});
+document.addEventListener('input', e => {
+  const t = e.target; const k = t.dataset && t.dataset.in; if (!k) return;
+  if (k === 'wentWell' || k === 'nextGoal') { S.form[k] = t.value; return; }
+});
+document.addEventListener('change', e => {
+  const t = e.target; const k = t.dataset && t.dataset.in; if (!k) return;
+  if (k === 'reg-note') setRegister(t.dataset.student, S.T.lesson, { note: t.value.trim() });
+  if (k === 'test') setTest(t.dataset.student, t.dataset.field, t.value);
+});
+
+boot();
+})();
+</script>

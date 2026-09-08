@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<base target="_top">
+<title>PE Skill Tracker</title>
+<?!= include('Styles') ?>
+</head>
+<body>
+<div class="banner" id="banner"></div>
+<div id="app"><div class="loading"><div class="spinner"></div> Loading…</div></div>
+<div class="toast" id="toast"></div>
+<script>
+var URL_CLASS = '<?= classParam ?>';
+var URL_VIEW = '<?= viewParam ?>';
+</script>
+<?!= include('App') ?>
+</body>
+</html>
