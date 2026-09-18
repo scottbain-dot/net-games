@@ -30,6 +30,7 @@
     const rosterRows = [];
     const mk = (section, n, off) => { for (let i = 0; i < n; i++) { const nm = first[(i + off) % first.length] + ' ' + last[(i + off) % last.length]; rosterRows.push([section, sports[i % 4], nm, nm.toLowerCase().replace(/\s+/g, '.') + '.' + section.replace(/\s+/g, '').toLowerCase() + '@example.edu']); } };
     mk('Section A', 28, 0); mk('Section B', 24, 9);
+    rosterRows.push(['Section B', 'Handball', 'Teacher Test', 'teacher@example.edu']); // the owner, on the roster to test the student view
     const roster = FakeSheets.book.getSheetByName('Roster');
     roster.clear(); roster.getRange(1, 1, 1, 4).setValues([['Section', 'Sport', 'Student', 'Email']]);
     roster.getRange(2, 1, rosterRows.length, 4).setValues(rosterRows);

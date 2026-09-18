@@ -139,6 +139,19 @@ async function main() {
   await page.click('[data-act="t-tab"][data-tab="register"]');
   await page.waitForSelector('.reg-row');
 
+  // teacher who is also on the roster: Test as student round trip
+  await page.click('[data-act="test-as-on"]');
+  await page.waitForSelector('.cp-strip');
+  await page.click('[data-act="open-cp"][data-cp="Early"]');
+  await page.waitForSelector('.focus-btn');
+  await page.click('.focus-grid >> nth=0 >> .focus-btn >> nth=0');
+  await page.click('[data-act="cp-save"]');
+  await page.waitForSelector('.cp-card:nth-child(1).done');
+  await saved();
+  await shot('14-teacher-test-as-student');
+  await page.click('[data-act="test-as-off"]');
+  await page.waitForSelector('.reg-row');
+
   // persistence: register value stuck
   await page.goto(preview + '?role=teacher');
   await page.waitForSelector('.reg-row');

@@ -356,8 +356,13 @@ function identity_(cfg) {
   var owner = lower_(Session.getEffectiveUser().getEmail());
   var out = { email: email, role: 'unknown', name: '', section: '', sport: '' };
   var t = cfg.teachers.filter(function(x) { return x.email === email; })[0];
-  if (email && (email === owner || t)) { out.role = 'teacher'; out.sport = t ? t.sport : ''; return out; }
   var me = email ? cfg.roster.filter(function(r) { return r.email === email; })[0] : null;
+  if (email && (email === owner || t)) {
+    out.role = 'teacher'; out.sport = t ? t.sport : '';
+    // A teacher who is also on the Roster can "Test as student" in the app.
+    if (me) out.alsoStudent = { name: me.student, section: me.section, sport: me.sport };
+    return out;
+  }
   if (me) { out.role = 'student'; out.name = me.student; out.section = me.section; out.sport = me.sport; }
   return out;
 }
