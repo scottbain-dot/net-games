@@ -22,7 +22,7 @@
 // ---------- Tab definitions ----------
 var CONFIG_TABS = {
   Config:   ['Key', 'Value', 'What it does'],
-  Lessons:  ['Number', 'Title', 'Checkpoint', 'Date', 'Sport'],
+  Lessons:  ['Number', 'Checkpoint', 'Date'],
   Skills:   ['Sport', 'Skill', 'Test', 'Success'],
   Drills:   ['Sport', 'Skill', 'Step', 'Drill', 'Criteria'],
   Focus:    ['Focus', 'Cue'],
@@ -71,15 +71,8 @@ var EVIDENCE_TYPES = ['test', 'reflection', 'participation', 'skills', 'outcomes
 // ---------- Example unit (seeded only into EMPTY tabs — edit freely) ----------
 var EXAMPLE = {
   Lessons: [
-    [1, 'Intro · skill tests · agility baseline', 'Early',  '', ''],
-    [2, 'Drills & peer checks',                   '',       '', ''],
-    [3, 'Drills & peer checks',                   '',       '', ''],
-    [4, 'Drills & game play',                     '',       '', ''],
-    [5, 'Mid check-in · quick retest of focus skill', 'Middle', '', ''],
-    [6, 'Drills & peer checks',                   '',       '', ''],
-    [7, 'Drills & game play',                     '',       '', ''],
-    [8, 'Game play · prepare for retests',        '',       '', ''],
-    [9, 'Retests · agility re-test · final check-in', 'End', '', '']
+    [1, 'Early', ''], [2, '', ''], [3, '', ''], [4, '', ''], [5, 'Middle', ''],
+    [6, '', ''], [7, '', ''], [8, '', ''], [9, 'End', '']
   ],
   Skills: [
     ['Net Games',    'Serve',            '10 serves into the target zone',                       'Lands in the zone, legal serve'],
@@ -290,7 +283,7 @@ function buildConfig_() {
   readTab_('Config').forEach(function(r) { if (str_(r.Key)) kv[str_(r.Key)] = str_(r.Value); });
 
   var lessons = readTab_('Lessons').map(function(r) {
-    return { number: num_(r.Number), title: str_(r.Title), checkpoint: str_(r.Checkpoint), date: str_(r.Date), sport: str_(r.Sport) };
+    return { number: num_(r.Number), checkpoint: str_(r.Checkpoint), date: str_(r.Date) };
   }).filter(function(l) { return l.number !== null; }).sort(function(a, b) { return a.number - b.number; });
 
   var sports = [], skills = {};
