@@ -410,7 +410,7 @@ function publicConfig_(cfg) {
 function bootstrap() {
   var cfg = getConfig_();
   var id = identity_(cfg);
-  var out = { config: publicConfig_(cfg), identity: id, appUrl: ScriptApp.getService().getUrl() };
+  var out = { config: publicConfig_(cfg), identity: id, appUrl: appUrl_() };
   if (id.role === 'student') out.student = studentData_(cfg, id.section, id.name);
   return out;
 }
@@ -737,8 +737,14 @@ function setupTabs() {
   try { SpreadsheetApp.getUi().alert('Tabs are ready.\n\nNext: fill in the Roster tab (Section, Sport, Student, Email), check Skills / Drills / Lessons, then deploy the web app (see the Teacher Guide) and use "3. Show app link".'); } catch (e) {}
 }
 
+// getUrl() can return the older "/a/<domain>/macros/s/" form, which some
+// Workspace domains no longer serve. Normalise to "/a/macros/<domain>/s/".
+function appUrl_() {
+  var url = ScriptApp.getService().getUrl() || '';
+  return url.replace(/^https:\/\/script\.google\.com\/a\/([^\/]+)\/macros\/s\//, 'https://script.google.com/a/macros/$1/s/');
+}
 function showAppLink() {
-  var url = ScriptApp.getService().getUrl();
+  var url = appUrl_();
   var ui = SpreadsheetApp.getUi();
   if (!url) { ui.alert('Not deployed yet.\n\nExtensions → Apps Script → Deploy → New deployment → Web app.'); return; }
   var html = HtmlService.createHtmlOutput(
