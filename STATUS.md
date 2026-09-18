@@ -1,6 +1,6 @@
 # Status — Move for Skills (net-games)
 
-- Last worked: (not yet recorded — updated automatically by the post-commit hook)
+- Last worked: 2026-09-18 — Add STATUS.md and post-commit hook that keeps 'Last worked' current
 - Next step: (fill in when the plan changes)
 - Blocked on: nothing
 
