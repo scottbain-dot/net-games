@@ -34,7 +34,7 @@ var CONFIG_TABS = {
 var DATA_TABS = {
   Register:   ['Section', 'Sport', 'Student', 'Lesson', 'Participation', 'Note', 'Updated'],
   SkillTests: ['Section', 'Sport', 'Student', 'Checkpoint', 'Skill', 'Score', 'By', 'Updated'],
-  Checkins:   ['Section', 'Sport', 'Student', 'Checkpoint', 'FocusSkill', 'Goal', 'DrillStep', 'ExtensionSkill', 'ExtensionDrill', 'SelfStages', 'WentWell', 'NextGoal', 'GamePlay', 'Engagement', 'Personal', 'Confirmed', 'Updated'],
+  Checkins:   ['Section', 'Sport', 'Student', 'Checkpoint', 'FocusSkill', 'Goal', 'DrillStep', 'ExtensionSkill', 'ExtensionDrill', 'SelfStages', 'WentWell', 'NextGoal', 'GamePlay', 'GameNote', 'Engagement', 'Personal', 'Confirmed', 'Updated'],
   OutcomeRatings: ['Section', 'Sport', 'Student', 'Checkpoint', 'Outcome', 'Self', 'Teacher', 'Updated'],
   Grades:     ['Section', 'Sport', 'Student', 'Criterion', 'Score', 'Comment', 'Updated']
 };
@@ -387,7 +387,7 @@ function rowsFor_(name, section, student) {
 function parseSelf_(s) { try { var o = JSON.parse(s || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; } }
 function mapRegister_(r) { return { student: str_(r.Student), lesson: num_(r.Lesson), participation: num_(r.Participation), note: str_(r.Note) }; }
 function mapTest_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), skill: str_(r.Skill), score: num_(r.Score), by: str_(r.By) || 'teacher' }; }
-function mapCheckin_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), extensionSkill: str_(r.ExtensionSkill), extensionDrill: str_(r.ExtensionDrill), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal), gamePlay: num_(r.GamePlay), engagement: num_(r.Engagement), personal: num_(r.Personal), confirmed: bool_(r.Confirmed) }; }
+function mapCheckin_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), extensionSkill: str_(r.ExtensionSkill), extensionDrill: str_(r.ExtensionDrill), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal), gamePlay: num_(r.GamePlay), gameNote: str_(r.GameNote), engagement: num_(r.Engagement), personal: num_(r.Personal), confirmed: bool_(r.Confirmed) }; }
 function mapOutcome_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), outcome: str_(r.Outcome), self: num_(r.Self), teacher: num_(r.Teacher) }; }
 function mapGrade_(r) { return { student: str_(r.Student), criterion: str_(r.Criterion), score: num_(r.Score), comment: str_(r.Comment) }; }
 
@@ -492,6 +492,7 @@ function saveTeacherCheckin(payload) {
     if ('engagement' in e) { c.Engagement = blankOr_(e.engagement, 1, 3); any = true; }
     if ('personal' in e) { c.Personal = blankOr_(e.personal, 1, 3); any = true; }
     if ('gamePlay' in e) { c.GamePlay = blankOr_(e.gamePlay, 1, 4); any = true; }
+    if ('gameNote' in e) { c.GameNote = str_(e.gameNote).slice(0, 200); any = true; }
     if (any) checkRows.push(c);
     Object.keys(e.scores || {}).forEach(function(k) {
       testRows.push({ Section: section, Sport: sport, Student: student, Checkpoint: cp, Skill: k, Score: blankOr_(e.scores[k], 0, cfg.scoreMax), By: 'teacher' });
@@ -588,7 +589,8 @@ function computeOverview_(cfg, section, sport, data) {
     var goal = ''; ordered.forEach(function(c) { if (c.goal) goal = c.goal; });
     var drillStep = null; ordered.forEach(function(c) { if (c.drillStep !== null) drillStep = c.drillStep; });
     var extension = ''; ordered.forEach(function(c) { if (c.extensionSkill) extension = c.extensionSkill; });
-    var gamePlay = null; ordered.forEach(function(c) { if (c.gamePlay) gamePlay = c.gamePlay; });
+    var gamePlay = null, gameNote = ''; ordered.forEach(function(c) { if (c.gamePlay) { gamePlay = c.gamePlay; gameNote = c.gameNote || ''; } });
+    var byCheckpoint = cps.map(function(c) { var x = byCp[c.name]; return { checkpoint: c.name, done: !!(x && (x.focusSkill || x.wentWell || x.nextGoal || x.drillStep !== null)), confirmed: !!(x && x.confirmed), personal: x ? x.personal : null, wentWell: x ? x.wentWell : '', nextGoal: x ? x.nextGoal : '', drillStep: x ? x.drillStep : null }; });
     var maxSteps = 0; skills.forEach(function(s) { if (s.skill === focus) maxSteps = s.drills.length; });
 
     // focus skill: first and last recorded score
@@ -655,7 +657,7 @@ function computeOverview_(cfg, section, sport, data) {
       student: name, sport: sp,
       lessonsAttended: reg.length, lessonsRun: nLessons, participationAvg: partAvg,
       checkins: nCheckins, reflections: nReflected, selfAccuracy: selfAcc, confirmed: nConfirmed, engagementAvg: engAvg, personalAvg: persAvg,
-      focus: focus, goal: goal, drillStep: drillStep, maxSteps: maxSteps, chosenAtUnderstanding: chosenAtUnderstanding, extension: extension, gamePlay: gamePlay,
+      focus: focus, goal: goal, drillStep: drillStep, maxSteps: maxSteps, chosenAtUnderstanding: chosenAtUnderstanding, extension: extension, gamePlay: gamePlay, gameNote: gameNote, byCheckpoint: byCheckpoint,
       focusStart: fStart, focusEnd: fEnd, focusGain: fGain, focusStageStart: stageOf_(cfg, fStart), focusStageEnd: stageOf_(cfg, fEnd),
       allStart: allStart, allEnd: allEnd, stagesEnd: stagesEnd,
       outcomesTeacher: outcomesTeacher, outcomesSelf: outcomesSelf, outcomesDetail: tLatest,

@@ -205,7 +205,7 @@ table.tbl th.sticky { background: #fafaf8; }
 .sheet th, .sheet td { border: 1px solid #555; padding: 3px 4px; vertical-align: top; }
 .sheet th { background: #eee; font-size: 8pt; text-transform: uppercase; letter-spacing: .04em; text-align: left; }
 .sheet td.circ { white-space: nowrap; letter-spacing: .25em; text-align: center; font-weight: 600; }
-.sheet td.tall { height: 7.5mm; }
+.sheet td.tall { height: 6.8mm; }
 .sheet tr.cp td { background: #fff7d6; }
 .sheet .s-foot { margin-top: 6px; font-size: 8.5pt; color: #444; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 @media print {
@@ -309,6 +309,48 @@ tr.detail td { background: #fafaf8; }
 .sheet .tick { display: inline-block; width: 6mm; height: 6mm; border: 1px solid #555; border-radius: 2px; font-size: 7pt; line-height: 6mm; color: #999; margin: 0 1px; }
 .sheet tr.cp td.ttl::after { content: ''; }
 .sheet tr.cp td { background: #e9f0fb; }
+/* ── game-play page ── */
+.gp-row { display: grid; grid-template-columns: minmax(180px, 1fr) auto minmax(140px, 1fr); gap: 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.gp-row:last-of-type { border-bottom: 0; }
+.gp-row.rated { background: #f7fbf9; }
+.gp-name { display: flex; align-items: center; gap: 10px; }
+.gp-name .avatar { width: 30px; height: 30px; font-size: .64rem; }
+.ppills.gp.big button { padding: 10px 14px; font-size: .9rem; font-weight: 700; min-width: 56px; }
+.gp-note { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: .82rem; width: 100%; }
+/* ── grades cards ── */
+.grades-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.grades-count { font-size: 1.2rem; font-weight: 700; }
+.gcard { background: #fff; border: 1px solid var(--line); border-radius: 14px; margin-bottom: 12px; overflow: hidden; }
+.gcard.graded { border-color: #bfe3d2; }
+.gcard-head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #fafaf8; border-bottom: 1px solid var(--line); }
+.gcard-head .avatar { width: 30px; height: 30px; font-size: .64rem; }
+.gcard-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.gcol { padding: 12px 16px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.gcol:last-child { border-right: 0; }
+.gcol-title { font-size: .85rem; display: flex; align-items: center; gap: 6px; }
+.gcol-title b { color: var(--blue); }
+.cmt { margin-left: auto; width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--line); background: #fff; font-size: .75rem; color: var(--muted); }
+.cmt.has { background: #eef4fb; color: var(--blue); border-color: #bcd5f5; }
+.ev { display: flex; gap: 8px; align-items: baseline; font-size: .82rem; }
+.ev-l { color: var(--muted); min-width: 92px; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+.ev .chip { min-width: 22px; height: 22px; font-size: .72rem; }
+.refl-mini { font-size: .8rem; line-height: 1.35; color: var(--ink); background: #fbfaf6; border-radius: 8px; padding: 6px 9px; margin: 2px 0 4px; }
+.score-row.lg { margin-top: 4px; }
+.score-row.lg button { width: 32px; height: 32px; font-size: .85rem; border-radius: 8px; }
+.score-row.lg button.sug { border-width: 2px; }
+.gcomment { font-size: .8rem; color: var(--muted); font-style: italic; }
+/* ── print: all-skills drill card ── */
+.sheet tr.skhead td { background: #eee; font-size: 8pt; padding: 2px 4px; }
+.sheet tr.skhead.mine td { background: #fff3c4; }
+.sheet tr.dim td { color: #888; }
+.sheet .s-cols.two { grid-template-columns: 1.25fr 1fr; }
+.sheet table.s-tests th.cpc { width: 10%; font-size: 7pt; letter-spacing: 0; white-space: nowrap; }
+.sheet table.s-tests { table-layout: auto; }
+.sheet td.tall { height: 5.8mm; }
+.sheet .tick { width: 5.5mm; height: 5.5mm; line-height: 5.5mm; }
+.sheet td.ttl { font-size: 8.5pt; }
+.sheet .s-goal { padding: 3px 0 4px; margin-bottom: 4px; }
+.sheet .s-head { margin-bottom: 3px; }
 @media (max-width: 640px) {
   #app { padding: 12px 10px 50px; }
   .rate-row { grid-template-columns: 1fr; gap: 6px; }

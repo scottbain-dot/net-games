@@ -12,13 +12,14 @@ Every student is in **one sport** for the whole unit. A section of ~70 is split 
 
 | Lesson | Student | Teacher |
 |---|---|---|
-| **L1** | The three skill tests in pairs (a partner counts 10 attempts), scores written on the paper log | Watches, spot-checks |
-| **Early check-in** (end of L1 or start of L2, laptops, ~8 min) | Types the three scores from paper, picks **one** focus skill (the lowest is recommended), edits the drafted goal, answers one question | Same day, phone or laptop, ~3 min: **Check-ins → Early**. Glance at each row, fix a wrong score, tap ✓, rate personal skills (one tap: Not yet / Sometimes / Consistently). Then **Print logs**. |
+| **Before L1** | — | **Print logs** (teacher view → Print). Every student's sheet already carries the three tests, a blank focus-skill line and all three skills' drill progressions, so one sheet lasts the whole unit. |
+| **L1** | The three skill tests in pairs (a partner counts 10 attempts), scores written on the paper log; writes the chosen focus skill on the sheet | Watches, spot-checks |
+| **Early check-in** (end of L1 or start of L2, laptops, ~8 min) | Types the three scores from paper, picks **one** focus skill (the lowest is recommended), edits the drafted goal, answers one question | Same day, phone or laptop, ~3 min: **Check-ins → Early**. Glance at each row, fix a wrong score, tap ✓, rate personal skills (one tap: Not yet / Sometimes / Consistently). |
 | **L2–L4** | Works the drill progression on the paper card; a partner initials each step; you sign and date it; ticks the three personal skills; one line | Circulates; **signs the paper** to let a student move to the next step. **No app.** |
 | **Middle check-in** (L5, laptops) | Retests the focus skill (partner counts), types the score, taps the drill step reached, places themselves, one reflection. **Finished every step?** Chooses an extension skill and drill. | **Check-ins → Middle**: check the retest, ✓, personal skills. |
-| **L6–L8** | Paper only. Last two lessons: game play. | Paper only. In the **last two lessons** you watch each student's focus skill in game play. |
-| **End check-in** (L9) | Taps drill step, places themselves on the focus skill, personal-skill self-rating, two reflections | **Check-ins → End** is your final assessment: type the final retest, tap the **game-play level** you saw (7 · 6–5 · 4–3 · 2–1), ✓, personal skills. |
-| After | — | **Grades**: *Accept all suggested*, adjust the ones you disagree with, add comments. **PE Tracker → Build grade report tab**. |
+| **L6–L8** | Paper only. Last two lessons: game play. | Paper only. In the **last two lessons** open **Check-ins → Game play**: one row per student with their focus skill and four big buttons (7 · 6–5 · 4–3 · 2–1) plus an optional one-line note. Tap as you watch; it saves itself. |
+| **End check-in** (L9) | Taps drill step, places themselves on the focus skill, personal-skill self-rating, two reflections | **Check-ins → End** is your final assessment: type the final retest, ✓, personal skills. The game-play level you tapped is shown on the row (tap to change it). |
+| After | — | **Grades**: one card per student showing the evidence for each criterion (game-play level, retest scores, check-ins, the reflections themselves, personal-skills ratings) next to a 1–7 row. *Accept all suggested*, then adjust the ones you disagree with and add comments. "X of N graded" and an *Ungraded only* switch keep track. **PE Tracker → Build grade report tab**. |
 
 The three **stages** come from the score out of 10: 0–3 *Understanding*, 4–7 *Intermediate*, 8–10 *Automatic* (editable on Config).
 
@@ -31,7 +32,7 @@ The rule: **nothing self-reported feeds the skill grade.** Students type numbers
 | Criterion | Evidence the app uses for the *suggested* score | Recorded by |
 |---|---|---|
 | **S1 Skill development** | Your **game-play assessment** of the focus skill in the last two lessons (7 / 6–5 / 4–3 / 2–1 → suggested 7 / 6 / 4 / 2). Where you have not entered one, the focus-skill gain from the confirmed Early score to your End retest stands in. | **Teacher.** Early score: student types, teacher confirms. |
-| **S2 Skill identification** | Check-ins completed · chose a skill at *Understanding* · goal written · drill steps progressed (signed on paper) · extension chosen when the progression is done · self-placement matches the confirmed score · reflections | Student, against teacher-confirmed data. Read the reflections in **Students** when finalising. |
+| **S2 Skill identification** | Check-ins completed · chose a skill at *Understanding* · goal written · drill steps progressed (signed on paper) · extension chosen when the progression is done · self-placement matches the confirmed score · reflections | Student, against teacher-confirmed data. The reflections are shown on each student's grade card. |
 | **S4 Active participation** | Your personal-skills rating at each check-in (self-management, perseverance, collaboration: Not yet / Sometimes / Consistently). Tap *rate each* on a row to rate the three separately. | **Teacher**, three taps per student per unit. The paper log's daily ticks and your initials are the backing evidence. |
 
 Suggested scores are a starting point. The final grade is always your tap.
@@ -76,7 +77,7 @@ Add colleagues on the **Teachers** tab (Email, Name, and optionally their Sport 
 Everything is a tab. Edit cells; the app updates within a couple of minutes (or immediately after **PE Tracker → Refresh app config now**).
 
 - **Skills** — `Sport`, `Skill`, `Test` (how the 10 attempts run), `Success` (what counts as one). **Three per sport**, one of them a stretch test that challenges a proficient player. Tests must be countable by a partner.
-- **Drills** — `Sport`, `Skill`, `Step`, `Drill`, `Criteria` (the "done when" line a partner checks before you sign). Three or four steps per skill. Prints on the student's paper log once they have a focus skill, with an extension row underneath.
+- **Drills** — `Sport`, `Skill`, `Step`, `Drill`, `Criteria` (the "done when" line a partner checks before you sign). Three or four steps per skill. All three skills' progressions print on the paper log from day one (the focus skill is starred once chosen), with an extension row underneath.
 - **Lessons** — `Number`, `Checkpoint` (write `Early`, `Middle`, `End` on the check-in lessons), `Date` (optional, prints on the log). No titles: what happens in a lesson is up to you.
 - **Outcomes** — personal skills for an independent task: self-management, perseverance, collaboration. `Outcome`, `LooksLike`. Students tick them daily on paper and self-rate at the End check-in; you give one rating per check-in (tap *rate each* on a row for per-outcome detail).
 - **Criteria** — `Code`, `Name`, `Evidence`, `TopBand`. Evidence is one of `test`, `reflection`, `participation`, `skills`, `outcomes`, `none` (see the assessment table).

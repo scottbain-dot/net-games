@@ -114,17 +114,25 @@ async function main() {
   await page.click('[data-act="t-cp"][data-v="Middle"]');
   await page.waitForSelector('.ok-btn');
   await shot('09-teacher-checkin-middle');
+  // game-play page (phone-sized rows), then End page picks the level up
+  await page.click('[data-act="t-cp"][data-v="__game"]');
+  await page.waitForSelector('.gp-row');
+  const gpName = await page.locator('.gp-row').nth(1).locator('b').first().textContent();
+  await page.locator('.gp-row').nth(1).locator('[data-act="t-game"][data-n="2"]').click();
+  await page.locator(`input[data-in="gnote"][data-student="${gpName}"]`).fill('Good under pressure');
+  await page.locator(`input[data-in="gnote"][data-student="${gpName}"]`).dispatchEvent('change');
+  await saved();
+  await shot('09a-teacher-gameplay');
   await page.click('[data-act="t-cp"][data-v="End"]');
   await page.waitForSelector('.ok-btn');
+  const onEnd = await page.locator(`[data-act="t-game"][data-student="${gpName}"].on`).count();
+  if (!onEnd) errors.push('Game-play level from the Game play tab not shown on End page');
   const endRow = page.locator('table.tc tbody tr').first();
-  const endName = await endRow.locator('td b').first().textContent();
   await endRow.locator('input[data-in="tscore"]').first().fill('8');
   await endRow.locator('input[data-in="tscore"]').first().dispatchEvent('change');
   await endRow.locator('[data-act="t-game"][data-n="1"]').click();
   await page.locator('table.tc tbody tr').first().locator('.ok-btn').click();
   await saved();
-  const gl = await page.locator('table.tc tbody tr').first().locator('[data-act="t-game"].on').count();
-  if (!gl) errors.push('Game-play level did not stick');
   await shot('09b-teacher-checkin-end');
 
   await page.click('[data-act="t-tab"][data-tab="students"]');
@@ -135,7 +143,8 @@ async function main() {
   await page.click('[data-act="t-back"]');
 
   await page.click('[data-act="t-tab"][data-tab="overview"]');
-  await page.waitForSelector('.score-row');
+  await page.waitForSelector('.gcard');
+  if (!(await page.$('.refl-mini'))) errors.push('Reflections not shown on grades cards');
   await page.click('[data-act="accept-sug"]');
   await saved();
   const remaining = await page.$('[data-act="accept-sug"]');
@@ -144,6 +153,9 @@ async function main() {
   await page.click('[data-act="grade-comment"] >> nth=0');
   await saved();
   await shot('11-teacher-grades');
+  await page.click('[data-act="ov-ungraded"]');
+  await page.waitForTimeout(200);
+  await page.click('[data-act="ov-ungraded"]');
 
   await page.click('[data-act="t-tab"][data-tab="print"]');
   await page.waitForSelector('.sheet');
