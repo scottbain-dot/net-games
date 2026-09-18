@@ -33,9 +33,9 @@ var CONFIG_TABS = {
 };
 var DATA_TABS = {
   Register:   ['Section', 'Sport', 'Student', 'Lesson', 'Participation', 'Note', 'Updated'],
-  SkillTests: ['Section', 'Sport', 'Student', 'Checkpoint', 'Skill', 'Score', 'Updated'],
+  SkillTests: ['Section', 'Sport', 'Student', 'Checkpoint', 'Skill', 'Score', 'By', 'Updated'],
   Agility:    ['Section', 'Sport', 'Student', 'Baseline', 'Retest', 'Updated'],
-  Checkins:   ['Section', 'Sport', 'Student', 'Checkpoint', 'FocusSkill', 'Goal', 'DrillStep', 'AgilityFocus', 'SelfStages', 'WentWell', 'NextGoal', 'Updated'],
+  Checkins:   ['Section', 'Sport', 'Student', 'Checkpoint', 'FocusSkill', 'Goal', 'DrillStep', 'AgilityFocus', 'SelfStages', 'WentWell', 'NextGoal', 'Engagement', 'Personal', 'Confirmed', 'Updated'],
   OutcomeRatings: ['Section', 'Sport', 'Student', 'Checkpoint', 'Outcome', 'Self', 'Teacher', 'Updated'],
   Grades:     ['Section', 'Sport', 'Student', 'Criterion', 'Score', 'Comment', 'Updated']
 };
@@ -60,9 +60,11 @@ var CONFIG_DEFAULTS = {
   test_lower_is_better: ['TRUE', 'TRUE for times, FALSE for counts/distances'],
   test_top_gain:        ['2', 'Improvement (in test units, after handicap) that earns the top band'],
   goal_template:        ['Move my {skill} from {stage} ({score}/{max}) to {nextStage} ({target}+/{max}) by the {checkpoint} check-in by working through drill steps {steps}.', 'Draft goal shown to the student. Placeholders in {braces} are filled in.'],
+  reflection_prompt_early: ['Why this skill, and what will you do first?', 'The one question at the Early check-in'],
   reflection_prompt_1:  ['What went well and what has improved?', 'First reflection question at each check-in'],
   reflection_prompt_2:  ['What will I do differently in the next lessons?', 'Second reflection question at each check-in'],
-  show_grades_to_students: ['FALSE', 'TRUE to show final grades and comments on the student dashboard']
+  show_grades_to_students: ['FALSE', 'TRUE to show final grades and comments on the student dashboard'],
+  daily_register:       ['FALSE', 'TRUE to add a per-lesson participation register for teachers (otherwise engagement is rated at each check-in)']
 };
 var CACHE_KEY_CONFIG = 'mfs_config_v2';
 var CACHE_SECONDS = 180;
@@ -330,8 +332,8 @@ function buildConfig_() {
     participationLabels: pLabels.slice(0, 3), outcomeLabels: oLabels.slice(0, 3),
     test: { name: kv.test_name, unit: kv.test_unit, lowerIsBetter: bool_(kv.test_lower_is_better), topGain: num_(kv.test_top_gain) || 2 },
     goalTemplate: kv.goal_template,
-    reflectionPrompts: [kv.reflection_prompt_1, kv.reflection_prompt_2],
-    showGradesToStudents: bool_(kv.show_grades_to_students),
+    reflectionPrompts: [kv.reflection_prompt_1, kv.reflection_prompt_2], earlyPrompt: kv.reflection_prompt_early,
+    showGradesToStudents: bool_(kv.show_grades_to_students), dailyRegister: bool_(kv.daily_register),
     lessons: lessons, sports: sports, skills: skills, checkpoints: checkpoints,
     focus: focus, outcomes: outcomes, criteria: criteria, sections: sections, roster: roster, teachers: teachers
   };
@@ -414,8 +416,8 @@ function rowsFor_(name, section, student) {
 }
 function parseSelf_(s) { try { var o = JSON.parse(s || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; } }
 function mapRegister_(r) { return { student: str_(r.Student), lesson: num_(r.Lesson), participation: num_(r.Participation), note: str_(r.Note) }; }
-function mapTest_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), skill: str_(r.Skill), score: num_(r.Score) }; }
-function mapCheckin_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), agilityFocus: str_(r.AgilityFocus), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal) }; }
+function mapTest_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), skill: str_(r.Skill), score: num_(r.Score), by: str_(r.By) || 'teacher' }; }
+function mapCheckin_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), agilityFocus: str_(r.AgilityFocus), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal), engagement: num_(r.Engagement), personal: num_(r.Personal), confirmed: bool_(r.Confirmed) }; }
 function mapOutcome_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), outcome: str_(r.Outcome), self: num_(r.Self), teacher: num_(r.Teacher) }; }
 function mapGrade_(r) { return { student: str_(r.Student), criterion: str_(r.Criterion), score: num_(r.Score), comment: str_(r.Comment) }; }
 
@@ -478,13 +480,75 @@ function saveCheckin(payload) {
     FocusSkill: focus, Goal: str_(payload.goal).slice(0, 400), DrillStep: blankOr_(payload.drillStep, 0, 20),
     AgilityFocus: str_(payload.agilityFocus).slice(0, 80), SelfStages: JSON.stringify(self),
     WentWell: str_(payload.wentWell).slice(0, 600), NextGoal: str_(payload.nextGoal).slice(0, 600) };
+  // Scores the student typed from their paper log. Never overwrite a score
+  // the teacher entered or corrected.
+  var testRows = [];
+  var scores = payload.scores || {};
+  if (Object.keys(scores).length) {
+    var teacherSet = {};
+    rowsFor_('SkillTests', who.section, who.student).forEach(function(t) { if (str_(t.Checkpoint) === cp && str_(t.By) === 'teacher') teacherSet[str_(t.Skill)] = true; });
+    Object.keys(scores).forEach(function(k) {
+      if (skills.indexOf(k) === -1 || teacherSet[k]) return;
+      var v = scores[k];
+      if (v === '' || v === null || v === undefined) return;
+      testRows.push({ Section: who.section, Sport: who.sport, Student: who.student, Checkpoint: cp, Skill: k, Score: blankOr_(v, 0, cfg.scoreMax), By: 'student' });
+    });
+  }
+  var agRow = null;
+  if (payload.agility && (num_(payload.agility.baseline) !== null || num_(payload.agility.retest) !== null)) {
+    agRow = { Section: who.section, Sport: who.sport, Student: who.student };
+    if (num_(payload.agility.baseline) !== null) agRow.Baseline = num_(payload.agility.baseline);
+    if (num_(payload.agility.retest) !== null) agRow.Retest = num_(payload.agility.retest);
+  }
+  // A student re-saving their check-in un-confirms it so the teacher looks again.
+  if (!who.byTeacher) row.Confirmed = '';
   var outcomeRows = [];
   Object.keys(payload.selfOutcomes || {}).forEach(function(k) {
     if (!cfg.outcomes.some(function(o) { return o.outcome === k; })) return;
     var n = clampInt_(payload.selfOutcomes[k], 1, 3); if (!n) return;
     outcomeRows.push({ Section: who.section, Sport: who.sport, Student: who.student, Checkpoint: cp, Outcome: k, Self: n });
   });
-  return withLock_(function() { upsert_('Checkins', [row]); if (outcomeRows.length) upsert_('OutcomeRatings', outcomeRows); return { ok: true }; });
+  return withLock_(function() {
+    upsert_('Checkins', [row]);
+    if (testRows.length) upsert_('SkillTests', testRows);
+    if (agRow) upsert_('Agility', [agRow]);
+    if (outcomeRows.length) upsert_('OutcomeRatings', outcomeRows);
+    return { ok: true };
+  });
+}
+// Teacher's one-page check-in. entries: [{student, confirmed, engagement, personal,
+//   scores: {skill: score}, agility: {baseline, retest}}] — any subset of fields.
+function saveTeacherCheckin(payload) {
+  var cfg = getConfig_();
+  requireTeacher_(cfg);
+  var section = str_(payload.section), cp = str_(payload.checkpoint);
+  if (!section || !cfg.checkpoints.some(function(c) { return c.name === cp; })) throw new Error('Missing section or checkpoint');
+  var checkRows = [], testRows = [], agRows = [];
+  (payload.entries || []).forEach(function(e) {
+    var student = str_(e.student); if (!student) return;
+    var sport = sportOf_(cfg, section, student);
+    var c = { Section: section, Sport: sport, Student: student, Checkpoint: cp };
+    var any = false;
+    if ('confirmed' in e) { c.Confirmed = e.confirmed ? 'yes' : ''; any = true; }
+    if ('engagement' in e) { c.Engagement = blankOr_(e.engagement, 1, 3); any = true; }
+    if ('personal' in e) { c.Personal = blankOr_(e.personal, 1, 3); any = true; }
+    if (any) checkRows.push(c);
+    Object.keys(e.scores || {}).forEach(function(k) {
+      testRows.push({ Section: section, Sport: sport, Student: student, Checkpoint: cp, Skill: k, Score: blankOr_(e.scores[k], 0, cfg.scoreMax), By: 'teacher' });
+    });
+    if (e.agility) {
+      var a = { Section: section, Sport: sport, Student: student };
+      if ('baseline' in e.agility) a.Baseline = num_(e.agility.baseline) === null ? '' : num_(e.agility.baseline);
+      if ('retest' in e.agility) a.Retest = num_(e.agility.retest) === null ? '' : num_(e.agility.retest);
+      agRows.push(a);
+    }
+  });
+  return withLock_(function() {
+    if (checkRows.length) upsert_('Checkins', checkRows);
+    if (testRows.length) upsert_('SkillTests', testRows);
+    if (agRows.length) upsert_('Agility', agRows);
+    return { ok: true, saved: checkRows.length + testRows.length + agRows.length };
+  });
 }
 // Teacher ratings of personal-skill outcomes. entries: [{student, outcome, teacher}]
 function saveOutcomes(payload) {
@@ -584,7 +648,6 @@ function computeOverview_(cfg, section, sport, data) {
     var nLessons = Object.keys(lessonsRunBySport[sp] || {}).length || cfg.lessons.length || 1;
     var reg = data.register.filter(function(x) { return x.student === name && x.participation; });
     var partAvg = reg.length ? reg.reduce(function(a, x) { return a + x.participation; }, 0) / reg.length : null;
-
     var tests = data.tests.filter(function(x) { return x.student === name; });
     var score = function(cp, sk) { var t = tests.filter(function(x) { return x.checkpoint === cp && x.skill === sk && x.score !== null; })[0]; return t ? t.score : null; };
     var checkins = data.checkins.filter(function(x) { return x.student === name; });
@@ -612,6 +675,11 @@ function computeOverview_(cfg, section, sport, data) {
     checkins.forEach(function(c) { Object.keys(c.selfStages || {}).forEach(function(sk) { var v = score(c.checkpoint, sk); if (v === null) return; selfN++; if (stageOf_(cfg, v) === c.selfStages[sk]) selfHit++; }); });
     var selfAcc = selfN ? selfHit / selfN : null;
     var nCheckins = ordered.filter(function(c) { return c.focusSkill || c.wentWell || c.nextGoal || c.agilityFocus; }).length;
+    var nConfirmed = ordered.filter(function(c) { return c.confirmed; }).length;
+    var eng = ordered.filter(function(c) { return c.engagement; });
+    var engAvg = eng.length ? eng.reduce(function(a, c) { return a + c.engagement; }, 0) / eng.length : null;
+    var pers = ordered.filter(function(c) { return c.personal; });
+    var persAvg = pers.length ? pers.reduce(function(a, c) { return a + c.personal; }, 0) / pers.length : null;
     var nReflected = ordered.filter(function(c) { return c.wentWell && c.nextGoal; }).length;
     var chosenAtUnderstanding = focus && fStart !== null ? stageOf_(cfg, fStart) === 1 : null;
 
@@ -620,7 +688,7 @@ function computeOverview_(cfg, section, sport, data) {
     var tLatest = {}, sLatest = {};
     cps.forEach(function(c) { oRows.filter(function(x) { return x.checkpoint === c.name; }).forEach(function(x) { if (x.teacher) tLatest[x.outcome] = x.teacher; if (x.self) sLatest[x.outcome] = x.self; }); });
     var tVals = Object.keys(tLatest).map(function(k) { return tLatest[k]; }), sVals = Object.keys(sLatest).map(function(k) { return sLatest[k]; });
-    var outcomesTeacher = tVals.length ? tVals.reduce(function(a, b) { return a + b; }, 0) / tVals.length : null;
+    var outcomesTeacher = tVals.length ? tVals.reduce(function(a, b) { return a + b; }, 0) / tVals.length : persAvg;
     var outcomesSelf = sVals.length ? sVals.reduce(function(a, b) { return a + b; }, 0) / sVals.length : null;
 
     var ag = data.agility[name] || {};
@@ -641,7 +709,10 @@ function computeOverview_(cfg, section, sport, data) {
         if (adj !== null) parts.push(agilityBand(adj));
         if (parts.length) s = Math.round(parts.reduce(function(a, b) { return a + b; }, 0) / parts.length);
       }
-      if (c.evidence === 'participation' && partAvg !== null) s = band(clamp01((partAvg - 1) / 2) * 0.7 + clamp01(reg.length / nLessons) * 0.3);
+      if (c.evidence === 'participation') {
+        if (cfg.dailyRegister && partAvg !== null) s = band(clamp01((partAvg - 1) / 2) * 0.7 + clamp01(reg.length / nLessons) * 0.3);
+        else if (engAvg !== null) s = band(clamp01((engAvg - 1) / 2) * 0.8 + clamp01(eng.length / nCp) * 0.2);
+      }
       if (c.evidence === 'reflection' && nCheckins > 0) {
         var x = 0.35 * clamp01(nCheckins / nCp) + 0.15 * (goal ? 1 : 0) + 0.2 * (selfAcc === null ? 0.5 : selfAcc) +
                 0.15 * (maxSteps ? clamp01((drillStep || 0) / maxSteps) : 0.5) + 0.15 * clamp01(nReflected / nCp);
@@ -657,7 +728,7 @@ function computeOverview_(cfg, section, sport, data) {
     return {
       student: name, sport: sp,
       lessonsAttended: reg.length, lessonsRun: nLessons, participationAvg: partAvg,
-      checkins: nCheckins, reflections: nReflected, selfAccuracy: selfAcc,
+      checkins: nCheckins, reflections: nReflected, selfAccuracy: selfAcc, confirmed: nConfirmed, engagementAvg: engAvg, personalAvg: persAvg,
       focus: focus, goal: goal, drillStep: drillStep, maxSteps: maxSteps, chosenAtUnderstanding: chosenAtUnderstanding,
       focusStart: fStart, focusEnd: fEnd, focusGain: fGain, focusStageStart: stageOf_(cfg, fStart), focusStageEnd: stageOf_(cfg, fEnd),
       allStart: allStart, allEnd: allEnd, stagesEnd: stagesEnd,
@@ -774,8 +845,8 @@ function checkConfig() {
 
 function buildGradeReport() {
   var cfg = getConfig_();
-  var header = ['Section', 'Sport', 'Student', 'Lessons attended', 'Lessons run', 'Participation avg (1-3)',
-    'Check-ins', 'Reflections', 'Self-assessment accuracy', 'Focus skill', 'Chosen at ' + cfg.stageLabels[0] + '?', 'Drill step',
+  var header = ['Section', 'Sport', 'Student', 'Lessons attended', 'Lessons run', 'Participation avg (1-3)', 'Engagement avg (1-3)', 'Personal skills avg (1-3)',
+    'Check-ins', 'Confirmed', 'Reflections', 'Self-assessment accuracy', 'Focus skill', 'Chosen at ' + cfg.stageLabels[0] + '?', 'Drill step',
     'Focus start', 'Focus end', 'Focus gain', 'Stage start', 'Stage end', 'All skills start (mean)', 'All skills end (mean)',
     cfg.test.name + ' baseline', cfg.test.name + ' retest', 'Change', 'Adjusted gain'];
   cfg.outcomes.forEach(function(o) { header.push(o.outcome + ' (teacher)'); });
@@ -787,8 +858,8 @@ function buildGradeReport() {
   cfg.sections.forEach(function(section) {
     var data = getSectionData(section);
     computeOverview_(cfg, section, '', data).forEach(function(o) {
-      var row = [section, o.sport, o.student, o.lessonsAttended, o.lessonsRun, fmt(o.participationAvg),
-        o.checkins, o.reflections, o.selfAccuracy === null ? '' : Math.round(o.selfAccuracy * 100) + '%', o.focus,
+      var row = [section, o.sport, o.student, o.lessonsAttended, o.lessonsRun, fmt(o.participationAvg), fmt(o.engagementAvg), fmt(o.personalAvg),
+        o.checkins, o.confirmed, o.reflections, o.selfAccuracy === null ? '' : Math.round(o.selfAccuracy * 100) + '%', o.focus,
         o.chosenAtUnderstanding === null ? '' : (o.chosenAtUnderstanding ? 'yes' : 'no'), o.maxSteps ? (o.drillStep || 0) + ' / ' + o.maxSteps : '',
         fmt(o.focusStart), fmt(o.focusEnd), fmt(o.focusGain), stage(o.focusStageStart), stage(o.focusStageEnd), fmt(o.allStart, 1), fmt(o.allEnd, 1),
         fmt(o.agility.baseline), fmt(o.agility.retest), fmt(o.agility.change), fmt(o.agility.adjusted)];
