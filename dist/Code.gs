@@ -705,9 +705,19 @@ function setupTabs() {
     var rows = Object.keys(CONFIG_DEFAULTS).map(function(k) { return [k, CONFIG_DEFAULTS[k][0], CONFIG_DEFAULTS[k][1]]; });
     cfgTab.getRange(2, 1, rows.length, 3).setValues(rows);
   }
+  // Seed by header NAME, not position — a tab kept from an older version may
+  // have extra or re-ordered columns.
   ['Lessons', 'Skills', 'Drills', 'Focus', 'Outcomes', 'Criteria'].forEach(function(n) {
     var t = tab_(n);
-    if (t.getLastRow() < 2 && EXAMPLE[n]) t.getRange(2, 1, EXAMPLE[n].length, EXAMPLE[n][0].length).setValues(EXAMPLE[n]);
+    if (t.getLastRow() >= 2 || !EXAMPLE[n]) return;
+    var hdrs = t.getRange(1, 1, 1, Math.max(1, t.getLastColumn())).getValues()[0].map(String);
+    var names = CONFIG_TABS[n];
+    var rows = EXAMPLE[n].map(function(r) {
+      var line = hdrs.map(function() { return ''; });
+      names.forEach(function(h, i) { var c = hdrs.indexOf(h); if (c !== -1) line[c] = r[i]; });
+      return line;
+    });
+    t.getRange(2, 1, rows.length, hdrs.length).setValues(rows);
   });
   var teachers = tab_('Teachers');
   if (teachers.getLastRow() < 2) teachers.getRange(2, 1, 1, 3).setValues([[Session.getEffectiveUser().getEmail(), 'Sheet owner (automatic)', '']]);
