@@ -190,8 +190,8 @@ table.tbl th.sticky { background: #fafaf8; }
 
 /* ── print: daily log sheets ── */
 .print-only { display: none; }
-.sheet { background: #fff; border: 1px solid var(--line); margin: 0 auto 18px; padding: 14mm 12mm; width: 210mm; min-height: 280mm; font-size: 10.5pt; color: #111; }
-.sheet .s-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #111; padding-bottom: 6px; margin-bottom: 8px; }
+.sheet { background: #fff; border: 1px solid var(--line); margin: 0 auto 18px; padding: 10mm 10mm; width: 210mm; min-height: 280mm; font-size: 10pt; color: #111; }
+.sheet .s-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #111; padding-bottom: 4px; margin-bottom: 5px; }
 .sheet .s-head .u { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; color: #555; }
 .sheet .s-head .n { font-size: 16pt; font-weight: 700; }
 .sheet .s-head .blank { display: inline-block; min-width: 70mm; border-bottom: 1px solid #111; }
@@ -205,14 +205,15 @@ table.tbl th.sticky { background: #fafaf8; }
 .sheet th, .sheet td { border: 1px solid #555; padding: 3px 4px; vertical-align: top; }
 .sheet th { background: #eee; font-size: 8pt; text-transform: uppercase; letter-spacing: .04em; text-align: left; }
 .sheet td.circ { white-space: nowrap; letter-spacing: .25em; text-align: center; font-weight: 600; }
-.sheet td.tall { height: 12mm; }
+.sheet td.tall { height: 7.5mm; }
 .sheet tr.cp td { background: #fff7d6; }
 .sheet .s-foot { margin-top: 6px; font-size: 8.5pt; color: #444; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 @media print {
   body { background: #fff; }
   #app { max-width: none; padding: 0; }
-  .no-print, .banner, .toast { display: none !important; }
-  .sheet { border: 0; margin: 0; width: auto; min-height: 0; page-break-after: always; padding: 8mm 6mm; }
+  .no-print, .banner, .toast, .topbar, .tabs, .subtabs, .seg-tabs { display: none !important; }
+  @page { size: A4; margin: 8mm; }
+  .sheet { border: 0; margin: 0; width: auto; min-height: 0; page-break-after: always; break-inside: avoid; overflow: hidden; padding: 2mm 2mm; font-size: 9.5pt; }
   .sheet:last-child { page-break-after: auto; }
 }
 
@@ -281,6 +282,32 @@ tr.detail td { background: #fafaf8; }
 .eng { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .eng-cp { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .stage-pill.p1 { background: var(--p1); } .stage-pill.p2 { background: var(--p2); } .stage-pill.p3 { background: var(--p3); }
+/* ── game-play levels, extension, paper tweaks ── */
+:root { --gl1: #1D9E75; --gl2: #2E86DE; --gl3: #F0A500; --gl4: #E8735A; }
+.chip.gl1 { background: var(--gl1); } .chip.gl2 { background: var(--gl2); } .chip.gl3 { background: var(--gl3); } .chip.gl4 { background: var(--gl4); }
+.ppills.gp button { min-width: 44px; }
+.ppills.gp button.on.gl1 { background: var(--gl1); } .ppills.gp button.on.gl2 { background: var(--gl2); } .ppills.gp button.on.gl3 { background: var(--gl3); } .ppills.gp button.on.gl4 { background: var(--gl4); }
+.game-level { display: flex; align-items: baseline; gap: 14px; padding: 6px 0 10px; }
+.gl-big { font-size: 2.4rem; font-weight: 800; }
+.gl-sub { color: var(--muted); font-size: .9rem; }
+.ext, .ext-form { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: #eef4fb; border-left: 4px solid var(--blue); }
+.ext-title { font-weight: 700; font-size: .9rem; margin-bottom: 4px; }
+.ext-body { font-size: .88rem; color: var(--body, #333); }
+.ext-form .field { margin: 8px 0 0; }
+.ext-form input[type=text] { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.sheet .s-row { margin-bottom: 3mm; }
+.sheet .s-cols.two { grid-template-columns: 1.7fr 1fr; gap: 3mm; margin-bottom: 3mm; }
+.sheet .s-cols.two .s-box, .sheet .s-row .s-box { padding: 4px 6px; }
+.sheet .s-cols.two h4, .sheet .s-row h4 { font-size: 8pt; margin-bottom: 2px; }
+.sheet table.s-tests td.box { height: 6mm; }
+.sheet table.s-drills { font-size: 7pt; table-layout: fixed; width: 100%; word-wrap: break-word; }
+.sheet .s-cols, .sheet .s-box { min-width: 0; overflow: hidden; }
+.sheet table.s-drills td.box { height: 5mm; }
+.sheet td.box.na { background: repeating-linear-gradient(45deg, #eee 0 2px, #fff 2px 5px); }
+.sheet td.ticks { white-space: nowrap; text-align: center; }
+.sheet .tick { display: inline-block; width: 6mm; height: 6mm; border: 1px solid #555; border-radius: 2px; font-size: 7pt; line-height: 6mm; color: #999; margin: 0 1px; }
+.sheet tr.cp td.ttl::after { content: ''; }
+.sheet tr.cp td { background: #e9f0fb; }
 @media (max-width: 640px) {
   #app { padding: 12px 10px 50px; }
   .rate-row { grid-template-columns: 1fr; gap: 6px; }

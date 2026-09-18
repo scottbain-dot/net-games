@@ -82,7 +82,7 @@ const Pending = {
     const p = this.map[key] || (this.map[key] = { fn, base, entries: {} });
     const cur = p.entries[entryKey] || (p.entries[entryKey] = {});
     Object.keys(entry).forEach(k => {
-      if ((k === 'scores' || k === 'agility') && entry[k] && typeof entry[k] === 'object') cur[k] = Object.assign(cur[k] || {}, entry[k]);
+      if (k === 'scores' && entry[k] && typeof entry[k] === 'object') cur[k] = Object.assign(cur[k] || {}, entry[k]);
       else cur[k] = entry[k];
     });
     clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 900); updateSaveState();
@@ -121,9 +121,10 @@ function testRow(me, cp, skill) { return me.tests.find(x => x.checkpoint === cp 
 function testScore(me, cp, skill) { const t = testRow(me, cp, skill); return t ? t.score : null; }
 function latestScore(me, skill, uptoCp) { let v = null; for (const c of CPS()) { const s = testScore(me, c.name, skill); if (s !== null) v = s; if (uptoCp && c.name === uptoCp) break; } return v; }
 function checkinOf(me, cp) { return me.checkins.find(c => c.checkpoint === cp) || null; }
-function cpDone(me, cp) { const c = checkinOf(me, cp.name); return !!(c && (c.focusSkill || c.wentWell || c.nextGoal || c.agilityFocus)) || me.tests.some(t => t.checkpoint === cp.name && t.score !== null); }
+function cpDone(me, cp) { const c = checkinOf(me, cp.name); return !!(c && (c.focusSkill || c.wentWell || c.nextGoal || c.drillStep !== null)) || me.tests.some(t => t.checkpoint === cp.name && t.score !== null); }
 function nextCheckpoint(me) { return CPS().find(cp => !cpDone(me, cp)) || null; }
-function currentFocus(me) { let f = '', step = null, goal = '', ag = ''; CPS().forEach(c => { const x = checkinOf(me, c.name); if (!x) return; if (x.focusSkill) f = x.focusSkill; if (x.goal) goal = x.goal; if (x.drillStep !== null) step = x.drillStep; if (x.agilityFocus) ag = x.agilityFocus; }); return { skill: f, step, goal, agility: ag }; }
+function currentFocus(me) { let f = '', step = null, goal = '', ext = '', extDrill = ''; CPS().forEach(c => { const x = checkinOf(me, c.name); if (!x) return; if (x.focusSkill) f = x.focusSkill; if (x.goal) goal = x.goal; if (x.drillStep !== null) step = x.drillStep; if (x.extensionSkill) { ext = x.extensionSkill; extDrill = x.extensionDrill || ''; } }); return { skill: f, step, goal, extension: ext, extensionDrill: extDrill }; }
+function gameLabel(n) { return n ? S.cfg.gameLevels[n - 1] : ''; }
 function outcomeRow(me, cp, outcome) { return (me.outcomes || []).find(x => x.checkpoint === cp && x.outcome === outcome) || null; }
 function oChip(v, teacher) { return v ? `<span class="chip ${teacher ? 't' : ''} st${v}" title="${esc(S.cfg.outcomeLabels[v - 1])}${teacher ? ' (teacher)' : ''}">${v}</span>` : `<span class="chip none">·</span>`; }
 function stageChip(score, extra) { const st = stageOf(score); return st ? `<span class="chip st${st} ${extra || ''}" title="${esc(stageName(st))}">${fmt(score, 0)}</span>` : `<span class="chip none">·</span>`; }
@@ -195,7 +196,7 @@ function renderStudentPage(me, asTeacher) {
     focusCard = `<div class="card"><div class="card-head amber">My focus skill <span class="right">${esc(focus.skill)}</span></div><div class="card-body">
       <div class="goal">${focus.goal ? esc(focus.goal) : '<span class="faint">No goal written yet.</span>'}</div>
       ${def && def.drills.length ? `<div class="steps">${def.drills.map(d => `<div class="step ${d.step <= step ? 'done' : (d.step === step + 1 ? 'now' : '')}"><span class="step-n">${d.step}</span><div><div class="step-name">${esc(d.drill)}</div><div class="step-crit">${esc(d.criteria)}</div></div><span class="step-mark">${d.step <= step ? '✓' : (d.step === step + 1 ? 'now' : '')}</span></div>`).join('')}</div>` : ''}
-      ${focus.agility ? `<div class="hint">Agility element: <span class="tag">${esc(focus.agility)}</span></div>` : ''}
+      ${focus.extension ? `<div class="ext"><div class="ext-title">Extension · ${esc(focus.extension)}</div><div class="ext-body">${esc(focus.extensionDrill || 'Drill chosen with your teacher.')}</div></div>` : (def && def.drills.length && step >= def.drills.length ? `<div class="hint">All steps signed off. Choose an extension skill at your next check-in.</div>` : '')}
     </div></div>`;
   } else {
     focusCard = `<div class="card"><div class="card-head amber">My focus skill</div><div class="card-body"><div class="empty">Chosen at the <b>${esc(cps[0] ? cps[0].name : 'Early')}</b> check-in.</div></div></div>`;
@@ -220,15 +221,10 @@ function renderStudentPage(me, asTeacher) {
       <div class="eng-row">${cps.map(cp => { const ci = checkinOf(me, cp.name); const v = ci && ci.engagement; return `<div class="eng"><div class="eng-cp">${esc(cp.name)}</div>${v ? `<span class="stage-pill p${v}">${esc(cfg.participationLabels[v - 1])}</span>` : '<span class="faint">—</span>'}</div>`; }).join('')}</div></div></div>`;
   }
 
-  let test = '';
-  if (cfg.test.name) {
-    const b = me.agility.baseline, r = me.agility.retest; let delta = '';
-    if (b !== null && r !== null) { const d = r - b, better = cfg.test.lowerIsBetter ? d < 0 : d > 0; const word = cfg.test.lowerIsBetter ? (better ? 'Faster' : 'Slower') : (better ? 'Higher' : 'Lower');
-      delta = Math.abs(d) < 1e-9 ? `<div class="delta">No change</div>` : `<div class="delta ${better ? 'good' : 'bad'}">${word} by <b>${fmt(Math.abs(d), 2)} ${esc(cfg.test.unit)}</b></div>`; }
-    test = `<div class="card"><div class="card-head purple">${esc(cfg.test.name)}</div><div class="card-body"><div class="test-grid">
-      <div class="test-box"><div class="label">Baseline</div><div class="value ${b === null ? 'empty' : ''}">${b === null ? '—' : fmt(b, 2)}</div><div class="unit">${esc(cfg.test.unit)}</div></div>
-      <div class="test-box"><div class="label">Re-test</div><div class="value ${r === null ? 'empty' : ''}">${r === null ? '—' : fmt(r, 2)}</div><div class="unit">${esc(cfg.test.unit)}</div></div></div>${delta}</div></div>`;
-  }
+  const endCp = cps[cps.length - 1]; const endCi = endCp ? checkinOf(me, endCp.name) : null; const gp = endCi && endCi.gamePlay;
+  const gameCard = `<div class="card"><div class="card-head purple">Game-play assessment <span class="right">teacher, last two lessons</span></div><div class="card-body">
+    ${gp ? `<div class="game-level"><span class="gl-big">${esc(gameLabel(gp))}</span><span class="gl-sub">${esc(focus.skill || 'your focus skill')} in game play</span></div>` : `<div class="empty">Your teacher watches your ${focus.skill ? esc(focus.skill) : 'focus skill'} in game play during the last two lessons.</div>`}
+    <div class="legend">${cfg.gameLevels.map((l, i) => `<span><span class="chip gl${i + 1}">${esc(l)}</span></span>`).join('')}</div></div></div>`;
 
   let outcomesCard = '';
   if (cfg.outcomes.length) {
@@ -241,7 +237,7 @@ function renderStudentPage(me, asTeacher) {
 
   const refl = `<div class="card"><div class="card-head coral">My check-ins</div><div class="card-body">
     ${cps.filter(cp => checkinOf(me, cp.name)).length === 0 ? `<div class="empty">Nothing entered yet.</div>` :
-      cps.map(cp => { const c = checkinOf(me, cp.name); if (!c) return ''; const mode = cpMode(cp); return `<div class="refl"><div class="cp">${esc(cp.name)} ${c.focusSkill ? `<span class="tag">focus: ${esc(c.focusSkill)}</span>` : ''} ${c.agilityFocus ? `<span class="tag">agility: ${esc(c.agilityFocus)}</span>` : ''} ${c.drillStep ? `<span class="tag">drill step ${c.drillStep}</span>` : ''}</div>
+      cps.map(cp => { const c = checkinOf(me, cp.name); if (!c) return ''; const mode = cpMode(cp); return `<div class="refl"><div class="cp">${esc(cp.name)} ${c.focusSkill ? `<span class="tag">focus: ${esc(c.focusSkill)}</span>` : ''} ${c.drillStep ? `<span class="tag">drill step ${c.drillStep}</span>` : ''} ${c.extensionSkill ? `<span class="tag">extension: ${esc(c.extensionSkill)}</span>` : ''}</div>
         ${c.goal && mode === 'early' ? `<div class="q">Goal</div><div class="a">${esc(c.goal)}</div>` : ''}
         ${c.wentWell ? `<div class="q">${esc(mode === 'early' ? cfg.earlyPrompt : cfg.reflectionPrompts[0])}</div><div class="a">${esc(c.wentWell)}</div>` : ''}
         ${c.nextGoal ? `<div class="q">${esc(cfg.reflectionPrompts[1])}</div><div class="a">${esc(c.nextGoal)}</div>` : ''}</div>`; }).join('')}</div></div>`;
@@ -251,14 +247,15 @@ function renderStudentPage(me, asTeacher) {
     grades = `<div class="card"><div class="card-head dark">Grades</div><div class="card-body"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Criterion</th><th class="c">Score</th><th>Comment</th></tr></thead><tbody>
       ${cfg.criteria.map(c => { const g = me.grades.find(x => x.criterion === c.code); if (!g || !g.score) return ''; return `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td class="c"><span class="chip st2">${g.score}</span></td><td style="white-space:normal">${esc(g.comment)}</td></tr>`; }).join('')}</tbody></table></div></div></div>`;
   }
-  return head + strip + focusCard + skillsCard + `<div class="grid cols-2">${part}${test}</div>` + outcomesCard + refl + grades;
+  return head + strip + focusCard + skillsCard + `<div class="grid cols-2">${part}${gameCard}</div>` + outcomesCard + refl + grades;
 }
 
 // ═══════════════════════ check-in form ═══════════════════════
-// Early: student types all test scores (teacher confirms), picks focus skill, goal, agility element, one question.
+// Early: student types all test scores (teacher confirms), picks focus skill, goal, one question.
 // Middle: student types focus-skill retest, drill step, self-stage on the focus skill, one reflection.
 // End: drill step, self-stage on the focus skill, personal skills, two reflections.
-//      The End retest and both agility times are teacher-recorded (nothing self-reported feeds S1).
+// Finished the whole progression? An extension skill + drill can be chosen at Middle or End.
+// The End retest and the game-play level are teacher-recorded (nothing self-reported feeds S1).
 function openCpForm(me, cpName) {
   const cp = CPS().find(c => c.name === cpName); if (!cp) return;
   const mode = cpMode(cp);
@@ -269,11 +266,10 @@ function openCpForm(me, cpName) {
   S.cp = cp;
   S.form = {
     mode, scores,
-    agility: { baseline: me.agility.baseline === null ? '' : me.agility.baseline, retest: me.agility.retest === null ? '' : me.agility.retest },
+    extensionSkill: existing.extensionSkill || prev.extension || '', extensionDrill: existing.extensionDrill || prev.extensionDrill || '',
     focusSkill: existing.focusSkill || prev.skill || '',
     goal: existing.goal || prev.goal || '', goalTouched: !!(existing.goal || prev.goal),
     drillStep: existing.drillStep !== null && existing.drillStep !== undefined ? existing.drillStep : (prev.step || 0),
-    agilityFocus: existing.agilityFocus || prev.agility || '',
     selfStages: Object.assign({}, existing.selfStages || {}),
     selfOutcomes: (() => { const o = {}; S.cfg.outcomes.forEach(x => { const r = outcomeRow(me, cp.name, x.outcome); if (r && r.self) o[x.outcome] = r.self; }); return o; })(),
     wentWell: existing.wentWell || '', nextGoal: existing.nextGoal || '', sending: false, showFocusPick: false
@@ -287,7 +283,7 @@ function renderCpForm(me, cp, asTeacher) {
   const def = f.focusSkill ? skillDef(me.sport, f.focusSkill) : null;
   const intro = { early: 'From your paper log: type your test scores, then pick <b>one</b> skill to focus on and confirm your goal.',
                   middle: 'From your paper log: type your focus-skill retest score and the drill step you have reached, then reflect.',
-                  end: 'Your teacher records your final retest and agility time. Tap the drill step you reached, place yourself honestly, and reflect on the unit.' }[mode];
+                  end: 'Your teacher records your final retest and watches your focus skill in game play. Tap the drill step you reached, place yourself honestly, and reflect on the unit.' }[mode];
   const head = `<div class="topbar"><button class="pill-btn" data-act="cp-cancel">&larr; Back</button>
       <div><div class="title">${esc(cp.name)} check-in</div><div class="sub">${esc(me.student)} &middot; ${esc(me.sport)}${asTeacher ? ' &middot; <b>entering as teacher</b>' : ''}</div></div>
       <div class="grow"></div><div class="savestate" id="savestate"></div></div>
@@ -330,6 +326,9 @@ function renderCpForm(me, cp, asTeacher) {
       <div class="steps pick">${def.drills.map(d => `<button type="button" class="step ${f.drillStep >= d.step ? 'done' : ''}" data-act="drill-step" data-n="${d.step}"><span class="step-n">${d.step}</span><div><div class="step-name">${esc(d.drill)}</div><div class="step-crit">${esc(d.criteria)}</div></div><span class="step-mark">${f.drillStep >= d.step ? '✓' : ''}</span></button>`).join('')}</div>
       <div class="hint">Tap the last step your teacher signed off on your paper log. <a href="#" data-act="drill-step" data-n="0">Clear</a> &middot; <a href="#" data-act="toggle-focus-pick">Change focus skill</a></div>
       ${f.showFocusPick ? `<div class="focus-grid" style="margin-top:10px">${skills.map(s => `<button type="button" class="focus-btn ${f.focusSkill === s.skill ? 'on' : ''}" data-act="focus-skill" data-v="${esc(s.skill)}">${esc(s.skill)}</button>`).join('')}</div>` : ''}
+      ${f.drillStep >= def.drills.length ? `<div class="ext-form"><div class="ext-title">All steps signed off — choose an extension</div>
+        <div class="field"><label>New skill I will work on</label><input type="text" maxlength="80" placeholder="e.g. Backhand smash" value="${esc(f.extensionSkill)}" data-in="extensionSkill"></div>
+        <div class="field"><label>The drill I will use (agree it with your teacher)</label><textarea data-in="extensionDrill" maxlength="300" placeholder="What you will do and what counts as done">${esc(f.extensionDrill)}</textarea></div></div>` : ''}
     </div></div>`;
   } else {
     focusCard = `<div class="card">${sec('My focus skill', 'amber')}<div class="card-body"><div class="focus-grid">${skills.map(s => `<button type="button" class="focus-btn ${f.focusSkill === s.skill ? 'on' : ''}" data-act="focus-skill" data-v="${esc(s.skill)}">${esc(s.skill)}</button>`).join('')}</div></div></div>`;
@@ -338,8 +337,6 @@ function renderCpForm(me, cp, asTeacher) {
   // 3 · agility element, personal skills (end), reflection
   const prompts = mode === 'early' ? [['wentWell', cfg.earlyPrompt]] : mode === 'middle' ? [['wentWell', cfg.reflectionPrompts[0]]] : [['wentWell', cfg.reflectionPrompts[0]], ['nextGoal', cfg.reflectionPrompts[1]]];
   const reflCard = `<div class="card">${sec('Reflection', 'purple')}<div class="card-body">
-      ${cfg.focus.length ? `<div class="field"><label>${mode === 'early' ? 'The agility element I will work on' : 'The agility element I worked on most'}</label>
-        <div class="focus-grid">${cfg.focus.map(fe => `<button type="button" class="focus-btn ${f.agilityFocus === fe.focus ? 'on' : ''}" data-act="agility" data-v="${esc(fe.focus)}">${esc(fe.focus)}${fe.cue ? `<span>${esc(fe.cue)}</span>` : ''}</button>`).join('')}</div></div>` : ''}
       ${prompts.map(([k, label]) => `<div class="field"><label>${esc(label)}</label><textarea data-in="${k}" maxlength="600" placeholder="${mode === 'early' ? 'One or two sentences…' : 'Two or three sentences…'}">${esc(f[k])}</textarea></div>`).join('')}
       ${mode === 'end' && cfg.outcomes.length ? `<div class="field"><label>Personal skills — where are you honestly?</label><div class="tbl-wrap"><table class="tbl"><tbody>${cfg.outcomes.map(o => { const v = f.selfOutcomes[o.outcome] || 0; return `<tr><td class="skill">${esc(o.outcome)}<span class="cue">${esc(o.looksLike)}</span></td><td><div class="seg3">${[1, 2, 3].map(k => `<button type="button" class="${v === k ? 'on st' + k : ''}" data-act="self-outcome" data-outcome="${esc(o.outcome)}" data-n="${k}">${esc(cfg.outcomeLabels[k - 1])}</button>`).join('')}</div></td></tr>`; }).join('')}</tbody></table></div></div>` : ''}
       <div class="form-actions"><button class="pill-btn primary" data-act="cp-save" ${f.sending ? 'disabled' : ''}>${f.sending ? 'Saving…' : 'Save check-in'}</button><button class="pill-btn" data-act="cp-cancel">Cancel</button><span class="status" id="cp-status"></span></div>
@@ -355,12 +352,11 @@ async function saveCpForm() {
     const t = testRow(me, cp.name, k); if (t && t.by === 'teacher' && !asTeacher) return;
     scores[k] = Math.max(0, Math.min(S.cfg.scoreMax, Math.round(num(v))));
   });
-  const agility = {};
-  if (!Object.keys(scores).length && !f.focusSkill && !f.wentWell && !f.nextGoal && !f.agilityFocus && !Object.keys(f.selfStages).length) { toast('Type a score or pick a focus skill first'); return; }
-  const payload = { section: me.section, student: me.student, checkpoint: cp.name, scores, agility, focusSkill: f.focusSkill, goal: f.goal, drillStep: f.drillStep, agilityFocus: f.agilityFocus, selfStages: f.selfStages, selfOutcomes: f.selfOutcomes, wentWell: f.wentWell, nextGoal: f.nextGoal };
+  if (!Object.keys(scores).length && !f.focusSkill && !f.wentWell && !f.nextGoal && !Object.keys(f.selfStages).length) { toast('Type a score or pick a focus skill first'); return; }
+  const payload = { section: me.section, student: me.student, checkpoint: cp.name, scores, focusSkill: f.focusSkill, goal: f.goal, drillStep: f.drillStep, extensionSkill: f.extensionSkill, extensionDrill: f.extensionDrill, selfStages: f.selfStages, selfOutcomes: f.selfOutcomes, wentWell: f.wentWell, nextGoal: f.nextGoal };
   // optimistic local update
-  let c = checkinOf(me, cp.name); if (!c) { c = { checkpoint: cp.name, engagement: null, personal: null, confirmed: false }; me.checkins.push(c); }
-  Object.assign(c, { focusSkill: f.focusSkill, goal: f.goal, drillStep: f.drillStep, agilityFocus: f.agilityFocus, selfStages: Object.assign({}, f.selfStages), wentWell: f.wentWell, nextGoal: f.nextGoal, confirmed: asTeacher ? c.confirmed : false });
+  let c = checkinOf(me, cp.name); if (!c) { c = { checkpoint: cp.name, engagement: null, personal: null, gamePlay: null, confirmed: false }; me.checkins.push(c); }
+  Object.assign(c, { focusSkill: f.focusSkill, goal: f.goal, drillStep: f.drillStep, extensionSkill: f.extensionSkill, extensionDrill: f.extensionDrill, selfStages: Object.assign({}, f.selfStages), wentWell: f.wentWell, nextGoal: f.nextGoal, confirmed: asTeacher ? c.confirmed : false });
   Object.keys(scores).forEach(k => { let t = me.tests.find(x => x.checkpoint === cp.name && x.skill === k); if (!t) { t = { checkpoint: cp.name, skill: k, score: null, by: asTeacher ? 'teacher' : 'student' }; me.tests.push(t); } t.score = scores[k]; });
   me.outcomes = me.outcomes || [];
   Object.keys(f.selfOutcomes).forEach(k => { let r = outcomeRow(me, cp.name, k); if (!r) { r = { checkpoint: cp.name, outcome: k, self: null, teacher: null }; me.outcomes.push(r); } r.self = f.selfOutcomes[k]; });
@@ -376,14 +372,13 @@ function syncTeacherCache(me) {
   d.checkins = d.checkins.filter(r => r.student !== me.student).concat(me.checkins.map(r => Object.assign({ student: me.student }, r)));
   d.tests = d.tests.filter(r => r.student !== me.student).concat(me.tests.map(r => Object.assign({ student: me.student }, r)));
   d.outcomes = d.outcomes.filter(r => r.student !== me.student).concat((me.outcomes || []).map(r => Object.assign({ student: me.student }, r)));
-  d.agility[me.student] = { baseline: me.agility.baseline, retest: me.agility.retest };
 }
 
 // ═══════════════════════ teacher ═══════════════════════
 function TABS() { const t = [['checkins', 'Check-ins'], ['students', 'Students'], ['overview', 'Grades'], ['print', 'Print logs']]; if (S.cfg.dailyRegister) t.unshift(['register', 'Register']); return t; }
 function groupRoster() { return S.cfg.roster.filter(r => r.section === S.T.section && (!S.T.sport || r.sport === S.T.sport)); }
 function sportsInSection() { const out = []; S.cfg.roster.filter(r => r.section === S.T.section).forEach(r => { if (r.sport && out.indexOf(r.sport) === -1) out.push(r.sport); }); return out; }
-function meOf(student) { const T = S.T.data; return { checkins: T.checkins.filter(x => x.student === student), tests: T.tests.filter(x => x.student === student), outcomes: T.outcomes.filter(x => x.student === student), agility: T.agility[student] || { baseline: null, retest: null } }; }
+function meOf(student) { const T = S.T.data; return { checkins: T.checkins.filter(x => x.student === student), tests: T.tests.filter(x => x.student === student), outcomes: T.outcomes.filter(x => x.student === student) }; }
 async function loadSection(section) {
   S.T.section = section; S.T.data = null; S.T.overview = null; S.T.viewing = null;
   if (S.T.tab === 'student' || S.T.tab === 'cpform') S.T.tab = 'students';
@@ -435,31 +430,32 @@ function renderTeacherCheckin() {
   const mode = cpMode(cp);
   const sports = T.sport ? [T.sport] : sportsInSection();
   const roster = groupRoster();
-  const agField = mode === 'early' ? 'baseline' : (mode === 'end' ? 'retest' : null);
   const isConfirmed = student => { const c = T.data.checkins.find(x => x.student === student && x.checkpoint === cp.name); return !!(c && c.confirmed); };
+  const intro = { early: 'Students typed their scores from their paper log. Glance at each row, fix anything wrong, tap <b>✓</b>, rate engagement and personal skills.',
+                  middle: 'Students typed their focus-skill retest. Check it, tap <b>✓</b>, rate engagement and personal skills.',
+                  end: 'Your final assessment. Type each student\'s final retest of their focus skill, tap the <b>game-play level</b> you saw over the last two lessons, then <b>✓</b>, engagement and personal skills.' }[mode];
   return `<div class="subtabs">${CPS().map(c => `<button class="subtab ${c.name === cp.name ? 'active' : ''}" data-act="t-cp" data-v="${esc(c.name)}">${esc(c.name)}<span class="tiny">lesson ${c.lesson}</span></button>`).join('')}</div>
-    <div class="card"><div class="card-body small muted">${{ early: 'Students typed their scores from their paper log. Glance at each row, fix anything wrong, add the agility baseline, then tap <b>✓</b>. Rate engagement and personal skills.',
-        middle: 'Students typed their focus-skill retest. Check it, tap <b>✓</b>, rate engagement and personal skills.',
-        end: 'Record each student\'s final retest of their focus skill and their agility re-test yourself, then tap <b>✓</b> and rate engagement and personal skills.' }[mode]} <span class="faint">Dashed scores are the student's own entry; solid ones you have set.</span></div></div>
+    <div class="card"><div class="card-body small muted">${intro} <span class="faint">Dashed scores are the student's own entry; solid ones you have set.</span></div></div>
     ${sports.map(sp => { const skills = mode === 'early' ? skillsOf(sp) : []; const rows = roster.filter(r => r.sport === sp); if (!rows.length) return '';
-      const cols = 3 + skills.length + (mode !== 'early' ? 2 : 0) + (cfg.test.name && agField ? 1 : 0);
-      return `<div class="card"><div class="card-head coral">${esc(cp.name)} · ${esc(sp)} <span class="right">${rows.filter(r => isConfirmed(r.student)).length} of ${rows.length} confirmed</span></div><div class="card-body">
-        <div class="tbl-wrap"><table class="tbl tc"><thead><tr><th>Student</th><th>Focus</th>${skills.map(s => `<th class="c" title="${esc(s.test)}">${esc(s.skill)}</th>`).join('')}${mode !== 'early' ? `<th class="c">${mode === 'end' ? 'Final retest' : 'Retest'}</th><th class="c">Drill</th>` : ''}${cfg.test.name && agField ? `<th class="c">${esc(cfg.test.name)}<br><span class="tiny" style="text-transform:none;letter-spacing:0">${agField}</span></th>` : ''}<th class="c">Confirm</th><th class="c">Engagement</th><th class="c">Personal</th></tr></thead><tbody>
+      const cols = 3 + skills.length + (mode !== 'early' ? 2 : 0) + (mode === 'end' ? 1 : 0);
+      return `<div class="card"><div class="card-head ${mode === 'end' ? 'purple' : 'coral'}">${esc(cp.name)}${mode === 'end' ? ' · final assessment' : ''} · ${esc(sp)} <span class="right">${rows.filter(r => isConfirmed(r.student)).length} of ${rows.length} confirmed</span></div><div class="card-body">
+        <div class="tbl-wrap"><table class="tbl tc"><thead><tr><th>Student</th><th>Focus skill</th>${skills.map(s => `<th class="c" title="${esc(s.test)}">${esc(s.skill)}</th>`).join('')}${mode !== 'early' ? `<th class="c">${mode === 'end' ? 'Final retest' : 'Retest'}</th><th class="c">Drill</th>` : ''}${mode === 'end' ? '<th class="c">Game play</th>' : ''}<th class="c">Confirm</th><th class="c">Engagement</th><th class="c">Personal</th></tr></thead><tbody>
         ${rows.map(r => { const me = meOf(r.student); const c = me.checkins.find(x => x.checkpoint === cp.name) || {}; const fc = currentFocus(me); const fdef = fc.skill ? skillDef(sp, fc.skill) : null;
           const cell = (skill) => { const t = testRow(me, cp.name, skill); const v = t ? t.score : ''; const st = stageOf(num(v)); return `<td class="cell"><div class="score-in"><input class="num-in short ${t && t.by === 'student' ? 'by-student' : ''}" type="number" min="0" max="${cfg.scoreMax}" step="1" inputmode="numeric" value="${v}" data-in="tscore" data-student="${esc(r.student)}" data-skill="${esc(skill)}"><span class="stage-pill st${st}" data-stage-for="${esc(r.student)}|${esc(skill)}">${st ? esc(stageName(st)) : '–'}</span></div></td>`; };
-          return `<tr class="${c.confirmed ? 'ok' : ''}"><td><b>${esc(r.student)}</b></td><td>${fc.skill ? `<span class="tag">${esc(fc.skill)}</span>` : '<span class="faint">–</span>'}</td>
+          const focusCell = fc.skill ? `<span class="tag">${esc(fc.skill)}</span>${fc.extension ? `<span class="sug-note">+ ${esc(fc.extension)}</span>` : ''}` : '<span class="faint">–</span>';
+          return `<tr class="${c.confirmed ? 'ok' : ''}"><td><b>${esc(r.student)}</b></td><td>${focusCell}</td>
           ${skills.map(s => cell(s.skill)).join('')}
-          ${mode !== 'early' ? (fc.skill ? cell(fc.skill) : '<td class="c faint">no focus</td>') + `<td class="c">${fdef ? (fc.step || 0) + '/' + fdef.drills.length : '–'}</td>` : ''}
-          ${cfg.test.name && agField ? `<td class="c"><input class="num-in" type="number" step="0.01" inputmode="decimal" value="${me.agility[agField] === null || me.agility[agField] === undefined ? '' : me.agility[agField]}" data-in="tagility" data-student="${esc(r.student)}" data-field="${agField}"></td>` : ''}
-          <td class="c"><button type="button" class="ok-btn ${c.confirmed ? 'on' : ''}" data-act="t-confirm" data-student="${esc(r.student)}" title="${c.confirmed ? 'Confirmed — tap to undo' : 'Confirm these scores'}">✓</button></td>
+          ${mode !== 'early' ? (fc.skill ? cell(fc.skill) : '<td class="c faint">no focus</td>') + `<td class="c">${fdef ? (fc.step || 0) + '/' + fdef.drills.length : '–'}${fdef && (fc.step || 0) >= fdef.drills.length ? '<span class="sug-note">done</span>' : ''}</td>` : ''}
+          ${mode === 'end' ? `<td class="c"><div class="ppills tight gp">${[1, 2, 3, 4].map(v => `<button type="button" class="${c.gamePlay === v ? 'on gl' + v : ''}" data-act="t-game" data-student="${esc(r.student)}" data-n="${v}">${esc(cfg.gameLevels[v - 1])}</button>`).join('')}</div></td>` : ''}
+          <td class="c"><button type="button" class="ok-btn ${c.confirmed ? 'on' : ''}" data-act="t-confirm" data-student="${esc(r.student)}" title="${c.confirmed ? 'Confirmed — tap to undo' : 'Confirm'}">✓</button></td>
           <td class="c"><div class="ppills tight">${[1, 2, 3].map(v => `<button type="button" class="${c.engagement === v ? 'on p' + v : ''}" data-act="t-eng" data-student="${esc(r.student)}" data-n="${v}" title="${esc(cfg.participationLabels[v - 1])}">${v}</button>`).join('')}</div></td>
           <td class="c"><div class="ppills tight st">${[1, 2, 3].map(v => `<button type="button" class="${c.personal === v ? 'on st' + v : ''}" data-act="t-pers" data-student="${esc(r.student)}" data-n="${v}" title="${esc(cfg.outcomeLabels[v - 1])}">${v}</button>`).join('')}</div>${cfg.outcomes.length ? `<a href="#" class="tiny" data-act="t-expand" data-student="${esc(r.student)}">${T.expanded[r.student] ? 'less' : 'detail'}</a>` : ''}</td></tr>
           ${T.expanded[r.student] ? `<tr class="detail"><td></td><td colspan="${cols}"><div class="detail-row">${cfg.outcomes.map(o => { const x = me.outcomes.find(y => y.checkpoint === cp.name && y.outcome === o.outcome) || {}; return `<span class="detail-item"><span class="muted">${esc(o.outcome)}</span> <button type="button" class="cyc sm ${x.teacher ? 'st' + x.teacher : ''}" data-act="t-outcome" data-student="${esc(r.student)}" data-outcome="${esc(o.outcome)}">${x.teacher || '–'}<small>self ${x.self || '–'}</small></button></span>`; }).join('')}</div></td></tr>` : ''}`; }).join('')}
         </tbody></table></div>
-        <div class="legend">${bandsLegend()}<span class="grow"></span><span>Engagement: ${cfg.participationLabels.map((l, i) => `${i + 1} ${esc(l)}`).join(' · ')}</span><span>Personal: ${cfg.outcomeLabels.map((l, i) => `${i + 1} ${esc(l)}`).join(' · ')}</span></div>
+        <div class="legend">${bandsLegend()}<span class="grow"></span>${mode === 'end' ? `<span>Game play: the level of the focus skill you saw in games (7 = top)</span>` : ''}<span>Engagement: ${cfg.participationLabels.map((l, i) => `${i + 1} ${esc(l)}`).join(' · ')}</span><span>Personal: ${cfg.outcomeLabels.map((l, i) => `${i + 1} ${esc(l)}`).join(' · ')}</span></div>
       </div></div>`; }).join('')}`;
 }
-function tCheckin(student) { let c = S.T.data.checkins.find(x => x.student === student && x.checkpoint === S.T.cpName); if (!c) { c = { student, checkpoint: S.T.cpName, focusSkill: '', goal: '', drillStep: null, agilityFocus: '', selfStages: {}, wentWell: '', nextGoal: '', engagement: null, personal: null, confirmed: false }; S.T.data.checkins.push(c); } return c; }
+function tCheckin(student) { let c = S.T.data.checkins.find(x => x.student === student && x.checkpoint === S.T.cpName); if (!c) { c = { student, checkpoint: S.T.cpName, focusSkill: '', goal: '', drillStep: null, extensionSkill: '', extensionDrill: '', selfStages: {}, wentWell: '', nextGoal: '', gamePlay: null, engagement: null, personal: null, confirmed: false }; S.T.data.checkins.push(c); } return c; }
 function putTeacherCheckin(student, entry) { Pending.put('tcheck|' + S.T.section + '|' + S.T.cpName, 'saveTeacherCheckin', { section: S.T.section, checkpoint: S.T.cpName }, student, Object.assign({ student }, entry)); }
 function setTeacherScore(student, skill, value) {
   const v = value === '' ? '' : Math.max(0, Math.min(S.cfg.scoreMax, Math.round(num(value))));
@@ -469,10 +465,6 @@ function setTeacherScore(student, skill, value) {
   const pill = document.querySelector(`[data-stage-for="${CSS.escape(student + '|' + skill)}"]`); if (pill) { const st = stageOf(t.score); pill.className = 'stage-pill st' + st; pill.textContent = st ? stageName(st) : '–'; }
   const inp = document.querySelector(`input[data-in="tscore"][data-student="${CSS.escape(student)}"][data-skill="${CSS.escape(skill)}"]`); if (inp) inp.classList.remove('by-student');
   const scores = {}; scores[skill] = v; putTeacherCheckin(student, { scores });
-}
-function setTeacherAgility(student, field, value) {
-  const a = S.T.data.agility[student] || (S.T.data.agility[student] = { baseline: null, retest: null }); a[field] = num(value);
-  const agility = {}; agility[field] = num(value); putTeacherCheckin(student, { agility });
 }
 function setOutcome(student, outcome, v) {
   const T = S.T; let x = T.data.outcomes.find(y => y.student === student && y.checkpoint === T.cpName && y.outcome === outcome);
@@ -526,18 +518,18 @@ async function openStudentAsTeacher(name) {
 function renderOverview() {
   const cfg = S.cfg, T = S.T;
   if (!T.overview) { if (!T._loadingOv) { T._loadingOv = true; loadOverview().finally(() => { T._loadingOv = false; }); } return `<div class="loading"><div class="spinner"></div> Building overview…</div>`; }
-  const evLabel = { test: 'focus-skill gain + ' + (cfg.test.name || 'test'), reflection: 'check-ins, goal, self-assessment, drill progress', participation: cfg.dailyRegister ? 'register' : 'engagement ratings', skills: 'all skill scores at the end', outcomes: 'personal-skill ratings', none: 'no automatic evidence' };
+  const evLabel = { test: 'game-play level (or retest gain)', reflection: 'check-ins, goal, self-assessment, drill progress', participation: cfg.dailyRegister ? 'register' : 'engagement ratings', skills: 'all skill scores at the end', outcomes: 'personal-skill ratings', none: 'no automatic evidence' };
   const pendingSug = T.overview.reduce((n, o) => n + cfg.criteria.filter(c => o.suggested[c.code] && !(o.final[c.code] && o.final[c.code].score)).length, 0);
   return `<div class="card"><div class="card-head dark">Grades <span class="right">dashed = suggested from ${cfg.criteria.map(c => `${esc(c.code)}: ${esc(evLabel[c.evidence])}`).join(' · ')}</span></div><div class="card-body">
     <div class="toolbar"><span class="small muted">Tap a number to set the final grade, ✎ for a comment.</span><div class="grow"></div>${pendingSug ? `<button class="pill-btn small primary" data-act="accept-sug">Accept all suggested (${pendingSug})</button>` : ''}<a href="#" class="small" data-act="ov-refresh">refresh</a></div>
     <div class="tbl-wrap">
-    <table class="tbl ov"><thead><tr><th class="sticky">Student</th><th class="c">${cfg.dailyRegister ? 'Register' : 'Engagement'}</th><th class="c">Check-ins</th><th>Focus skill</th>${cfg.outcomes.length ? '<th class="c">Personal<br><span class="tiny" style="text-transform:none;letter-spacing:0">teacher / self</span></th>' : ''}${cfg.test.name ? `<th class="c">${esc(cfg.test.name)}</th>` : ''}<th>Grades</th></tr></thead><tbody>
+    <table class="tbl ov"><thead><tr><th class="sticky">Student</th><th class="c">${cfg.dailyRegister ? 'Register' : 'Engagement'}</th><th class="c">Check-ins</th><th>Focus skill</th>${cfg.outcomes.length ? '<th class="c">Personal<br><span class="tiny" style="text-transform:none;letter-spacing:0">teacher / self</span></th>' : ''}<th class="c">Game play</th><th>Grades</th></tr></thead><tbody>
     ${T.overview.map(o => `<tr><td class="sticky"><b>${esc(o.student)}</b>${!T.sport ? `<span class="sug-note">${esc(o.sport)}</span>` : ''}</td>
       <td class="c">${cfg.dailyRegister ? `${o.lessonsAttended}/${o.lessonsRun}<span class="sug-note">${o.participationAvg === null ? '—' : 'avg ' + fmt(o.participationAvg, 1)}</span>` : (o.engagementAvg === null ? '<span class="faint">—</span>' : fmt(o.engagementAvg, 1) + '<span class="tiny muted">/3</span>')}</td>
       <td class="c">${o.checkins}/${CPS().length}<span class="sug-note">${o.confirmed}/${o.checkins} confirmed${o.maxSteps ? ' · drill ' + (o.drillStep || 0) + '/' + o.maxSteps : ''}${o.selfAccuracy !== null ? ' · self ' + Math.round(o.selfAccuracy * 100) + '%' : ''}</span></td>
-      <td>${o.focus ? `${esc(o.focus)}<span class="sug-note">${o.focusStart === null ? 'not tested' : `${fmt(o.focusStart, 0)} → ${o.focusEnd !== null && o.focusGain !== null ? fmt(o.focusEnd, 0) : '·'}${o.focusGain !== null ? ` <span style="color:${o.focusGain > 0 ? 'var(--green)' : o.focusGain < 0 ? 'var(--red)' : 'inherit'}">(${o.focusGain > 0 ? '+' : ''}${o.focusGain})</span>` : ''}`}${o.chosenAtUnderstanding === false ? ' · not at ' + esc(cfg.stageLabels[0]) : ''}</span>` : '<span class="faint">—</span>'}</td>
+      <td>${o.focus ? `${esc(o.focus)}${o.extension ? ` <span class="tiny muted">+ ${esc(o.extension)}</span>` : ''}<span class="sug-note">${o.focusStart === null ? 'not tested' : `${fmt(o.focusStart, 0)} → ${o.focusEnd !== null && o.focusGain !== null ? fmt(o.focusEnd, 0) : '·'}${o.focusGain !== null ? ` <span style="color:${o.focusGain > 0 ? 'var(--green)' : o.focusGain < 0 ? 'var(--red)' : 'inherit'}">(${o.focusGain > 0 ? '+' : ''}${o.focusGain})</span>` : ''}`}${o.chosenAtUnderstanding === false ? ' · not at ' + esc(cfg.stageLabels[0]) : ''}</span>` : '<span class="faint">—</span>'}</td>
       ${cfg.outcomes.length ? `<td class="c">${fmt(o.outcomesTeacher, 1)} / ${fmt(o.outcomesSelf, 1)}</td>` : ''}
-      ${cfg.test.name ? `<td class="c">${o.agility.change === null ? '<span class="faint">—</span>' : `<span style="color:${(cfg.test.lowerIsBetter ? o.agility.change < 0 : o.agility.change > 0) ? 'var(--green)' : 'var(--red)'}">${o.agility.change > 0 ? '+' : ''}${fmt(o.agility.change, 2)}</span><span class="sug-note">adj ${fmt(o.agility.adjusted, 2)}</span>`}</td>` : ''}
+      <td class="c">${o.gamePlay ? `<span class="chip gl${o.gamePlay}">${esc(gameLabel(o.gamePlay))}</span>` : '<span class="faint">—</span>'}</td>
       <td class="grade-cell">${cfg.criteria.map(c => { const f = o.final[c.code] || {}, sug = o.suggested[c.code]; return `<div class="grade-line"><span class="grade-code" title="${esc(c.name)}">${esc(c.code)}</span><div class="score-row">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button type="button" class="${f.score === n ? 'on' : ''} ${sug === n && f.score !== n ? 'sug' : ''}" data-act="grade" data-student="${esc(o.student)}" data-code="${esc(c.code)}" data-n="${n}">${n}</button>`).join('')}<button type="button" title="${esc(f.comment || 'Add comment')}" data-act="grade-comment" data-student="${esc(o.student)}" data-code="${esc(c.code)}" style="${f.comment ? 'background:#eef4fb;color:var(--blue)' : ''}">✎</button></div>${f.comment ? `<span class="grade-comment" title="${esc(f.comment)}">💬</span>` : ''}</div>`; }).join('')}</td>
     </tr>`).join('')}
     </tbody></table></div></div></div>`;
@@ -561,23 +553,33 @@ function renderPrint() {
 function renderSheet(r) {
   const cfg = S.cfg, cps = CPS(); const T = S.T;
   const sport = r ? r.sport : (T.sport || '');
-  const me = r ? { checkins: T.data.checkins.filter(x => x.student === r.student) } : { checkins: [] };
+  const me = r ? meOf(r.student) : { checkins: [], tests: [], outcomes: [] };
   const fc = currentFocus(me); const def = fc.skill ? skillDef(sport, fc.skill) : null;
   const skills = skillsOf(sport);
+  const first = cps[0], mid = cps.length > 2 ? cps.slice(1, -1) : [], last = cps.length > 1 ? cps[cps.length - 1] : null;
+  const lastTwo = cfg.lessons.slice(-2).map(l => l.number);
+  const what = l => { const cp = cps.find(c => c.lesson === l.number); const parts = [];
+    if (cp) parts.push(cp === first ? 'Test all ' + skills.length + ' skills · choose focus · LAPTOP ' + cp.name + ' check-in' : cp === last ? 'Final retest of focus skill · LAPTOP ' + cp.name + ' check-in' : 'Retest focus skill · LAPTOP ' + cp.name + ' check-in');
+    else if (lastTwo.indexOf(l.number) !== -1) parts.push('Game play · teacher watches your focus skill');
+    else parts.push('Drill step ____');
+    return parts.join(' · '); };
+  const oc = cfg.outcomes.slice(0, 4);
+  const testsBox = `<div class="s-box"><h4>Skill tests · score out of ${cfg.scoreMax}</h4><table class="s-drills s-tests"><thead><tr><th style="width:17%">Skill</th><th style="width:47%">Test</th><th style="width:12%">${esc(first ? first.name : 'Start')}<br><span style="font-weight:400">all skills</span></th>${mid.map(c => `<th style="width:12%">${esc(c.name)}<br><span style="font-weight:400">focus only</span></th>`).join('')}${last ? `<th style="width:12%">${esc(last.name)}<br><span style="font-weight:400">focus only</span></th>` : ''}</tr></thead><tbody>${skills.map(s => { const isF = fc.skill === s.skill; const na = fc.skill && !isF; return `<tr><td><b>${esc(s.skill)}</b>${isF ? ' ★' : ''}</td><td>${esc(s.test)}</td><td class="box"></td>${mid.map(() => `<td class="box ${na ? 'na' : ''}"></td>`).join('')}${last ? `<td class="box ${na ? 'na' : ''}"></td>` : ''}</tr>`; }).join('')}</tbody></table><div style="font-size:8pt;color:#555;margin-top:2px">Ten attempts, a partner counts. After ${esc(first ? first.name : 'the start')}, only your ★ focus skill is retested.</div></div>`;
   const drillsBox = def
-    ? `<div class="s-box"><h4>My drill progression · ${esc(fc.skill)}</h4><table class="s-drills"><thead><tr><th>Step</th><th>Drill</th><th>Peer check: I can…</th><th>Peer ✓</th><th>Teacher ✓</th></tr></thead><tbody>${def.drills.map(d => `<tr><td><b>${d.step}</b></td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td><td class="box"></td><td class="box"></td></tr>`).join('')}</tbody></table></div>`
-    : `<div class="s-box"><h4>Key skills${sport ? ' · ' + esc(sport) : ''} — test scores /${cfg.scoreMax}</h4><table class="s-drills"><thead><tr><th>Skill</th><th>Test</th><th>${esc(cps[0] ? cps[0].name : 'Early')}</th><th>${esc(cps[cps.length - 1] ? cps[cps.length - 1].name : 'End')}</th></tr></thead><tbody>${skills.map(s => `<tr><td><b>${esc(s.skill)}</b></td><td>${esc(s.test)}</td><td class="box"></td><td class="box"></td></tr>`).join('')}</tbody></table></div>`;
+    ? `<div class="s-box"><h4>My drill progression · ${esc(fc.skill)}</h4><table class="s-drills"><thead><tr><th>Step</th><th>Drill</th><th>Done when…</th><th>Peer initials</th><th>Teacher sign</th><th>Date</th></tr></thead><tbody>${def.drills.map(d => `<tr><td><b>${d.step}</b></td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td><td class="box"></td><td class="box"></td><td class="box"></td></tr>`).join('')}<tr><td><b>+</b></td><td>Extension: ${fc.extension ? esc(fc.extension) : '____________'}</td><td>${fc.extensionDrill ? esc(fc.extensionDrill) : 'Agree a new skill and drill with your teacher once every step is signed'}</td><td class="box"></td><td class="box"></td><td class="box"></td></tr></tbody></table></div>`
+    : `<div class="s-box"><h4>My drill progression</h4><div style="font-size:9pt;color:#555">Printed after the ${esc(first ? first.name : 'Early')} check-in with your focus skill's steps. Until then, use the class drill card.</div></div>`;
+  const procBox = `<div class="s-box"><h4>How to move up a step</h4><ol style="font-size:8pt;line-height:1.3;padding-left:14px"><li>Do the drill until you meet the <b>Done when</b> line.</li><li>A partner watches and <b>initials</b>.</li><li>Show your teacher: <b>sign and date</b>.</li><li>Next step. All signed? Choose an <b>extension</b>.</li></ol></div>`;
+  const persBox = `<div class="s-box"><h4>Personal skills · tick each lesson</h4><div style="font-size:8pt;line-height:1.3">${oc.map(o => `<div><b>${esc(o.outcome[0])}</b> ${esc(o.outcome)}: <span style="color:#555">${esc(o.looksLike)}</span></div>`).join('')}</div></div>`;
   return `<div class="sheet">
     <div class="s-head"><div><div class="u">${esc(cfg.unitName)} · Daily log · ${esc(T.section)}${sport ? ' · ' + esc(sport) : ''}</div><div class="n">${r ? esc(r.student) : '<span class="blank">&nbsp;</span>'}</div></div>
-      <div style="text-align:right;font-size:8.5pt;color:#555">Fill in one line at the end of every lesson.<br>Get a peer check, then a teacher signature, before moving to the next drill step.</div></div>
+      <div style="text-align:right;font-size:8.5pt;color:#555">Paper every lesson. Laptop only on the shaded lessons.<br>Lessons ${lastTwo.join(' and ')}: your teacher watches your focus skill in game play.</div></div>
     <div class="s-goal"><b>Focus skill:</b> ${fc.skill ? esc(fc.skill) : '<span class="blank">&nbsp;</span>'} &nbsp; <b>Goal:</b> ${fc.goal ? esc(fc.goal) : '<span class="blank" style="min-width:110mm">&nbsp;</span>'}</div>
-    <div class="s-cols">${drillsBox}
-      <div class="s-box"><h4>Agility elements (write the number)</h4>${cfg.focus.length ? `<ol class="two">${cfg.focus.map(f => `<li><b>${esc(f.focus)}</b>${f.cue ? ` <span>· ${esc(f.cue)}</span>` : ''}</li>`).join('')}</ol>` : ''}
-        <h4 style="margin-top:4px">Effort</h4><div style="font-size:9pt">${cfg.participationLabels.map((l, i) => `${i + 1} = ${esc(l)}`).join(' · ')}</div></div></div>
-    <table><thead><tr><th style="width:7mm">L</th><th style="width:16mm">Date</th><th style="width:38mm">What I worked on</th><th style="width:11mm">Drill step</th><th style="width:11mm">Agility #</th><th style="width:15mm">Effort</th><th>One thing I learned / will change next time</th><th style="width:10mm">Tchr</th></tr></thead><tbody>
-    ${cfg.lessons.map(l => { const isCp = cps.some(c => c.lesson === l.number); return `<tr class="${isCp ? 'cp' : ''}"><td class="tall"><b>${l.number}</b></td><td>${esc(l.date || '')}</td><td class="ttl"></td><td></td><td></td><td class="circ">1 2 3</td><td></td><td></td></tr>`; }).join('')}
+    <div class="s-row">${testsBox}</div>
+    <div class="s-cols two">${drillsBox}<div style="display:flex;flex-direction:column;gap:3mm">${procBox}${persBox}</div></div>
+    <table><thead><tr><th style="width:6mm">L</th><th style="width:14mm">Date</th><th>What happens today</th><th style="width:11mm">Step worked on</th><th style="width:${8 * oc.length + 4}mm">Personal skills</th><th>One thing I learned / will change next time</th><th style="width:9mm">Tchr</th></tr></thead><tbody>
+    ${cfg.lessons.map(l => { const isCp = cps.some(c => c.lesson === l.number); return `<tr class="${isCp ? 'cp' : ''}"><td class="tall"><b>${l.number}</b></td><td>${esc(l.date || '')}</td><td class="ttl">${esc(what(l))}</td><td></td><td class="ticks">${oc.map(o => `<span class="tick">${esc(o.outcome[0])}</span>`).join('')}</td><td></td><td></td></tr>`; }).join('')}
     </tbody></table>
-    <div class="s-foot"><span>Check-ins on the laptop: ${cps.map(c => `<b>${esc(c.name)}</b> L${c.lesson}`).join(' · ')}</span><span>${cfg.test.name ? `${esc(cfg.test.name)}: baseline ______ ${esc(cfg.test.unit)} &nbsp; re-test ______ ${esc(cfg.test.unit)}` : ''}</span></div>
+    <div class="s-foot"><span>Laptop check-ins: ${cps.map(c => `<b>${esc(c.name)}</b> L${c.lesson}`).join(' · ')}</span><span>Final teacher assessment: focus skill in game play, lessons ${lastTwo.join('–')}</span></div>
   </div>`;
 }
 
@@ -601,7 +603,6 @@ const actions = {
   'toggle-focus-pick'() { S.form.showFocusPick = !S.form.showFocusPick; render(); },
   'goal-redraft'() { if (S.form.focusSkill) { S.form.goal = draftGoal(S.me, S.form.focusSkill, S.cp.name, num(S.form.scores[S.form.focusSkill])); S.form.goalTouched = false; render(); } },
   'drill-step'(t) { S.form.drillStep = parseInt(t.dataset.n, 10); render(); },
-  agility(t) { const v = t.dataset.v; S.form.agilityFocus = S.form.agilityFocus === v ? '' : v; Array.from(t.parentElement.children).forEach(b => b.classList.toggle('on', b.dataset.v === S.form.agilityFocus)); },
   't-section'(t) { S.T.lesson = null; S.T.cpName = ''; loadSection(t.dataset.v); },
   't-sport'(t) { S.T.sport = t.dataset.v; S.T.overview = null; render(); if (S.T.tab === 'overview') loadOverview(); },
   't-tab'(t) { S.T.tab = t.dataset.tab; S.T.viewing = null; render(); if (S.T.tab === 'overview' && !S.T.overview) loadOverview(); },
@@ -611,6 +612,7 @@ const actions = {
   't-open-student'(t) { openStudentAsTeacher(t.dataset.student); },
   't-confirm'(t) { const c = tCheckin(t.dataset.student); c.confirmed = !c.confirmed; putTeacherCheckin(t.dataset.student, { confirmed: c.confirmed }); render(); },
   't-eng'(t) { const c = tCheckin(t.dataset.student), n = parseInt(t.dataset.n, 10); c.engagement = c.engagement === n ? null : n; putTeacherCheckin(t.dataset.student, { engagement: c.engagement }); render(); },
+  't-game'(t) { const c = tCheckin(t.dataset.student), n = parseInt(t.dataset.n, 10); c.gamePlay = c.gamePlay === n ? null : n; putTeacherCheckin(t.dataset.student, { gamePlay: c.gamePlay }); render(); },
   't-pers'(t) { const c = tCheckin(t.dataset.student), n = parseInt(t.dataset.n, 10); c.personal = c.personal === n ? null : n; putTeacherCheckin(t.dataset.student, { personal: c.personal }); render(); },
   't-expand'(t) { S.T.expanded[t.dataset.student] = !S.T.expanded[t.dataset.student]; render(); },
   't-outcome'(t) { const student = t.dataset.student, outcome = t.dataset.outcome; const x = S.T.data.outcomes.find(y => y.student === student && y.checkpoint === S.T.cpName && y.outcome === outcome); const cur = x && x.teacher ? x.teacher : 0; const next = cur >= 3 ? null : cur + 1; setOutcome(student, outcome, next); t.className = 'cyc sm ' + (next ? 'st' + next : ''); t.innerHTML = (next || '–') + `<small>self ${x && x.self ? x.self : '–'}</small>`; },
@@ -628,14 +630,13 @@ document.addEventListener('input', e => {
   const t = e.target; const k = t.dataset && t.dataset.in; if (!k) return;
   if (k === 'wentWell' || k === 'nextGoal') S.form[k] = t.value;
   if (k === 'goal') { S.form.goal = t.value; S.form.goalTouched = true; }
+  if (k === 'extensionSkill' || k === 'extensionDrill') S.form[k] = t.value;
   if (k === 'score') { S.form.scores[t.dataset.skill] = t.value; const pill = document.querySelector(`[data-stage-for="${CSS.escape(t.dataset.skill)}"]`); if (pill) { const st = stageOf(num(t.value)); pill.className = 'stage-pill st' + st; pill.textContent = st ? stageName(st) : '–'; } }
-  if (k === 'agility') S.form.agility[t.dataset.field] = t.value;
 });
 document.addEventListener('change', e => {
   const t = e.target; const k = t.dataset && t.dataset.in; if (!k) return;
   if (k === 'reg-note') setRegister(t.dataset.student, S.T.lesson, { note: t.value.trim() });
   if (k === 'tscore') setTeacherScore(t.dataset.student, t.dataset.skill, t.value);
-  if (k === 'tagility') setTeacherAgility(t.dataset.student, t.dataset.field, t.value);
   if (k === 'score' && S.form && S.form.mode === 'early') { if (!S.form.goalTouched && S.form.focusSkill) S.form.goal = draftGoal(S.me, S.form.focusSkill, S.cp.name, num(S.form.scores[S.form.focusSkill])); render(); }
 });
 

@@ -31,8 +31,11 @@ async function main() {
   await page.waitForSelector('[data-act="drill-step"]');
   if (await page.$('input[data-in="score"]')) errors.push('End check-in should not ask the student for scores');
   await page.click('.seg3 >> nth=0 >> button >> nth=2');
-  await page.click('[data-act="drill-step"][data-n="3"]');
-  await page.click('.focus-grid >> .focus-btn >> nth=2');
+  const nSteps = await page.$$eval('[data-act="drill-step"].step', els => els.length);
+  await page.click(`[data-act="drill-step"][data-n="${nSteps}"]`);
+  await page.waitForSelector('input[data-in="extensionSkill"]');
+  await page.fill('input[data-in="extensionSkill"]', 'Backhand smash');
+  await page.fill('textarea[data-in="extensionDrill"]', 'Fed high balls to the backhand, 6 of 10 winners.');
   await page.click('[data-act="self-outcome"][data-n="3"] >> nth=0');
   await page.fill('textarea[data-in="wentWell"]', 'My serve is now consistent under pressure.');
   await page.fill('textarea[data-in="nextGoal"]', 'Keep the serve and start on overhead shots.');
@@ -40,8 +43,8 @@ async function main() {
   await page.click('[data-act="cp-save"]');
   await page.waitForSelector('.cp-card:nth-child(3).done');
   await saved();
-  const stepText = await page.textContent('.card-head.amber + .card-body');
-  if (!/3 of|now/.test(stepText || '') && !/✓/.test(stepText || '')) errors.push('Drill step not reflected on dashboard');
+  const focusText = await page.textContent('.card-head.amber + .card-body');
+  if (!/Extension · Backhand smash/.test(focusText || '')) errors.push('Extension skill not shown on dashboard');
   await shot('03-student-after-save');
 
   // ── student 2 (no check-in yet): Early with own scores → focus recommended, goal drafted ──
@@ -50,7 +53,7 @@ async function main() {
   await page.click('[data-act="open-cp"][data-cp="Early"]');
   await page.waitForSelector('input[data-in="score"]');
   const nIn = (await page.$$('input[data-in="score"]')).length;
-  const vals = ['2', '7', '5', '8'];
+  const vals = ['2', '7', '5'];
   for (let i = 0; i < nIn; i++) { const inp = page.locator('input[data-in="score"]').nth(i); await inp.fill(vals[i] || '4'); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
   const recText = await page.textContent('.focus-grid >> .focus-btn >> nth=0');
   if (!/recommended/.test(recText)) errors.push('Lowest score not marked recommended: ' + recText);
@@ -116,10 +119,11 @@ async function main() {
   const endName = await endRow.locator('td b').first().textContent();
   await endRow.locator('input[data-in="tscore"]').first().fill('8');
   await endRow.locator('input[data-in="tscore"]').first().dispatchEvent('change');
-  await endRow.locator('input[data-in="tagility"]').fill('15.1');
-  await endRow.locator('input[data-in="tagility"]').dispatchEvent('change');
-  await endRow.locator('.ok-btn').click();
+  await endRow.locator('[data-act="t-game"][data-n="1"]').click();
+  await page.locator('table.tc tbody tr').first().locator('.ok-btn').click();
   await saved();
+  const gl = await page.locator('table.tc tbody tr').first().locator('[data-act="t-game"].on').count();
+  if (!gl) errors.push('Game-play level did not stick');
   await shot('09b-teacher-checkin-end');
 
   await page.click('[data-act="t-tab"][data-tab="students"]');

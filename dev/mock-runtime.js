@@ -17,7 +17,7 @@
   }
   FakeSheets.book.onChange = b => { try { localStorage.setItem(STORE, JSON.stringify(b.toJSON())); } catch (e) {} };
 
-  const SERVER_FNS = ['bootstrap', 'getStudent', 'getSectionData', 'getOverview', 'saveCheckin', 'saveTeacherCheckin', 'saveRegister', 'saveSkillTests', 'saveAgility', 'saveGrades', 'saveOutcomes'];
+  const SERVER_FNS = ['bootstrap', 'getStudent', 'getSectionData', 'getOverview', 'saveCheckin', 'saveTeacherCheckin', 'saveRegister', 'saveSkillTests', 'saveGrades', 'saveOutcomes'];
   const isWrite = fn => /^save/.test(fn);
 
   const first = ['Freya', 'Flavio', 'Karim', 'Soomin', 'Chaeyi', 'Michelle', 'Woojun', 'Kian', 'Nico', 'Louis', 'Ella', 'Lena', 'Austin', 'Jihoo', 'Ari', 'Yilei', 'Joon', 'Rubin', 'Minh', 'Amaya', 'Peter', 'Silas', 'Bora', 'Ray', 'Kinley', 'Josh', 'David', 'Vihaan'];
@@ -47,12 +47,13 @@
       const scores = {}; skills.forEach(s => { scores[s.skill] = Math.floor(rnd() * 8); });
       early[r[2]] = scores;
       const lowest = skills.slice().sort((a, b) => scores[a.skill] - scores[b.skill])[0].skill;
-      saveCheckin({ checkpoint: 'Early', scores, agility: { baseline: Math.round((15.5 + rnd() * 5) * 100) / 100 }, focusSkill: lowest, goal: `Move my ${lowest.toLowerCase()} from Understanding (${scores[lowest]}/10) to Intermediate (4+/10) by the Middle check-in by working through drill steps 1 to 3.`, drillStep: 0, agilityFocus: cfg.focus[i % cfg.focus.length].focus, selfStages: {}, selfOutcomes: {}, wentWell: 'It is my weakest score and I want to fix it first.', nextGoal: '' });
-      if (i % 3 === 0) saveCheckin({ checkpoint: 'Middle', scores: { [lowest]: Math.min(10, scores[lowest] + 1 + Math.floor(rnd() * 3)) }, agility: {}, focusSkill: lowest, goal: '', drillStep: 2, agilityFocus: cfg.focus[(i + 2) % cfg.focus.length].focus, selfStages: { [lowest]: 2 }, selfOutcomes: {}, wentWell: 'Step 2 took two lessons but I got the peer check.', nextGoal: '' });
+      saveCheckin({ checkpoint: 'Early', scores, focusSkill: lowest, goal: `Move my ${lowest.toLowerCase()} from Understanding (${scores[lowest]}/10) to Intermediate (4+/10) by the Middle check-in by working through drill steps 1 to 3.`, drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'It is my weakest score and I want to fix it first.', nextGoal: '' });
+      if (i % 3 === 0) { const maxSteps = skills.find(s => s.skill === lowest).drills.length; const done = i % 6 === 0; saveCheckin({ checkpoint: 'Middle', scores: { [lowest]: Math.min(10, scores[lowest] + 1 + Math.floor(rnd() * 3)) }, focusSkill: lowest, goal: '', drillStep: done ? maxSteps : 2, extensionSkill: done ? 'Backhand under pressure' : '', extensionDrill: done ? 'Partner feeds 10 to my backhand while I move; 7 of 10 back deep' : '', selfStages: { [lowest]: 2 }, selfOutcomes: {}, wentWell: done ? 'All steps signed off, moving to an extension.' : 'Step 2 took two lessons but I got the peer check.', nextGoal: '' }); }
     });
     FakeSheets.user = FakeSheets.owner;
     saveTeacherCheckin({ section: 'Section A', checkpoint: 'Early', entries: A.filter((r, i) => i % 5 !== 4 && i % 4 !== 3).map((r, i) => ({ student: r[2], confirmed: true, engagement: 1 + Math.floor(rnd() * 3), personal: 1 + Math.floor(rnd() * 3) })) });
     saveTeacherCheckin({ section: 'Section A', checkpoint: 'Early', entries: [{ student: A[1][2], scores: { [cfg.skills[A[1][1]][0].skill]: 5 } }] });
+    saveTeacherCheckin({ section: 'Section A', checkpoint: 'End', entries: [{ student: A[0][2], gamePlay: 2, confirmed: true, engagement: 3, personal: 2 }] });
     saveOutcomes({ section: 'Section A', checkpoint: 'Early', entries: A.slice(0, 4).flatMap(r => cfg.outcomes.map(o => ({ student: r[2], outcome: o.outcome, teacher: 1 + Math.floor(rnd() * 3) }))) });
     saveGrades({ section: 'Section A', entries: [{ student: A[0][2], criterion: 'S4', score: 6, comment: 'Leads warm-ups, always encouraging.' }] });
   }

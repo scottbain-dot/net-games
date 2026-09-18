@@ -13,7 +13,8 @@
 //     at Understanding), confirms a goal, and works through that skill's
 //     drill progression on paper (peer check + teacher sign-off on the log).
 //   • Mid check-in: reflect, refocus, quick retest of the focus skill.
-//   • End: retest everything + final reflection. Agility test runs alongside.
+//   • End: teacher records the final retest of the focus skill and a game-play
+//     assessment (4 levels) watched over the last two lessons. Final reflection.
 //
 // Setup: see docs/TEACHER-GUIDE.md. Menu "PE Tracker" → 1. Set up tabs.
 // Deploy as Web app: Execute as Me, access "Anyone within <school>".
@@ -25,7 +26,6 @@ var CONFIG_TABS = {
   Lessons:  ['Number', 'Checkpoint', 'Date'],
   Skills:   ['Sport', 'Skill', 'Test', 'Success'],
   Drills:   ['Sport', 'Skill', 'Step', 'Drill', 'Criteria'],
-  Focus:    ['Focus', 'Cue'],
   Outcomes: ['Outcome', 'LooksLike'],
   Criteria: ['Code', 'Name', 'Evidence', 'TopBand'],
   Roster:   ['Section', 'Sport', 'Student', 'Email'],
@@ -34,15 +34,13 @@ var CONFIG_TABS = {
 var DATA_TABS = {
   Register:   ['Section', 'Sport', 'Student', 'Lesson', 'Participation', 'Note', 'Updated'],
   SkillTests: ['Section', 'Sport', 'Student', 'Checkpoint', 'Skill', 'Score', 'By', 'Updated'],
-  Agility:    ['Section', 'Sport', 'Student', 'Baseline', 'Retest', 'Updated'],
-  Checkins:   ['Section', 'Sport', 'Student', 'Checkpoint', 'FocusSkill', 'Goal', 'DrillStep', 'AgilityFocus', 'SelfStages', 'WentWell', 'NextGoal', 'Engagement', 'Personal', 'Confirmed', 'Updated'],
+  Checkins:   ['Section', 'Sport', 'Student', 'Checkpoint', 'FocusSkill', 'Goal', 'DrillStep', 'ExtensionSkill', 'ExtensionDrill', 'SelfStages', 'WentWell', 'NextGoal', 'GamePlay', 'Engagement', 'Personal', 'Confirmed', 'Updated'],
   OutcomeRatings: ['Section', 'Sport', 'Student', 'Checkpoint', 'Outcome', 'Self', 'Teacher', 'Updated'],
   Grades:     ['Section', 'Sport', 'Student', 'Criterion', 'Score', 'Comment', 'Updated']
 };
 var DATA_KEYS = {
   Register:   ['Section', 'Student', 'Lesson'],
   SkillTests: ['Section', 'Student', 'Checkpoint', 'Skill'],
-  Agility:    ['Section', 'Student'],
   Checkins:   ['Section', 'Student', 'Checkpoint'],
   OutcomeRatings: ['Section', 'Student', 'Checkpoint', 'Outcome'],
   Grades:     ['Section', 'Student', 'Criterion']
@@ -55,10 +53,8 @@ var CONFIG_DEFAULTS = {
   score_max:            ['10', 'Skill tests are scored out of this'],
   participation_labels: ['Inconsistent|Regular|Excellent', 'The 3 participation levels the teacher taps in the register'],
   outcome_labels:       ['Not yet|Sometimes|Consistently', 'The 3 levels for the personal-skill outcomes (Outcomes tab)'],
-  test_name:            ['Illinois Agility Test', 'The common fitness test run alongside every sport (blank for none)'],
-  test_unit:            ['seconds', 'Unit for the fitness test'],
-  test_lower_is_better: ['TRUE', 'TRUE for times, FALSE for counts/distances'],
-  test_top_gain:        ['2', 'Improvement (in test units, after handicap) that earns the top band'],
+  game_levels:          ['7|6-5|4-3|2-1', 'The four levels of the teacher\'s game-play assessment, best first'],
+  game_level_scores:    ['7|6|4|2', 'Suggested 1-7 score for each of those levels'],
   goal_template:        ['Move my {skill} from {stage} ({score}/{max}) to {nextStage} ({target}+/{max}) by the {checkpoint} check-in by working through drill steps {steps}.', 'Draft goal shown to the student. Placeholders in {braces} are filled in.'],
   reflection_prompt_early: ['Why this skill, and what will you do first?', 'The one question at the Early check-in'],
   reflection_prompt_1:  ['What went well and what has improved?', 'First reflection question at each check-in'],
@@ -77,90 +73,64 @@ var EXAMPLE = {
     [6, '', ''], [7, '', ''], [8, '', ''], [9, 'End', '']
   ],
   Skills: [
-    ['Net Games',    'Serve',            '10 serves into the target zone',                       'Lands in the zone, legal serve'],
-    ['Net Games',    'Overhead shot',    '10 fed shuttles/balls, hit to the back third',         'Clears the net and lands in the back third'],
-    ['Net Games',    'Net shot',         '10 fed shuttles/balls, play into the front zone',      'Clears the net and lands in the front zone'],
-    ['Net Games',    'Rally',            '10 shots in a cooperative rally with a partner',       'Shot stays in and partner can return it'],
-    ['Ultimate',     'Backhand throw',   '10 throws to a partner 10 m away',                     'Catchable at chest height without moving'],
-    ['Ultimate',     'Forehand throw',   '10 throws to a partner 10 m away',                     'Catchable at chest height without moving'],
-    ['Ultimate',     'Catching',         '10 throws from a partner, mixed height',               'Two-hand catch, disc held'],
-    ['Ultimate',     'Pivot & fake',     '10 throws against a live mark',                        'Throw gets past the mark to a target'],
-    ['Table Tennis', 'Serve',            '10 serves to the diagonal half',                       'Legal serve landing in the diagonal half'],
-    ['Table Tennis', 'Forehand drive',   '10 fed balls, forehand drive',                         'On the table, past the middle'],
-    ['Table Tennis', 'Backhand push',    '10 fed balls, backhand push',                          'On the table, low over the net'],
-    ['Table Tennis', 'Rally',            '10 shots in a cooperative rally',                      'On the table and returnable'],
-    ['Handball',     'Pass & catch',     '10 passes on the move over 5 m',                       'Caught cleanly by the partner'],
-    ['Handball',     'Dribble',          '10 runs through 5 cones, 10 m',                         'Ball under control, no double dribble, no cone missed'],
-    ['Handball',     'Jump shot',        '10 shots from the 9 m line over a passive defender',   'On target from a legal jump'],
-    ['Handball',     '1v1 defending',    '10 attacks by a partner',                              'Attacker stopped without a foul']
+    ['Net Games',    'Serve',           '10 serves into the target zone',                                 'Legal serve, lands in the zone'],
+    ['Net Games',    'Rally',           '10 shots in a cooperative rally with a partner',                 'Stays in and the partner can return it'],
+    ['Net Games',    'Attacking shot',  '10 fed balls: win the point with a smash or drive against a defender', 'Winner or forced error, in court (stretch test)'],
+    ['Ultimate',     'Backhand throw',  '10 throws to a partner 10 m away',                               'Catchable at chest height without moving'],
+    ['Ultimate',     'Catching',        '10 throws from a partner, mixed height',                         'Two-hand catch, disc held'],
+    ['Ultimate',     'Break the mark',  '10 throws past an active mark to a cutting receiver',            'Completed past the mark (stretch test)'],
+    ['Table Tennis', 'Serve',           '10 serves to the diagonal half',                                 'Legal serve landing in the diagonal half'],
+    ['Table Tennis', 'Forehand drive',  '10 fed balls, forehand drive',                                   'On the table, past the middle'],
+    ['Table Tennis', 'Third-ball attack', '10 rallies: serve, return, then attack to win the point',      'Winner or forced error (stretch test)'],
+    ['Handball',     'Pass & catch',    '10 passes on the move over 5 m',                                 'Caught cleanly by the partner'],
+    ['Handball',     'Jump shot',       '10 shots from the 9 m line over a passive defender',             'On target from a legal jump'],
+    ['Handball',     'Beat and shoot',  '10 attempts: beat a live defender 1v1 and shoot',                'On target after beating the defender (stretch test)']
   ],
   Drills: [
     ['Net Games', 'Serve', 1, 'Shadow & toss', 'Stance, toss and contact point look the same 5 times in a row'],
     ['Net Games', 'Serve', 2, 'Serve to a big target', '7 of 10 into the half-court'],
     ['Net Games', 'Serve', 3, 'Serve to a small target', '6 of 10 into a hoop or zone'],
     ['Net Games', 'Serve', 4, 'Serve under pressure', '6 of 10 in a game situation, partner returns'],
-    ['Net Games', 'Overhead shot', 1, 'Shadow the swing', 'Side-on, elbow high, contact above head — partner checks 5 times'],
-    ['Net Games', 'Overhead shot', 2, 'Fed shots, no net', '7 of 10 clean contacts'],
-    ['Net Games', 'Overhead shot', 3, 'Fed shots over the net', '6 of 10 land in the back third'],
-    ['Net Games', 'Overhead shot', 4, 'Rally then overhead', 'Play 3 rally shots then an overhead to the back — 5 of 10'],
-    ['Net Games', 'Net shot', 1, 'Catch & place', 'Catch/stop 5 fed shuttles, then place over the net softly'],
-    ['Net Games', 'Net shot', 2, 'Fed net shots', '6 of 10 land in the front zone'],
-    ['Net Games', 'Net shot', 3, 'Net shot in a rally', 'Rally, then net shot on partner\'s call — 5 of 10'],
     ['Net Games', 'Rally', 1, 'Cooperative rally, big court', '5 in a row, twice'],
     ['Net Games', 'Rally', 2, 'Cooperative rally, half court', '8 in a row, twice'],
-    ['Net Games', 'Rally', 3, 'Rally with a move', 'Partner moves you front/back — 6 in a row'],
+    ['Net Games', 'Rally', 3, 'Rally with a move', 'Partner moves you front and back: 6 in a row'],
+    ['Net Games', 'Rally', 4, 'Rally to targets', 'Partner calls a side each shot: 6 in a row'],
+    ['Net Games', 'Attacking shot', 1, 'Shadow the swing', 'Side-on, elbow high, contact in front: partner checks 5 times'],
+    ['Net Games', 'Attacking shot', 2, 'Fed high balls, no defender', '7 of 10 hit down into court'],
+    ['Net Games', 'Attacking shot', 3, 'Fed balls vs passive defender', '6 of 10 winners'],
+    ['Net Games', 'Attacking shot', 4, 'Rally then attack', 'Play 3 shots then attack on the short ball: 5 of 10'],
     ['Ultimate', 'Backhand throw', 1, 'Grip & wrist snap', 'Disc flies flat 5 m, 5 in a row'],
     ['Ultimate', 'Backhand throw', 2, 'Step & throw 10 m', '7 of 10 catchable'],
     ['Ultimate', 'Backhand throw', 3, 'Throw to a moving target', '6 of 10 catchable on the run'],
-    ['Ultimate', 'Forehand throw', 1, 'Grip & wrist snap', 'Disc flies flat 5 m, 5 in a row'],
-    ['Ultimate', 'Forehand throw', 2, 'Step & throw 10 m', '7 of 10 catchable'],
-    ['Ultimate', 'Forehand throw', 3, 'Throw to a moving target', '6 of 10 catchable on the run'],
     ['Ultimate', 'Catching', 1, 'Pancake catch, standing', '8 of 10 from 5 m'],
     ['Ultimate', 'Catching', 2, 'Two-hand rim catch, high & low', '7 of 10 mixed height'],
     ['Ultimate', 'Catching', 3, 'Catch on the run', '6 of 10 while cutting'],
-    ['Ultimate', 'Pivot & fake', 1, 'Pivot foot only', 'Pivot 10 times without lifting the foot'],
-    ['Ultimate', 'Pivot & fake', 2, 'Fake then throw, passive mark', '7 of 10 past the mark'],
-    ['Ultimate', 'Pivot & fake', 3, 'Live mark, stall count', '5 of 10 past an active mark'],
+    ['Ultimate', 'Break the mark', 1, 'Pivot foot only', 'Pivot 10 times without lifting the foot'],
+    ['Ultimate', 'Break the mark', 2, 'Fake then throw, passive mark', '7 of 10 past the mark'],
+    ['Ultimate', 'Break the mark', 3, 'Live mark, stall count', '5 of 10 past an active mark'],
     ['Table Tennis', 'Serve', 1, 'Toss & contact', 'Legal toss and contact 5 times in a row'],
     ['Table Tennis', 'Serve', 2, 'Serve to the diagonal', '7 of 10 legal into the diagonal half'],
     ['Table Tennis', 'Serve', 3, 'Serve to a target', '6 of 10 into a paper target'],
     ['Table Tennis', 'Forehand drive', 1, 'Shadow swing', 'Low to high, partner checks 5 times'],
     ['Table Tennis', 'Forehand drive', 2, 'Fed balls', '7 of 10 on the table'],
     ['Table Tennis', 'Forehand drive', 3, 'Forehand rally', '6 in a row with a partner'],
-    ['Table Tennis', 'Backhand push', 1, 'Shadow push', 'Open bat, short push, partner checks 5 times'],
-    ['Table Tennis', 'Backhand push', 2, 'Fed balls', '7 of 10 on the table, low'],
-    ['Table Tennis', 'Backhand push', 3, 'Push rally', '6 in a row with a partner'],
-    ['Table Tennis', 'Rally', 1, 'Cooperative rally', '5 in a row, twice'],
-    ['Table Tennis', 'Rally', 2, 'Forehand-backhand alternate', '6 in a row alternating'],
-    ['Table Tennis', 'Rally', 3, 'Rally to targets', '6 in a row to called sides'],
+    ['Table Tennis', 'Third-ball attack', 1, 'Serve then drive', 'Serve, partner returns long, drive on the table: 6 of 10'],
+    ['Table Tennis', 'Third-ball attack', 2, 'Attack the short return', 'Serve, partner returns short, attack on the table: 5 of 10'],
+    ['Table Tennis', 'Third-ball attack', 3, 'Live points', 'Win the point on the third ball: 4 of 10'],
     ['Handball', 'Pass & catch', 1, 'Standing pass 5 m', '8 of 10 caught cleanly'],
     ['Handball', 'Pass & catch', 2, 'Pass on the move', '7 of 10 caught cleanly while jogging'],
     ['Handball', 'Pass & catch', 3, 'Pass with a passive defender', '6 of 10 completed'],
-    ['Handball', 'Dribble', 1, 'Stationary dribble', '20 bounces each hand without losing control'],
-    ['Handball', 'Dribble', 2, 'Dribble through cones', 'Through 5 cones without a mistake, twice'],
-    ['Handball', 'Dribble', 3, 'Dribble & pass under pressure', '6 of 10 vs a passive defender'],
     ['Handball', 'Jump shot', 1, 'Three-step & jump, no ball', 'Correct footwork 5 times in a row'],
     ['Handball', 'Jump shot', 2, 'Jump shot at goal', '7 of 10 on target'],
     ['Handball', 'Jump shot', 3, 'Jump shot over a defender', '5 of 10 on target'],
-    ['Handball', '1v1 defending', 1, 'Defensive stance & shuffle', 'Stays low and between attacker and goal for 20 s'],
-    ['Handball', '1v1 defending', 2, 'Shadow the attacker', 'Stops 6 of 10 walking attacks'],
-    ['Handball', '1v1 defending', 3, 'Live 1v1', 'Stops 5 of 10 live attacks without a foul']
-  ],
-  Focus: [
-    ['Explosive start', 'First step'],
-    ['Sharp turns',     'Change of direction'],
-    ['Quick stop',      'Deceleration'],
-    ['Top speed',       'Acceleration'],
-    ['Curves',          'Bend running'],
-    ['Sideways',        'Shuffle step'],
-    ['Go again',        'Stop-start ability'],
-    ['React',           'Reaction time']
+    ['Handball', 'Beat and shoot', 1, 'Fake and go, cone defender', 'Beats the cone and shoots on target 7 of 10'],
+    ['Handball', 'Beat and shoot', 2, 'Passive defender', 'Beats the defender and shoots on target 6 of 10'],
+    ['Handball', 'Beat and shoot', 3, 'Live defender', 'Beats the defender and shoots on target 4 of 10']
   ],
   Outcomes: [
-    ['Self-management', 'Starts the drill without being told, keeps the paper log up to date, uses the time well'],
+    ['Self-management', 'Starts without being told, keeps the paper log up to date, moves on only after sign-off, asks for help at the right moment'],
     ['Perseverance',    'Keeps going when a step is hard and repeats it until the criteria are met'],
-    ['Collaboration',   'Gives honest peer checks and useful feedback; shares space and equipment'],
-    ['Independence',    'Chooses the right drill step, moves on only after sign-off, asks for help at the right moment']
+    ['Collaboration',   'Gives honest peer checks and useful feedback; shares space and equipment']
   ],
   Criteria: [
     ['S2', 'Skill identification', 'reflection',    'Clearly identifies strengths and areas for improvement. Strong understanding of skill requirements.'],
@@ -308,7 +278,6 @@ function buildConfig_() {
     if (l.checkpoint && !checkpoints.some(function(c) { return c.name === l.checkpoint; })) checkpoints.push({ name: l.checkpoint, lesson: l.number });
   });
 
-  var focus = readTab_('Focus').map(function(r) { return { focus: str_(r.Focus), cue: str_(r.Cue) }; }).filter(function(f) { return f.focus; });
   var outcomes = readTab_('Outcomes').map(function(r) { return { outcome: str_(r.Outcome), looksLike: str_(r.LooksLike) }; }).filter(function(o) { return o.outcome; });
   var criteria = readTab_('Criteria').map(function(r) {
     var ev = lower_(r.Evidence);
@@ -330,12 +299,13 @@ function buildConfig_() {
     unitName: kv.unit_name || 'PE Unit',
     stageLabels: stageLabels.slice(0, 3), stageBands: bands.slice(0, 2), scoreMax: num_(kv.score_max) || 10,
     participationLabels: pLabels.slice(0, 3), outcomeLabels: oLabels.slice(0, 3),
-    test: { name: kv.test_name, unit: kv.test_unit, lowerIsBetter: bool_(kv.test_lower_is_better), topGain: num_(kv.test_top_gain) || 2 },
+    gameLevels: (function() { var l = splitList_(kv.game_levels); while (l.length < 4) l.push('Level ' + (l.length + 1)); return l.slice(0, 4); })(),
+    gameLevelScores: (function() { var l = splitList_(kv.game_level_scores).map(num_); while (l.length < 4) l.push(null); return l.slice(0, 4); })(),
     goalTemplate: kv.goal_template,
     reflectionPrompts: [kv.reflection_prompt_1, kv.reflection_prompt_2], earlyPrompt: kv.reflection_prompt_early,
     showGradesToStudents: bool_(kv.show_grades_to_students), dailyRegister: bool_(kv.daily_register),
     lessons: lessons, sports: sports, skills: skills, checkpoints: checkpoints,
-    focus: focus, outcomes: outcomes, criteria: criteria, sections: sections, roster: roster, teachers: teachers
+    outcomes: outcomes, criteria: criteria, sections: sections, roster: roster, teachers: teachers
   };
 }
 function stageOf_(cfg, score) {
@@ -417,7 +387,7 @@ function rowsFor_(name, section, student) {
 function parseSelf_(s) { try { var o = JSON.parse(s || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; } }
 function mapRegister_(r) { return { student: str_(r.Student), lesson: num_(r.Lesson), participation: num_(r.Participation), note: str_(r.Note) }; }
 function mapTest_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), skill: str_(r.Skill), score: num_(r.Score), by: str_(r.By) || 'teacher' }; }
-function mapCheckin_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), agilityFocus: str_(r.AgilityFocus), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal), engagement: num_(r.Engagement), personal: num_(r.Personal), confirmed: bool_(r.Confirmed) }; }
+function mapCheckin_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), extensionSkill: str_(r.ExtensionSkill), extensionDrill: str_(r.ExtensionDrill), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal), gamePlay: num_(r.GamePlay), engagement: num_(r.Engagement), personal: num_(r.Personal), confirmed: bool_(r.Confirmed) }; }
 function mapOutcome_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), outcome: str_(r.Outcome), self: num_(r.Self), teacher: num_(r.Teacher) }; }
 function mapGrade_(r) { return { student: str_(r.Student), criterion: str_(r.Criterion), score: num_(r.Score), comment: str_(r.Comment) }; }
 
@@ -426,7 +396,6 @@ function studentData_(cfg, section, student) {
   var classRegister = rowsFor_('Register', section);
   var lessonsRun = {};
   classRegister.forEach(function(x) { if (num_(x.Participation) && str_(x.Sport) === r.sport) lessonsRun[num_(x.Lesson)] = true; });
-  var ag = rowsFor_('Agility', section, student)[0] || {};
   return {
     section: section, sport: r.sport, student: student,
     lessonsRun: Object.keys(lessonsRun).length,
@@ -434,7 +403,6 @@ function studentData_(cfg, section, student) {
     tests: rowsFor_('SkillTests', section, student).map(mapTest_),
     checkins: rowsFor_('Checkins', section, student).map(mapCheckin_),
     outcomes: rowsFor_('OutcomeRatings', section, student).map(mapOutcome_),
-    agility: { baseline: num_(ag.Baseline), retest: num_(ag.Retest) },
     grades: rowsFor_('Grades', section, student).map(mapGrade_)
   };
 }
@@ -447,15 +415,12 @@ function getStudent(section, student) {
 function getSectionData(section) {
   var cfg = getConfig_();
   requireTeacher_(cfg);
-  var agility = {};
-  rowsFor_('Agility', section).forEach(function(r) { agility[str_(r.Student)] = { baseline: num_(r.Baseline), retest: num_(r.Retest) }; });
   return {
     section: section,
     register: rowsFor_('Register', section).map(mapRegister_),
     tests: rowsFor_('SkillTests', section).map(mapTest_),
     checkins: rowsFor_('Checkins', section).map(mapCheckin_),
     outcomes: rowsFor_('OutcomeRatings', section).map(mapOutcome_),
-    agility: agility,
     grades: rowsFor_('Grades', section).map(mapGrade_)
   };
 }
@@ -465,7 +430,7 @@ function clampInt_(v, lo, hi) { var n = parseInt(v, 10); return isNaN(n) ? null 
 function blankOr_(v, lo, hi) { if (v === null || v === undefined || v === '') return ''; var n = clampInt_(v, lo, hi); return n === null ? '' : n; }
 
 // Student check-in (or teacher on their behalf).
-// payload: { section, student, checkpoint, focusSkill, goal, drillStep, agilityFocus, selfStages:{skill:1-3}, wentWell, nextGoal }
+// payload: { section, student, checkpoint, scores:{skill:n}, focusSkill, goal, drillStep, extensionSkill, extensionDrill, selfStages:{skill:1-3}, selfOutcomes:{outcome:1-3}, wentWell, nextGoal }
 function saveCheckin(payload) {
   var cfg = getConfig_();
   var who = resolveStudent_(cfg, payload.section, payload.student);
@@ -478,7 +443,8 @@ function saveCheckin(payload) {
   Object.keys(payload.selfStages || {}).forEach(function(k) { if (skills.indexOf(k) !== -1) { var n = clampInt_(payload.selfStages[k], 1, 3); if (n) self[k] = n; } });
   var row = { Section: who.section, Sport: who.sport, Student: who.student, Checkpoint: cp,
     FocusSkill: focus, Goal: str_(payload.goal).slice(0, 400), DrillStep: blankOr_(payload.drillStep, 0, 20),
-    AgilityFocus: str_(payload.agilityFocus).slice(0, 80), SelfStages: JSON.stringify(self),
+    ExtensionSkill: str_(payload.extensionSkill).slice(0, 80), ExtensionDrill: str_(payload.extensionDrill).slice(0, 300),
+    SelfStages: JSON.stringify(self),
     WentWell: str_(payload.wentWell).slice(0, 600), NextGoal: str_(payload.nextGoal).slice(0, 600) };
   // Scores the student typed from their paper log. Never overwrite a score
   // the teacher entered or corrected.
@@ -494,12 +460,6 @@ function saveCheckin(payload) {
       testRows.push({ Section: who.section, Sport: who.sport, Student: who.student, Checkpoint: cp, Skill: k, Score: blankOr_(v, 0, cfg.scoreMax), By: 'student' });
     });
   }
-  var agRow = null;
-  if (payload.agility && (num_(payload.agility.baseline) !== null || num_(payload.agility.retest) !== null)) {
-    agRow = { Section: who.section, Sport: who.sport, Student: who.student };
-    if (num_(payload.agility.baseline) !== null) agRow.Baseline = num_(payload.agility.baseline);
-    if (num_(payload.agility.retest) !== null) agRow.Retest = num_(payload.agility.retest);
-  }
   // A student re-saving their check-in un-confirms it so the teacher looks again.
   if (!who.byTeacher) row.Confirmed = '';
   var outcomeRows = [];
@@ -511,19 +471,18 @@ function saveCheckin(payload) {
   return withLock_(function() {
     upsert_('Checkins', [row]);
     if (testRows.length) upsert_('SkillTests', testRows);
-    if (agRow) upsert_('Agility', [agRow]);
     if (outcomeRows.length) upsert_('OutcomeRatings', outcomeRows);
     return { ok: true };
   });
 }
 // Teacher's one-page check-in. entries: [{student, confirmed, engagement, personal,
-//   scores: {skill: score}, agility: {baseline, retest}}] — any subset of fields.
+//   gamePlay (1-4, best first), scores: {skill: score}}] — any subset of fields.
 function saveTeacherCheckin(payload) {
   var cfg = getConfig_();
   requireTeacher_(cfg);
   var section = str_(payload.section), cp = str_(payload.checkpoint);
   if (!section || !cfg.checkpoints.some(function(c) { return c.name === cp; })) throw new Error('Missing section or checkpoint');
-  var checkRows = [], testRows = [], agRows = [];
+  var checkRows = [], testRows = [];
   (payload.entries || []).forEach(function(e) {
     var student = str_(e.student); if (!student) return;
     var sport = sportOf_(cfg, section, student);
@@ -532,22 +491,16 @@ function saveTeacherCheckin(payload) {
     if ('confirmed' in e) { c.Confirmed = e.confirmed ? 'yes' : ''; any = true; }
     if ('engagement' in e) { c.Engagement = blankOr_(e.engagement, 1, 3); any = true; }
     if ('personal' in e) { c.Personal = blankOr_(e.personal, 1, 3); any = true; }
+    if ('gamePlay' in e) { c.GamePlay = blankOr_(e.gamePlay, 1, 4); any = true; }
     if (any) checkRows.push(c);
     Object.keys(e.scores || {}).forEach(function(k) {
       testRows.push({ Section: section, Sport: sport, Student: student, Checkpoint: cp, Skill: k, Score: blankOr_(e.scores[k], 0, cfg.scoreMax), By: 'teacher' });
     });
-    if (e.agility) {
-      var a = { Section: section, Sport: sport, Student: student };
-      if ('baseline' in e.agility) a.Baseline = num_(e.agility.baseline) === null ? '' : num_(e.agility.baseline);
-      if ('retest' in e.agility) a.Retest = num_(e.agility.retest) === null ? '' : num_(e.agility.retest);
-      agRows.push(a);
-    }
   });
   return withLock_(function() {
     if (checkRows.length) upsert_('Checkins', checkRows);
     if (testRows.length) upsert_('SkillTests', testRows);
-    if (agRows.length) upsert_('Agility', agRows);
-    return { ok: true, saved: checkRows.length + testRows.length + agRows.length };
+    return { ok: true, saved: checkRows.length + testRows.length };
   });
 }
 // Teacher ratings of personal-skill outcomes. entries: [{student, outcome, teacher}]
@@ -588,19 +541,6 @@ function saveSkillTests(payload) {
   }).filter(function(r) { return r.Student && r.Skill; });
   return withLock_(function() { return { ok: true, saved: upsert_('SkillTests', rows) }; });
 }
-// entries: [{student, baseline, retest}]
-function saveAgility(payload) {
-  var cfg = getConfig_();
-  requireTeacher_(cfg);
-  var section = str_(payload.section);
-  var rows = (payload.entries || []).map(function(e) {
-    var r = { Section: section, Sport: sportOf_(cfg, section, str_(e.student)), Student: str_(e.student) };
-    if ('baseline' in e) r.Baseline = num_(e.baseline) === null ? '' : num_(e.baseline);
-    if ('retest' in e) r.Retest = num_(e.retest) === null ? '' : num_(e.retest);
-    return r;
-  }).filter(function(r) { return r.Student; });
-  return withLock_(function() { return { ok: true, saved: upsert_('Agility', rows) }; });
-}
 // entries: [{student, criterion, score, comment}]
 function saveGrades(payload) {
   var cfg = getConfig_();
@@ -622,11 +562,6 @@ function computeOverview_(cfg, section, sport, data) {
   var cps = cfg.checkpoints, nCp = cps.length || 1;
   var clamp01 = function(x) { return Math.max(0, Math.min(1, x)); };
   var band = function(x) { return Math.max(1, Math.min(7, Math.round(1 + 6 * x))); };
-  var T = cfg.test.topGain;
-  var agilityBand = function(adj) {
-    if (adj >= T) return 7; if (adj >= 0.65 * T) return 6; if (adj >= 0.35 * T) return 5;
-    if (adj > 0.05) return 4; if (adj >= -0.05) return 3; if (adj > -0.5 * T) return 2; return 1;
-  };
   // Focus-skill gain in points out of scoreMax → 1-7. Reaching the top stage from below also counts.
   var skillBand = function(gain, endStage, startStage) {
     var g = gain * 10 / cfg.scoreMax;
@@ -634,11 +569,6 @@ function computeOverview_(cfg, section, sport, data) {
     if (endStage > startStage) b = Math.max(b, 4 + (endStage - startStage));
     return Math.min(7, b);
   };
-  // Cohort mean baseline for the fast-starter handicap (whole section, all sports)
-  var bases = [];
-  cfg.roster.filter(function(r) { return r.section === section; }).forEach(function(r) { var t = data.agility[r.student]; if (t && t.baseline) bases.push(t.baseline); });
-  var refBaseline = bases.length ? bases.reduce(function(a, b) { return a + b; }, 0) / bases.length : 0;
-
   var lessonsRunBySport = {};
   data.register.forEach(function(r) { if (r.participation) { var sp = sportOf_(cfg, section, r.student); (lessonsRunBySport[sp] = lessonsRunBySport[sp] || {})[r.lesson] = true; } });
 
@@ -657,6 +587,8 @@ function computeOverview_(cfg, section, sport, data) {
     var focus = ''; ordered.forEach(function(c) { if (c.focusSkill) focus = c.focusSkill; });
     var goal = ''; ordered.forEach(function(c) { if (c.goal) goal = c.goal; });
     var drillStep = null; ordered.forEach(function(c) { if (c.drillStep !== null) drillStep = c.drillStep; });
+    var extension = ''; ordered.forEach(function(c) { if (c.extensionSkill) extension = c.extensionSkill; });
+    var gamePlay = null; ordered.forEach(function(c) { if (c.gamePlay) gamePlay = c.gamePlay; });
     var maxSteps = 0; skills.forEach(function(s) { if (s.skill === focus) maxSteps = s.drills.length; });
 
     // focus skill: first and last recorded score
@@ -674,7 +606,7 @@ function computeOverview_(cfg, section, sport, data) {
     var selfN = 0, selfHit = 0;
     checkins.forEach(function(c) { Object.keys(c.selfStages || {}).forEach(function(sk) { var v = score(c.checkpoint, sk); if (v === null) return; selfN++; if (stageOf_(cfg, v) === c.selfStages[sk]) selfHit++; }); });
     var selfAcc = selfN ? selfHit / selfN : null;
-    var nCheckins = ordered.filter(function(c) { return c.focusSkill || c.wentWell || c.nextGoal || c.agilityFocus; }).length;
+    var nCheckins = ordered.filter(function(c) { return c.focusSkill || c.wentWell || c.nextGoal || c.drillStep !== null; }).length;
     var nConfirmed = ordered.filter(function(c) { return c.confirmed; }).length;
     var eng = ordered.filter(function(c) { return c.engagement; });
     var engAvg = eng.length ? eng.reduce(function(a, c) { return a + c.engagement; }, 0) / eng.length : null;
@@ -691,23 +623,15 @@ function computeOverview_(cfg, section, sport, data) {
     var outcomesTeacher = tVals.length ? tVals.reduce(function(a, b) { return a + b; }, 0) / tVals.length : persAvg;
     var outcomesSelf = sVals.length ? sVals.reduce(function(a, b) { return a + b; }, 0) / sVals.length : null;
 
-    var ag = data.agility[name] || {};
-    var change = null, adj = null;
-    if (typeof ag.baseline === 'number' && ag.baseline > 0 && typeof ag.retest === 'number') {
-      var gain = cfg.test.lowerIsBetter ? ag.baseline - ag.retest : ag.retest - ag.baseline;
-      change = ag.retest - ag.baseline;
-      var factor = refBaseline > 0 ? (cfg.test.lowerIsBetter ? Math.max(1, refBaseline / ag.baseline) : Math.max(1, ag.baseline / refBaseline)) : 1;
-      adj = gain * factor;
-    }
 
     var suggested = {};
     cfg.criteria.forEach(function(c) {
       var s = null;
       if (c.evidence === 'test') {
-        var parts = [];
-        if (fGain !== null) parts.push(skillBand(fGain, stageOf_(cfg, fEnd), stageOf_(cfg, fStart)));
-        if (adj !== null) parts.push(agilityBand(adj));
-        if (parts.length) s = Math.round(parts.reduce(function(a, b) { return a + b; }, 0) / parts.length);
+        // The teacher's game-play assessment leads; the focus-skill retest gain backs it up.
+        var gp = gamePlay ? cfg.gameLevelScores[gamePlay - 1] : null;
+        if (gp !== null && gp !== undefined) s = gp;
+        else if (fGain !== null) s = skillBand(fGain, stageOf_(cfg, fEnd), stageOf_(cfg, fStart));
       }
       if (c.evidence === 'participation') {
         if (cfg.dailyRegister && partAvg !== null) s = band(clamp01((partAvg - 1) / 2) * 0.7 + clamp01(reg.length / nLessons) * 0.3);
@@ -729,11 +653,10 @@ function computeOverview_(cfg, section, sport, data) {
       student: name, sport: sp,
       lessonsAttended: reg.length, lessonsRun: nLessons, participationAvg: partAvg,
       checkins: nCheckins, reflections: nReflected, selfAccuracy: selfAcc, confirmed: nConfirmed, engagementAvg: engAvg, personalAvg: persAvg,
-      focus: focus, goal: goal, drillStep: drillStep, maxSteps: maxSteps, chosenAtUnderstanding: chosenAtUnderstanding,
+      focus: focus, goal: goal, drillStep: drillStep, maxSteps: maxSteps, chosenAtUnderstanding: chosenAtUnderstanding, extension: extension, gamePlay: gamePlay,
       focusStart: fStart, focusEnd: fEnd, focusGain: fGain, focusStageStart: stageOf_(cfg, fStart), focusStageEnd: stageOf_(cfg, fEnd),
       allStart: allStart, allEnd: allEnd, stagesEnd: stagesEnd,
       outcomesTeacher: outcomesTeacher, outcomesSelf: outcomesSelf, outcomesDetail: tLatest,
-      agility: { baseline: typeof ag.baseline === 'number' ? ag.baseline : null, retest: typeof ag.retest === 'number' ? ag.retest : null, change: change, adjusted: adj },
       suggested: suggested, final: final
     };
   });
@@ -771,7 +694,7 @@ function setupTabs() {
   }
   // Seed by header NAME, not position — a tab kept from an older version may
   // have extra or re-ordered columns.
-  ['Lessons', 'Skills', 'Drills', 'Focus', 'Outcomes', 'Criteria'].forEach(function(n) {
+  ['Lessons', 'Skills', 'Drills', 'Outcomes', 'Criteria'].forEach(function(n) {
     var t = tab_(n);
     if (t.getLastRow() >= 2 || !EXAMPLE[n]) return;
     var hdrs = t.getRange(1, 1, 1, Math.max(1, t.getLastColumn())).getValues()[0].map(String);
@@ -846,9 +769,8 @@ function checkConfig() {
 function buildGradeReport() {
   var cfg = getConfig_();
   var header = ['Section', 'Sport', 'Student', 'Lessons attended', 'Lessons run', 'Participation avg (1-3)', 'Engagement avg (1-3)', 'Personal skills avg (1-3)',
-    'Check-ins', 'Confirmed', 'Reflections', 'Self-assessment accuracy', 'Focus skill', 'Chosen at ' + cfg.stageLabels[0] + '?', 'Drill step',
-    'Focus start', 'Focus end', 'Focus gain', 'Stage start', 'Stage end', 'All skills start (mean)', 'All skills end (mean)',
-    cfg.test.name + ' baseline', cfg.test.name + ' retest', 'Change', 'Adjusted gain'];
+    'Check-ins', 'Confirmed', 'Reflections', 'Self-assessment accuracy', 'Focus skill', 'Chosen at ' + cfg.stageLabels[0] + '?', 'Drill step', 'Extension skill',
+    'Focus start', 'Focus end', 'Focus gain', 'Stage start', 'Stage end', 'Game-play level'];
   cfg.outcomes.forEach(function(o) { header.push(o.outcome + ' (teacher)'); });
   header.push('Outcomes self avg');
   cfg.criteria.forEach(function(c) { header.push(c.code + ' suggested'); header.push(c.code + ' final'); header.push(c.code + ' comment'); });
@@ -860,9 +782,8 @@ function buildGradeReport() {
     computeOverview_(cfg, section, '', data).forEach(function(o) {
       var row = [section, o.sport, o.student, o.lessonsAttended, o.lessonsRun, fmt(o.participationAvg), fmt(o.engagementAvg), fmt(o.personalAvg),
         o.checkins, o.confirmed, o.reflections, o.selfAccuracy === null ? '' : Math.round(o.selfAccuracy * 100) + '%', o.focus,
-        o.chosenAtUnderstanding === null ? '' : (o.chosenAtUnderstanding ? 'yes' : 'no'), o.maxSteps ? (o.drillStep || 0) + ' / ' + o.maxSteps : '',
-        fmt(o.focusStart), fmt(o.focusEnd), fmt(o.focusGain), stage(o.focusStageStart), stage(o.focusStageEnd), fmt(o.allStart, 1), fmt(o.allEnd, 1),
-        fmt(o.agility.baseline), fmt(o.agility.retest), fmt(o.agility.change), fmt(o.agility.adjusted)];
+        o.chosenAtUnderstanding === null ? '' : (o.chosenAtUnderstanding ? 'yes' : 'no'), o.maxSteps ? (o.drillStep || 0) + ' / ' + o.maxSteps : '', o.extension,
+        fmt(o.focusStart), fmt(o.focusEnd), fmt(o.focusGain), stage(o.focusStageStart), stage(o.focusStageEnd), o.gamePlay ? cfg.gameLevels[o.gamePlay - 1] : ''];
       cfg.outcomes.forEach(function(oc) { row.push(o.outcomesDetail[oc.outcome] ? cfg.outcomeLabels[o.outcomesDetail[oc.outcome] - 1] : ''); });
       row.push(fmt(o.outcomesSelf, 1));
       cfg.criteria.forEach(function(c) { var f = o.final[c.code] || {}; row.push(fmt(o.suggested[c.code])); row.push(fmt(f.score)); row.push(f.comment || ''); });
