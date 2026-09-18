@@ -70,7 +70,7 @@ const Outbox = {
 };
 async function refreshAfterOutbox() {
   try {
-    if (S.id.role === 'student') { S.me = await call('getStudent', S.me.section, S.me.student); if (S.view === 'dash') render(); toast('Earlier changes sent ✓'); }
+    if (studentMode()) { S.me = await call('getStudent', S.me.section, S.me.student); if (S.view === 'dash') render(); toast('Earlier changes sent ✓'); }
     else if (S.T.section) { S.T.data = await call('getSectionData', S.T.section); S.T.overview = null; if (['register', 'tests', 'agility', 'students'].indexOf(S.T.tab) !== -1) render(); toast('Earlier changes sent ✓'); }
   } catch (e) {}
 }
@@ -102,10 +102,11 @@ function updateSaveState() {
 
 // ═══════════════════════ state & helpers ═══════════════════════
 const S = {
-  cfg: null, id: null, me: null, view: 'dash', cp: null, form: null,
+  cfg: null, id: null, me: null, view: 'dash', cp: null, form: null, testAs: false,
   T: { section: '', sport: '', tab: 'register', lesson: null, cpName: '', data: null, overview: null, viewing: null, printMode: 'all' }
 };
 const CPS = () => S.cfg.checkpoints;
+const studentMode = () => S.id.role === 'student' || S.testAs;
 const skillsOf = sport => S.cfg.skills[sport] || [];
 const skillDef = (sport, name) => skillsOf(sport).find(s => s.skill === name) || null;
 function stageOf(score) { if (score === null || score === undefined || score === '') return 0; if (score <= S.cfg.stageBands[0]) return 1; if (score <= S.cfg.stageBands[1]) return 2; return 3; }
@@ -152,7 +153,7 @@ async function boot() {
 function render() {
   const app = $('#app');
   if (S.id.role === 'unknown') app.innerHTML = renderUnknown();
-  else if (S.id.role === 'student') app.innerHTML = S.view === 'cpform' ? renderCpForm(S.me, S.cp, false) : renderStudentPage(S.me, false);
+  else if (studentMode()) app.innerHTML = S.view === 'cpform' ? renderCpForm(S.me, S.cp, false) : renderStudentPage(S.me, false);
   else app.innerHTML = renderTeacher();
   updateSaveState(); window.scrollTo(0, 0);
 }
@@ -170,6 +171,7 @@ function renderStudentPage(me, asTeacher) {
   const cfg = S.cfg, cps = CPS(), next = nextCheckpoint(me), skills = skillsOf(me.sport), focus = currentFocus(me);
   const head = `<div class="topbar">
       ${asTeacher ? `<button class="pill-btn" data-act="t-back">&larr; ${esc(S.T.section)} students</button>` : ''}
+      ${S.testAs ? `<button class="pill-btn" data-act="test-as-off">&larr; Back to teacher view</button>` : ''}
       ${avatar(me.student)}
       <div><div class="title">${esc(me.student)}</div><div class="sub">${esc(cfg.unitName)} &middot; ${esc(me.sport)} &middot; ${esc(me.section)}${asTeacher ? ' &middot; <b>teacher view</b>' : ''}</div></div>
       <div class="grow"></div><div class="savestate" id="savestate"></div></div>`;
@@ -256,7 +258,7 @@ function openCpForm(me, cpName) {
     wentWell: existing.wentWell || '', nextGoal: existing.nextGoal || '', sending: false
   };
   if (S.form.focusSkill && !S.form.goal) S.form.goal = draftGoal(me, S.form.focusSkill, cp.name);
-  if (S.id.role === 'student') S.view = 'cpform'; else S.T.tab = 'cpform';
+  if (studentMode()) S.view = 'cpform'; else S.T.tab = 'cpform';
   render();
 }
 function renderCpForm(me, cp, asTeacher) {
@@ -302,7 +304,7 @@ async function saveCpForm() {
   let c = checkinOf(me, cp.name); if (!c) { c = { checkpoint: cp.name }; me.checkins.push(c); }
   Object.assign(c, { focusSkill: f.focusSkill, goal: f.goal, drillStep: f.drillStep, agilityFocus: f.agilityFocus, selfStages: Object.assign({}, f.selfStages), wentWell: f.wentWell, nextGoal: f.nextGoal });
   f.sending = true; render();
-  const goBack = () => { if (S.id.role === 'student') S.view = 'dash'; else { S.T.tab = 'student'; syncTeacherCache(me); } render(); };
+  const goBack = () => { if (studentMode()) S.view = 'dash'; else { S.T.tab = 'student'; syncTeacherCache(me); } render(); };
   let settled = false;
   const watch = setInterval(() => { if (settled) { clearInterval(watch); return; } if (Outbox.failed) { clearInterval(watch); settled = true; f.sending = false; goBack(); toast('Saved on this device — will send when the connection returns'); } }, 400);
   try { await Outbox.add('saveCheckin', payload, 'check-in ' + cp.name); if (settled) return; settled = true; f.sending = false; goBack(); toast('Check-in saved ✓'); }
@@ -343,6 +345,7 @@ function renderTeacher() {
   if (T.tab === 'cpform' && S.me && S.cp) return renderCpForm(S.me, S.cp, true);
   const sports = T.data ? sportsInSection() : [];
   const head = `<div class="topbar"><div><div class="title">${esc(cfg.unitName)}</div><div class="sub">Teacher &middot; ${esc(S.id.email)}</div></div><div class="grow"></div>
+      ${S.id.alsoStudent ? `<button class="pill-btn" data-act="test-as-on" title="You are also on the Roster as ${esc(S.id.alsoStudent.name)}">Test as student &rsaquo;</button>` : ''}
       <div class="tabs" style="margin:0">${cfg.sections.map(c => `<button class="tab ${c === T.section ? 'active' : ''}" data-act="t-section" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
       <div class="savestate" id="savestate"></div></div>
     <div class="tabs">${TABS.map(([k, l]) => `<button class="tab ${T.tab === k ? 'active' : ''}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</div>
@@ -512,7 +515,14 @@ const actions = {
   reload() { location.reload(); },
   retry() { Outbox.retry(); },
   'open-cp'(t) { openCpForm(S.me, t.dataset.cp); },
-  'cp-cancel'() { if (S.id.role === 'student') S.view = 'dash'; else S.T.tab = 'student'; render(); },
+  'cp-cancel'() { if (studentMode()) S.view = 'dash'; else S.T.tab = 'student'; render(); },
+  async 'test-as-on'() {
+    const a = S.id.alsoStudent; if (!a) return;
+    $('#app').innerHTML = `<div class="loading"><div class="spinner"></div> Loading ${esc(a.name)}…</div>`;
+    try { S.me = await call('getStudent', a.section, a.name); S.testAs = true; S.view = 'dash'; render(); }
+    catch (e) { render(); toast('Could not load: ' + e.message); }
+  },
+  'test-as-off'() { S.testAs = false; S.me = null; S.view = 'dash'; S.T.overview = null; loadSection(S.T.section); },
   'cp-save'() { saveCpForm(); },
   self(t) { const sk = t.dataset.skill, n = parseInt(t.dataset.n, 10); if (S.form.selfStages[sk] === n) delete S.form.selfStages[sk]; else S.form.selfStages[sk] = n; Array.from(t.parentElement.children).forEach(b => { b.className = ''; }); if (S.form.selfStages[sk]) t.className = 'on st' + n; },
   'self-outcome'(t) { const k = t.dataset.outcome, n = parseInt(t.dataset.n, 10); if (S.form.selfOutcomes[k] === n) delete S.form.selfOutcomes[k]; else S.form.selfOutcomes[k] = n; Array.from(t.parentElement.children).forEach(b => { b.className = ''; }); if (S.form.selfOutcomes[k]) t.className = 'on st' + n; },
