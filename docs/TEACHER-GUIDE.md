@@ -13,11 +13,11 @@ Every student is in **one sport** for the whole unit. A section of ~70 is split 
 | Lesson | Student | Teacher |
 |---|---|---|
 | **L1** | The three skill tests in pairs (a partner counts 10 attempts), scores written on the paper log | Watches, spot-checks |
-| **Early check-in** (end of L1 or start of L2, laptops, ~8 min) | Types the three scores from paper, picks **one** focus skill (the lowest is recommended), edits the drafted goal, answers one question | Same day, phone or laptop, ~3 min: **Check-ins → Early**. Glance at each row, fix a wrong score, tap ✓, rate engagement and personal skills. Then **Print logs**. |
+| **Early check-in** (end of L1 or start of L2, laptops, ~8 min) | Types the three scores from paper, picks **one** focus skill (the lowest is recommended), edits the drafted goal, answers one question | Same day, phone or laptop, ~3 min: **Check-ins → Early**. Glance at each row, fix a wrong score, tap ✓, rate personal skills (one tap: Not yet / Sometimes / Consistently). Then **Print logs**. |
 | **L2–L4** | Works the drill progression on the paper card; a partner initials each step; you sign and date it; ticks the three personal skills; one line | Circulates; **signs the paper** to let a student move to the next step. **No app.** |
-| **Middle check-in** (L5, laptops) | Retests the focus skill (partner counts), types the score, taps the drill step reached, places themselves, one reflection. **Finished every step?** Chooses an extension skill and drill. | **Check-ins → Middle**: check the retest, ✓, engagement, personal skills. |
+| **Middle check-in** (L5, laptops) | Retests the focus skill (partner counts), types the score, taps the drill step reached, places themselves, one reflection. **Finished every step?** Chooses an extension skill and drill. | **Check-ins → Middle**: check the retest, ✓, personal skills. |
 | **L6–L8** | Paper only. Last two lessons: game play. | Paper only. In the **last two lessons** you watch each student's focus skill in game play. |
-| **End check-in** (L9) | Taps drill step, places themselves on the focus skill, personal-skill self-rating, two reflections | **Check-ins → End** is your final assessment: type the final retest, tap the **game-play level** you saw (7 · 6–5 · 4–3 · 2–1), ✓, engagement, personal skills. |
+| **End check-in** (L9) | Taps drill step, places themselves on the focus skill, personal-skill self-rating, two reflections | **Check-ins → End** is your final assessment: type the final retest, tap the **game-play level** you saw (7 · 6–5 · 4–3 · 2–1), ✓, personal skills. |
 | After | — | **Grades**: *Accept all suggested*, adjust the ones you disagree with, add comments. **PE Tracker → Build grade report tab**. |
 
 The three **stages** come from the score out of 10: 0–3 *Understanding*, 4–7 *Intermediate*, 8–10 *Automatic* (editable on Config).
@@ -32,7 +32,7 @@ The rule: **nothing self-reported feeds the skill grade.** Students type numbers
 |---|---|---|
 | **S1 Skill development** | Your **game-play assessment** of the focus skill in the last two lessons (7 / 6–5 / 4–3 / 2–1 → suggested 7 / 6 / 4 / 2). Where you have not entered one, the focus-skill gain from the confirmed Early score to your End retest stands in. | **Teacher.** Early score: student types, teacher confirms. |
 | **S2 Skill identification** | Check-ins completed · chose a skill at *Understanding* · goal written · drill steps progressed (signed on paper) · extension chosen when the progression is done · self-placement matches the confirmed score · reflections | Student, against teacher-confirmed data. Read the reflections in **Students** when finalising. |
-| **S4 Active participation** | Engagement rating at each check-in (1–3), plus the personal-skills rating (self-management, perseverance, collaboration) | **Teacher**, three taps per student per unit. The paper log's daily ticks and your initials are the backing evidence. |
+| **S4 Active participation** | Your personal-skills rating at each check-in (self-management, perseverance, collaboration: Not yet / Sometimes / Consistently). Tap *rate each* on a row to rate the three separately. | **Teacher**, three taps per student per unit. The paper log's daily ticks and your initials are the backing evidence. |
 
 Suggested scores are a starting point. The final grade is always your tap.
 
@@ -78,9 +78,13 @@ Everything is a tab. Edit cells; the app updates within a couple of minutes (or 
 - **Skills** — `Sport`, `Skill`, `Test` (how the 10 attempts run), `Success` (what counts as one). **Three per sport**, one of them a stretch test that challenges a proficient player. Tests must be countable by a partner.
 - **Drills** — `Sport`, `Skill`, `Step`, `Drill`, `Criteria` (the "done when" line a partner checks before you sign). Three or four steps per skill. Prints on the student's paper log once they have a focus skill, with an extension row underneath.
 - **Lessons** — `Number`, `Checkpoint` (write `Early`, `Middle`, `End` on the check-in lessons), `Date` (optional, prints on the log). No titles: what happens in a lesson is up to you.
-- **Outcomes** — personal skills for an independent task: self-management, perseverance, collaboration. `Outcome`, `LooksLike`. Students tick them daily on paper and self-rate at the End check-in; you give one overall rating per check-in (expand a row for per-outcome detail).
+- **Outcomes** — personal skills for an independent task: self-management, perseverance, collaboration. `Outcome`, `LooksLike`. Students tick them daily on paper and self-rate at the End check-in; you give one rating per check-in (tap *rate each* on a row for per-outcome detail).
 - **Criteria** — `Code`, `Name`, `Evidence`, `TopBand`. Evidence is one of `test`, `reflection`, `participation`, `skills`, `outcomes`, `none` (see the assessment table).
 - **Config** — `unit_name`, `stage_labels`, `stage_bands`, `score_max`, `participation_labels`, `outcome_labels`, `game_levels` / `game_level_scores`, `goal_template`, `reflection_prompt_early`, the two later prompts, `show_grades_to_students`, and `daily_register` (TRUE adds a per-lesson register tab if you want one; off by default).
+
+## When a whole class saves at once
+
+Each check-in is one request, and Google runs them one after another, about half a second each. Seventy students saving in the same minute clears in about a minute. If the server is busy, a student sees "Saved — sending in the background", goes back to their dashboard, and the app keeps retrying quietly; nothing is lost even if they close the laptop, because the entry is kept on that device until it gets through. Ask students not to reload while the yellow banner is showing.
 
 ---
 

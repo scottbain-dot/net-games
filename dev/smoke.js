@@ -52,6 +52,8 @@ async function main() {
   await page.waitForSelector('.cp-strip');
   await page.click('[data-act="open-cp"][data-cp="Early"]');
   await page.waitForSelector('input[data-in="score"]');
+  await page.click('.focus-grid >> .focus-btn >> nth=0');   // choose focus before any score exists
+  if (/\(\?\//.test(await page.inputValue('textarea[data-in="goal"]'))) errors.push('Goal drafted with ? before a score existed');
   const nIn = (await page.$$('input[data-in="score"]')).length;
   const vals = ['2', '7', '5'];
   for (let i = 0; i < nIn; i++) { const inp = page.locator('input[data-in="score"]').nth(i); await inp.fill(vals[i] || '4'); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
@@ -97,7 +99,6 @@ async function main() {
   const row = page.locator('table.tc tbody tr:not(.ok):not(.detail)').first();
   const name = await row.locator('td b').first().textContent();
   await row.locator('.ok-btn').click();
-  await page.locator(`[data-act="t-eng"][data-student="${name}"][data-n="3"]`).click();
   await page.locator(`[data-act="t-pers"][data-student="${name}"][data-n="2"]`).click();
   await page.locator(`input[data-in="tscore"][data-student="${name}"]`).first().fill('9');
   await page.locator(`input[data-in="tscore"][data-student="${name}"]`).first().dispatchEvent('change');
@@ -182,8 +183,8 @@ async function main() {
   await page.waitForSelector('.ok-btn');
   await page.click('[data-act="t-sport"][data-v="Net Games"]');
   await page.click('[data-act="t-cp"][data-v="Early"]');
-  const engOn = await page.locator(`[data-act="t-eng"][data-student="${name}"].on`).count();
-  if (!engOn) errors.push('Engagement rating did not persist for ' + name);
+  const persOn = await page.locator(`[data-act="t-pers"][data-student="${name}"].on`).count();
+  if (!persOn) errors.push('Personal-skills rating did not persist for ' + name);
 
   await browser.close();
   if (errors.length) { console.error('SMOKE FAILED\n' + errors.join('\n')); process.exit(1); }
