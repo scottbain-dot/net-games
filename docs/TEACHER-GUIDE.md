@@ -8,17 +8,17 @@ Students sign in with their **school Google account**. No PINs.
 
 ## The unit in one page
 
-Every student is in **one sport** for the whole unit. A section of ~70 is split into sport groups, each with a teacher. Paper is the daily record; the laptop comes out three times.
+Every student is in **one sport** for the whole unit. A section of ~70 is split into sport groups, each with a teacher. Paper is the daily record; the laptop comes out three times. Each sport has **three key skills**, one of which is a stretch test so a proficient player still has something to work on.
 
 | Lesson | Student | Teacher |
 |---|---|---|
-| **L1** | Skill tests in pairs (peer counts 10 attempts), scores written on the paper log | Watches, spot-checks. Runs the agility test and writes the times down. |
-| **Early check-in** (end of L1 or start of L2, laptops, ~8 min) | Types the 4 scores from paper, picks **one** focus skill (the lowest is recommended), edits the drafted goal, picks an agility element, answers one question | Same day, phone or laptop, ~3 min: **Check-ins → Early**. Glance at each row, fix a wrong score, type the agility baseline, tap ✓, rate engagement and personal skills. Then **Print logs**. |
-| **L2–L4** | Works the drill progression on the paper card; peer check each step; one line on the log | Circulates; **signs the paper** to let a student move to the next drill step. **No app.** |
-| **Middle check-in** (L5, laptops) | Types the focus-skill retest score, taps the drill step reached, places themselves, one reflection | **Check-ins → Middle**: check the retest, ✓, engagement, personal skills. |
-| **L6–L8** | Paper only | Paper only |
-| **End check-in** (L9) | Taps drill step, places themselves on the focus skill, personal-skill self-rating, two reflections | **Check-ins → End**: **you** type each student's final retest of their focus skill and their agility re-test, ✓, engagement, personal skills. |
-| After | — | **Grades**: *Accept all suggested*, then adjust the ones you disagree with, add comments. **PE Tracker → Build grade report tab**. |
+| **L1** | The three skill tests in pairs (a partner counts 10 attempts), scores written on the paper log | Watches, spot-checks |
+| **Early check-in** (end of L1 or start of L2, laptops, ~8 min) | Types the three scores from paper, picks **one** focus skill (the lowest is recommended), edits the drafted goal, answers one question | Same day, phone or laptop, ~3 min: **Check-ins → Early**. Glance at each row, fix a wrong score, tap ✓, rate engagement and personal skills. Then **Print logs**. |
+| **L2–L4** | Works the drill progression on the paper card; a partner initials each step; you sign and date it; ticks the three personal skills; one line | Circulates; **signs the paper** to let a student move to the next step. **No app.** |
+| **Middle check-in** (L5, laptops) | Retests the focus skill (partner counts), types the score, taps the drill step reached, places themselves, one reflection. **Finished every step?** Chooses an extension skill and drill. | **Check-ins → Middle**: check the retest, ✓, engagement, personal skills. |
+| **L6–L8** | Paper only. Last two lessons: game play. | Paper only. In the **last two lessons** you watch each student's focus skill in game play. |
+| **End check-in** (L9) | Taps drill step, places themselves on the focus skill, personal-skill self-rating, two reflections | **Check-ins → End** is your final assessment: type the final retest, tap the **game-play level** you saw (7 · 6–5 · 4–3 · 2–1), ✓, engagement, personal skills. |
+| After | — | **Grades**: *Accept all suggested*, adjust the ones you disagree with, add comments. **PE Tracker → Build grade report tab**. |
 
 The three **stages** come from the score out of 10: 0–3 *Understanding*, 4–7 *Intermediate*, 8–10 *Automatic* (editable on Config).
 
@@ -26,19 +26,19 @@ The three **stages** come from the score out of 10: 0–3 *Understanding*, 4–7
 
 ## Assessment: what counts, and who records it
 
-The rule: **nothing self-reported feeds the skill-improvement grade.** Students type numbers only where inflating them would hurt them or where you confirm.
+The rule: **nothing self-reported feeds the skill grade.** Students type numbers only where inflating them would hurt them or where you confirm.
 
 | Criterion | Evidence the app uses for the *suggested* score | Recorded by |
 |---|---|---|
-| **S1 Skill development** | Focus-skill gain: Early score → End retest, in points and in stage. Plus agility change, baseline → re-test, with a handicap so fast starters aren't penalised. Averaged. | Early score: student types, **teacher confirms**. End retest: **teacher**. Agility: **teacher**, both times. |
-| **S2 Skill identification** | Check-ins completed · chose a skill at *Understanding* · goal written · drill steps progressed (teacher-signed on paper) · self-placement matches the confirmed score · reflections written | Student, against teacher-confirmed data. Read the reflections in **Students** when finalising. |
-| **S4 Active participation** | Engagement rating at each check-in (1–3), plus personal-skills rating | **Teacher**, three taps per student per unit. Paper log with your initials is the backing evidence. |
+| **S1 Skill development** | Your **game-play assessment** of the focus skill in the last two lessons (7 / 6–5 / 4–3 / 2–1 → suggested 7 / 6 / 4 / 2). Where you have not entered one, the focus-skill gain from the confirmed Early score to your End retest stands in. | **Teacher.** Early score: student types, teacher confirms. |
+| **S2 Skill identification** | Check-ins completed · chose a skill at *Understanding* · goal written · drill steps progressed (signed on paper) · extension chosen when the progression is done · self-placement matches the confirmed score · reflections | Student, against teacher-confirmed data. Read the reflections in **Students** when finalising. |
+| **S4 Active participation** | Engagement rating at each check-in (1–3), plus the personal-skills rating (self-management, perseverance, collaboration) | **Teacher**, three taps per student per unit. The paper log's daily ticks and your initials are the backing evidence. |
 
 Suggested scores are a starting point. The final grade is always your tap.
 
 Two fairness notes built in:
-- A student who picks a skill already at *Intermediate* has less room to gain. The app flags "not at Understanding" in Grades, and stage gains carry a bonus so a genuine step up still scores well.
-- A student who under-reports an Early score to inflate their gain is caught at your ✓, and the End retest is yours anyway.
+- A student who picks a skill already at *Intermediate* has less room to gain. The app flags "not at Understanding" in Grades, and the stretch test gives strong players a real target.
+- The game-play level is yours alone, so a student cannot talk their way up S1.
 
 ---
 
@@ -52,7 +52,7 @@ Two fairness notes built in:
 4. Close the editor tab and **reload the Sheet**.
 5. A **PE Tracker** menu appears next to *Help*. Choose **1. Set up tabs**. Authorise: *Continue* → your account → *Advanced* → *Go to … (unsafe)* → *Allow*. Run **1. Set up tabs** again if it did not finish.
 6. Fill in the **Roster** tab: `Section`, `Sport`, `Student`, `Email` (school Google address). One row per student, all sections on the one tab. The sport must match a name on the **Skills** tab exactly. Extra columns (e.g. a Teacher column for your own reference) are ignored.
-7. Check **Skills**, **Drills**, **Lessons**, **Focus**, **Outcomes**, **Criteria** — pre-filled with a draft for Net Games, Ultimate, Table Tennis and Handball (see Part C).
+7. Check **Skills**, **Drills**, **Lessons**, **Outcomes**, **Criteria** — pre-filled with a draft for Net Games, Ultimate, Table Tennis and Handball (see Part C). If your Sheet is from an earlier version, delete the old **Focus** tab and the *Independence* row on Outcomes.
 8. **PE Tracker → 2. Check roster & config.** Fix anything it lists.
 9. **Deploy:** Extensions → Apps Script → **Deploy → New deployment** → gear ⚙ → **Web app**: Execute as **Me**; Who has access **Anyone within [your school]** (this is what lets the app know who each student is) → **Deploy**.
 10. **PE Tracker → 3. Show app link.** One link for students and teachers. If it ever says "unable to open the file", copy the URL from **Deploy → Manage deployments** instead.
@@ -75,13 +75,12 @@ Add colleagues on the **Teachers** tab (Email, Name, and optionally their Sport 
 
 Everything is a tab. Edit cells; the app updates within a couple of minutes (or immediately after **PE Tracker → Refresh app config now**).
 
-- **Skills** — `Sport`, `Skill`, `Test` (how the 10 attempts run), `Success` (what counts as one). Three or four per sport. Tests should be countable by a peer.
-- **Drills** — `Sport`, `Skill`, `Step`, `Drill`, `Criteria` (what the peer checks before you sign). Three or four steps per skill. Prints on the student's paper log once they have a focus skill.
+- **Skills** — `Sport`, `Skill`, `Test` (how the 10 attempts run), `Success` (what counts as one). **Three per sport**, one of them a stretch test that challenges a proficient player. Tests must be countable by a partner.
+- **Drills** — `Sport`, `Skill`, `Step`, `Drill`, `Criteria` (the "done when" line a partner checks before you sign). Three or four steps per skill. Prints on the student's paper log once they have a focus skill, with an extension row underneath.
 - **Lessons** — `Number`, `Checkpoint` (write `Early`, `Middle`, `End` on the check-in lessons), `Date` (optional, prints on the log). No titles: what happens in a lesson is up to you.
-- **Focus** — the agility elements students pick one of each lesson on paper.
-- **Outcomes** — personal skills for an independent task. `Outcome`, `LooksLike`. Students self-rate at the End check-in; you give one overall rating per check-in (expand a row for per-outcome detail).
+- **Outcomes** — personal skills for an independent task: self-management, perseverance, collaboration. `Outcome`, `LooksLike`. Students tick them daily on paper and self-rate at the End check-in; you give one overall rating per check-in (expand a row for per-outcome detail).
 - **Criteria** — `Code`, `Name`, `Evidence`, `TopBand`. Evidence is one of `test`, `reflection`, `participation`, `skills`, `outcomes`, `none` (see the assessment table).
-- **Config** — `unit_name`, `stage_labels`, `stage_bands`, `score_max`, `participation_labels`, `outcome_labels`, `test_name` / `test_unit` / `test_lower_is_better` / `test_top_gain`, `goal_template`, `reflection_prompt_early`, the two later prompts, `show_grades_to_students`, and `daily_register` (TRUE adds a per-lesson register tab if you want one; off by default).
+- **Config** — `unit_name`, `stage_labels`, `stage_bands`, `score_max`, `participation_labels`, `outcome_labels`, `game_levels` / `game_level_scores`, `goal_template`, `reflection_prompt_early`, the two later prompts, `show_grades_to_students`, and `daily_register` (TRUE adds a per-lesson register tab if you want one; off by default).
 
 ---
 
