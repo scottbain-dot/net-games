@@ -89,5 +89,5 @@
   }
   window.google = { script: { run: makeRunner() } };
   ['withSuccessHandler', 'withFailureHandler'].forEach(k => { window.google.script.run[k] = fn => makeRunner()[k](fn); });
-  window.__preview = { role, user: FakeSheets.user, failWrites, latency };
+  window.__preview = { role, user: FakeSheets.user, failWrites, latency, fastRetry: failWrites };
 })();

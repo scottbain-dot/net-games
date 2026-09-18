@@ -233,7 +233,7 @@ function upsert_(name, rows) {
 
 function withLock_(fn) {
   var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  lock.waitLock(90000);  // a whole class saving at once queues here; the client retries on failure
   try { return fn(); } finally { lock.releaseLock(); }
 }
 
@@ -634,8 +634,10 @@ function computeOverview_(cfg, section, sport, data) {
         else if (fGain !== null) s = skillBand(fGain, stageOf_(cfg, fEnd), stageOf_(cfg, fStart));
       }
       if (c.evidence === 'participation') {
+        // One teacher rating per check-in (personal skills); the old engagement field still counts if present.
+        var pr = persAvg !== null ? persAvg : engAvg, prN = persAvg !== null ? pers.length : eng.length;
         if (cfg.dailyRegister && partAvg !== null) s = band(clamp01((partAvg - 1) / 2) * 0.7 + clamp01(reg.length / nLessons) * 0.3);
-        else if (engAvg !== null) s = band(clamp01((engAvg - 1) / 2) * 0.8 + clamp01(eng.length / nCp) * 0.2);
+        else if (pr !== null) s = band(clamp01((pr - 1) / 2) * 0.8 + clamp01(prN / nCp) * 0.2);
       }
       if (c.evidence === 'reflection' && nCheckins > 0) {
         var x = 0.35 * clamp01(nCheckins / nCp) + 0.15 * (goal ? 1 : 0) + 0.2 * (selfAcc === null ? 0.5 : selfAcc) +
