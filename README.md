@@ -1,61 +1,56 @@
-# PE Skill Tracker
+# Move for Skills — PE tracker
 
-A Google-Sheets-backed web app for PE units: students self-assess at three checkpoints (Early / Middle / End), teachers keep a one-tap register and rate skills, and both see progress side by side. Daily logging is on paper, generated from the same configuration. Any sport, any number of classes, one copyable Sheet per teacher.
+A Google-Sheets-backed web app for skill-focused PE units. Each student is in one sport; the teacher tests 3–4 key skills out of 10, which places the student at a stage (Understanding / Intermediate / Automatic). The student picks one focus skill, sets a goal, and works a drill progression on paper with peer checks and teacher sign-off. Three digital check-ins (Early / Middle / End) capture reflection, self-assessment and personal-skill outcomes. An agility test runs alongside every sport.
 
-This replaced the 2025 Net Games tracker (per-lesson logging of every skill, PIN logins, one HTML file per class). The reasoning and the design decisions are in the history of this repository.
+Teachers paste **one file** (`dist/Code.gs`) into a Sheet's Apps Script and deploy. Full instructions: [docs/TEACHER-GUIDE.md](docs/TEACHER-GUIDE.md).
 
 ## Layout
 
 ```
 apps-script/
-  Code.gs      server: config tabs, Google-login identity, batched writes, evidence, Sheet menu
+  Code.gs      server: config tabs, Google-login identity, batched upserts, evidence & suggested grades, Sheet menu
   Index.html   page shell (Apps Script template)
   Styles.html  CSS
-  App.html     client: student dashboard, checkpoint form, teacher views, print sheets
+  App.html     client: student dashboard & check-in form, teacher register / tests / agility / students / overview / print
+dist/
+  Code.gs      GENERATED single-file build of the four above (what teachers paste) — node dev/build-single.js
 docs/
-  TEACHER-GUIDE.md   set-up and day-to-day use, written for non-technical colleagues
+  TEACHER-GUIDE.md
 dev/
   fake-sheets.js     in-memory stand-in for SpreadsheetApp & co, so Code.gs runs in a browser / Node
-  mock-runtime.js    fake google.script.run + example class seed (browser)
+  mock-runtime.js    fake google.script.run + example sections seed (browser)
   build-preview.js   builds dev/preview.html from the real app files
+  build-single.js    builds dist/Code.gs
   smoke.js           headless Chromium test of the main flows (Playwright)
 ```
-
-## Deploying
-
-The four files in `apps-script/` are pasted into the Apps Script project bound to a Google Sheet and deployed as a web app with *Execute as: Me* and *Who has access: Anyone within <school domain>*. Full steps in [docs/TEACHER-GUIDE.md](docs/TEACHER-GUIDE.md).
-
-After changing code, redeploy as a **new version** of the existing deployment so the link stays the same.
 
 ## Developing
 
 ```
-node dev/build-preview.js          # writes dev/preview.html
-xdg-open dev/preview.html?role=teacher   # or ?role=student, ?role=unknown, &fail=1, &latency=1500, &reset=1
-NODE_PATH=$(npm root -g) node dev/smoke.js   # needs playwright + Chromium; screenshots in dev/shots/
+node dev/build-preview.js                     # dev/preview.html — open ?role=teacher | student | student2 | unknown, &fail=1, &latency=1500, &reset=1
+NODE_PATH=$(npm root -g) node dev/smoke.js    # needs playwright + Chromium; screenshots in dev/shots/
+node dev/build-single.js                      # regenerate dist/Code.gs — commit it, it's what teachers paste
 ```
 
-The preview runs the real `Code.gs` against a fake spreadsheet kept in `localStorage`, so server logic (upserts, identity, evidence scoring) is exercised too. `&fail=1` makes every write fail, to test the outbox.
+The preview runs the real `Code.gs` against a fake spreadsheet kept in `localStorage`, so server logic (upserts, identity, evidence scoring) is exercised too.
 
 ## Data model (Sheet tabs)
 
-Configuration, edited by the teacher: `Config`, `Lessons`, `Skills`, `Focus`, `Criteria`, `Roster`, `Teachers`.
+Configuration: `Config`, `Lessons`, `Skills`, `Drills`, `Focus`, `Outcomes`, `Criteria`, `Roster` (Section, Sport, Student, Email), `Teachers`.
 
-Data, written by the app, one row per key:
+Data, one row per key, written by the app:
 
 | Tab | Key | Values |
 |---|---|---|
-| Register | Class, Student, Lesson | Participation 1–3, Note |
-| Checkpoints | Class, Student, Checkpoint, Sport, Skill | Self 1–4, Teacher 1–4 |
-| Reflections | Class, Student, Checkpoint | Focus, WentWell, NextGoal |
-| Tests | Class, Student | Baseline, Retest |
-| Grades | Class, Student, Criterion | Score 1–7, Comment |
+| Register | Section, Student, Lesson | Participation 1–3, Note |
+| SkillTests | Section, Student, Checkpoint, Skill | Score 0–10 |
+| Agility | Section, Student | Baseline, Retest |
+| Checkins | Section, Student, Checkpoint | FocusSkill, Goal, DrillStep, AgilityFocus, SelfStages (JSON), WentWell, NextGoal |
+| OutcomeRatings | Section, Student, Checkpoint, Outcome | Self 1–3, Teacher 1–3 |
+| Grades | Section, Student, Criterion | Score 1–7, Comment |
 
-Writes are upserts under a script lock; each user action is one request (a whole checkpoint, a whole register lesson, a batch of ratings). The client keeps an outbox in `localStorage`, tagged with the login that created it, until the server confirms.
+Writes are upserts under a script lock; each user action is one request. The client keeps an outbox in `localStorage`, tagged with the login that created it, until the server confirms.
 
-## Why these choices
+## Suggested grades
 
-- **Google login, not PINs** — removes the PIN reset flow and wrong-name taps; the roster's Email column is the only identity mapping.
-- **One write per action, not per tap** — last year's per-tap writes queued behind a global lock and timed out in class. Volume is now a few hundred requests per unit for 150 students, not ~15,000.
-- **Paper daily log + three digital checkpoints** — no laptops in the gym except at checkpoints; the log sheet is generated from the Lessons tab so it always matches the unit.
-- **Served from the Sheet** — a colleague copies the Sheet and deploys; there is no separate hosting, build step, or URL to paste into code.
+Computed in `computeOverview_` and shown dashed in the Overview; the teacher sets the final score. Per criterion `Evidence`: `test` = focus-skill gain band averaged with agility band (cohort-handicapped); `reflection` = check-ins, goal, self-assessment accuracy vs tests, drill progress, reflections; `participation` = register level and attendance; `skills` = mean end score; `outcomes` = mean teacher outcome rating.

@@ -158,6 +158,9 @@ table.tbl td.cell { text-align: center; }
 .cyc small { font-size: .62rem; font-weight: 400; color: var(--faint); }
 .cyc.lv1 { background: var(--lv1); color: #fff; border-color: transparent; } .cyc.lv2 { background: var(--lv2); color: #fff; border-color: transparent; } .cyc.lv3 { background: var(--lv3); color: #fff; border-color: transparent; } .cyc.lv4 { background: var(--lv4); color: #fff; border-color: transparent; }
 .cyc.lv1 small, .cyc.lv2 small, .cyc.lv3 small, .cyc.lv4 small { color: rgba(255,255,255,.85); }
+.cyc.st1 { background: var(--st1); color: #fff; border-color: transparent; } .cyc.st2 { background: var(--st2); color: #fff; border-color: transparent; } .cyc.st3 { background: var(--st3); color: #fff; border-color: transparent; }
+.cyc.st1 small, .cyc.st2 small, .cyc.st3 small { color: rgba(255,255,255,.85); }
+.chip.t.st1 { border-color: var(--st1); color: var(--st1); background: #fff; } .chip.t.st2 { border-color: var(--st2); color: var(--st2); background: #fff; } .chip.t.st3 { border-color: var(--st3); color: var(--st3); background: #fff; }
 .num-in { width: 84px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; text-align: center; }
 
 /* ── overview / grades ── */
@@ -189,7 +192,7 @@ table.tbl th.sticky { background: #fafaf8; }
 .print-only { display: none; }
 .sheet { background: #fff; border: 1px solid var(--line); margin: 0 auto 18px; padding: 14mm 12mm; width: 210mm; min-height: 280mm; font-size: 10.5pt; color: #111; }
 .sheet .s-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #111; padding-bottom: 6px; margin-bottom: 8px; }
-.sheet .s-head .u { font-size: 9pt; text-transform: uppercase; letter-spacing: .1em; color: #555; }
+.sheet .s-head .u { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; color: #555; }
 .sheet .s-head .n { font-size: 16pt; font-weight: 700; }
 .sheet .s-head .blank { display: inline-block; min-width: 70mm; border-bottom: 1px solid #111; }
 .sheet .s-cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 6mm; margin-bottom: 6px; }
@@ -204,7 +207,7 @@ table.tbl th.sticky { background: #fafaf8; }
 .sheet td.circ { white-space: nowrap; letter-spacing: .25em; text-align: center; font-weight: 600; }
 .sheet td.tall { height: 12mm; }
 .sheet tr.cp td { background: #fff7d6; }
-.sheet tr.cp td.ttl::after { content: ' ★ checkpoint: enter this block on the dashboard'; font-weight: 700; font-size: 8pt; }
+.sheet tr.cp td.ttl::after { content: ' ★ check-in on the laptop'; font-weight: 700; font-size: 8pt; }
 .sheet .s-foot { margin-top: 6px; font-size: 8.5pt; color: #444; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 @media print {
   body { background: #fff; }
@@ -213,6 +216,41 @@ table.tbl th.sticky { background: #fafaf8; }
   .sheet { border: 0; margin: 0; width: auto; min-height: 0; page-break-after: always; padding: 8mm 6mm; }
   .sheet:last-child { page-break-after: auto; }
 }
+
+/* ── stages (Understanding / Intermediate / Automatic) ── */
+:root { --st1: #E8735A; --st2: #F0A500; --st3: #1D9E75; }
+.chip.st1 { background: var(--st1); } .chip.st2 { background: var(--st2); } .chip.st3 { background: var(--st3); }
+.stage-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700; color: #fff; background: #ccc; white-space: nowrap; }
+.stage-pill.st0 { background: #e6e4df; color: var(--faint); font-weight: 500; }
+.stage-pill.st1 { background: var(--st1); } .stage-pill.st2 { background: var(--st2); } .stage-pill.st3 { background: var(--st3); }
+.self-note { display: block; font-size: .66rem; color: var(--faint); margin-top: 2px; }
+table.tbl tr.focus-row td { background: #fff8e6; }
+.seg3 { display: inline-grid; grid-template-columns: repeat(3, auto); gap: 4px; }
+.seg3 button { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: #fff; font-size: .74rem; color: var(--muted); white-space: nowrap; }
+.seg3 button.on { color: #fff; border-color: transparent; }
+.seg3 button.on.st1 { background: var(--st1); } .seg3 button.on.st2 { background: var(--st2); } .seg3 button.on.st3 { background: var(--st3); }
+.goal { font-size: 1rem; line-height: 1.45; padding: 10px 14px; background: #fff8e6; border-left: 4px solid var(--amber); border-radius: 8px; margin-bottom: 12px; }
+.steps { display: flex; flex-direction: column; gap: 6px; }
+.step { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; text-align: left; }
+.step.done { background: #e9f7f0; border-color: var(--green); }
+.step.now { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(46,134,222,.15); }
+.step-n { width: 26px; height: 26px; border-radius: 50%; background: #eee; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: .78rem; }
+.step.done .step-n { background: var(--green); color: #fff; }
+.step-name { font-weight: 600; font-size: .88rem; }
+.step-crit { font-size: .74rem; color: var(--muted); }
+.step-mark { font-size: .78rem; font-weight: 700; color: var(--green); }
+.step.now .step-mark { color: var(--blue); }
+.steps.pick .step { cursor: pointer; }
+.score-in { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
+.num-in.short { width: 56px; padding: 6px 4px; }
+.sport-tabs { margin-top: -6px; }
+.sheet .s-goal { font-size: 9.5pt; padding: 4px 0 6px; border-bottom: 1px solid #ccc; margin-bottom: 6px; }
+.sheet .s-goal .blank { display: inline-block; min-width: 40mm; border-bottom: 1px solid #111; }
+.sheet .s-box ol.two { columns: 2; }
+.sheet table.s-drills { font-size: 8.5pt; margin-top: 2px; }
+.sheet table.s-drills th, .sheet table.s-drills td { padding: 2px 3px; }
+.sheet table.s-drills td.box { width: 9mm; height: 7mm; }
+.sheet .s-cols { grid-template-columns: 1.5fr 1fr; }
 
 @media (max-width: 640px) {
   #app { padding: 12px 10px 50px; }

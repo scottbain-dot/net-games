@@ -18,7 +18,7 @@ const mock = read('dev/mock-runtime.js');
 const wrap = js => `<script>\n${js}\n</script>`;
 let html = index
   .replace("<?!= include('Styles') ?>", styles)
-  .replace("<?= classParam ?>", '')
+  .replace("<?= sectionParam ?>", '')
   .replace("<?= viewParam ?>", '')
   .replace("<?!= include('App') ?>", [wrap(fake), wrap(code), wrap(mock), app].join('\n'));
 

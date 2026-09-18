@@ -19,81 +19,106 @@ async function main() {
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept('Great effort this term.'));
   const shot = name => page.screenshot({ path: path.join(shots, name + '.png'), fullPage: true });
   const saved = async () => { await page.waitForFunction(() => { const s = document.querySelector('#savestate'); return s && /All saved/.test(s.textContent); }, null, { timeout: 8000 }); };
 
-  // ── student ──
+  // ── student (Freya, Net Games, has Early + Middle check-ins) ──
   await page.goto(preview + '?role=student&reset=1');
   await page.waitForSelector('.cp-strip');
   await shot('01-student-dashboard');
-  await page.click('[data-act="open-cp"][data-cp="Middle"]');
-  await page.waitForSelector('.seg');
-  await page.click('.seg[data-key="Badminton|Serve accuracy"] button[data-n="3"]');
-  await page.click('.focus-btn >> nth=1');
-  await page.fill('textarea[data-in="wentWell"]', 'Serve is landing deep now.');
-  await page.fill('textarea[data-in="nextGoal"]', 'Work on drop shots.');
-  await shot('02-student-checkpoint-form');
+  await page.click('[data-act="open-cp"][data-cp="End"]');
+  await page.waitForSelector('.focus-btn');
+  await page.click('.seg3 >> nth=0 >> button >> nth=1');
+  await page.click('[data-act="drill-step"][data-n="3"]');
+  await page.click('.focus-grid >> nth=1 >> .focus-btn >> nth=2');
+  await page.click('[data-act="self-outcome"][data-n="3"] >> nth=0');
+  await page.fill('textarea[data-in="wentWell"]', 'My serve is now consistent under pressure.');
+  await page.fill('textarea[data-in="nextGoal"]', 'Keep the serve and start on overhead shots.');
+  await shot('02-student-checkin-form');
   await page.click('[data-act="cp-save"]');
-  await page.waitForSelector('.cp-card.done >> nth=1');
+  await page.waitForSelector('.cp-card:nth-child(3).done');
   await saved();
-  const chipText = await page.textContent('table.tbl tbody tr:nth-child(2) td:nth-child(3)');
-  if (!/3/.test(chipText)) errors.push('Middle self-rating 3 not shown in progress table: ' + chipText);
+  const stepText = await page.textContent('.card-head.amber + .card-body .hint');
+  if (!/Step reached: 3/.test(stepText || '')) errors.push('Drill step 3 not reflected on dashboard: ' + stepText);
   await shot('03-student-after-save');
+
+  // student2 (no check-in yet) picks a focus skill at Early → goal auto-drafted
+  await page.goto(preview + '?role=student2');
+  await page.waitForSelector('.cp-strip');
+  await page.click('[data-act="open-cp"][data-cp="Early"]');
+  await page.waitForSelector('.focus-btn');
+  await page.click('.focus-grid >> nth=0 >> .focus-btn >> nth=0');
+  await page.waitForSelector('textarea[data-in="goal"]');
+  const goal = await page.inputValue('textarea[data-in="goal"]');
+  if (!/Move my .* by the Middle check-in/.test(goal)) errors.push('Goal not drafted: ' + goal);
+  await shot('04-student-early-checkin');
+  await page.click('[data-act="cp-save"]');
+  await page.waitForSelector('.cp-card:nth-child(1).done');
+  await saved();
 
   // outbox: writes fail → banner, then reload without fail → drains
   await page.goto(preview + '?role=student&fail=1');
   await page.waitForSelector('.cp-strip');
-  await page.click('[data-act="open-cp"][data-cp="End"]');
-  await page.click('.seg[data-key="Volleyball|Serve accuracy"] button[data-n="4"]');
+  await page.click('[data-act="open-cp"][data-cp="Middle"]');
+  await page.waitForSelector('.focus-btn');
+  await page.fill('textarea[data-in="wentWell"]', 'Queued while offline.');
   await page.click('[data-act="cp-save"]');
   await page.waitForSelector('#banner.show');
-  await shot('04-student-outbox-failed');
+  await shot('05-student-outbox-failed');
   await page.goto(preview + '?role=student');
   await page.waitForSelector('.cp-strip');
   await saved();
-  try { await page.waitForSelector('.cp-card:nth-child(3).done', { timeout: 8000 }); }
-  catch (e) { errors.push('Outbox did not re-send the End checkpoint after reload'); }
+  try { await page.waitForFunction(() => /Queued while offline/.test(document.body.textContent), null, { timeout: 8000 }); }
+  catch (e) { errors.push('Outbox did not re-send the Middle check-in after reload'); }
 
-  // unknown / anonymous
-  await page.goto(preview + '?role=unknown');
-  await page.waitForSelector('.notice');
-  await shot('05-unknown-user');
-  await page.goto(preview + '?role=anon');
-  await page.waitForSelector('.notice');
+  await page.goto(preview + '?role=unknown'); await page.waitForSelector('.notice'); await shot('06-unknown-user');
+  await page.goto(preview + '?role=anon'); await page.waitForSelector('.notice');
 
   // ── teacher ──
   await page.goto(preview + '?role=teacher');
   await page.waitForSelector('.reg-row');
-  await shot('06-teacher-register');
+  await page.click('[data-act="t-sport"][data-v="Net Games"]');
+  await page.waitForSelector('.reg-row');
+  await shot('07-teacher-register');
   await page.click('[data-act="reg-all"]');
   await page.click('.reg-row >> nth=0 >> .ppills button[data-n="3"]');
   await page.fill('.reg-row >> nth=0 >> input', 'led warm-up');
   await page.press('.reg-row >> nth=0 >> input', 'Tab');
   await saved();
-  await page.click('[data-act="t-tab"][data-tab="checkpoints"]');
-  await page.waitForSelector('.cyc');
-  await page.click('.cyc >> nth=0'); await page.click('.cyc >> nth=0');
-  await page.click('[data-act="tr-copy-self"]');
-  await saved();
-  await shot('07-teacher-skill-ratings');
+
   await page.click('[data-act="t-tab"][data-tab="tests"]');
-  await page.waitForSelector('.num-in');
-  await page.fill('input[data-field="retest"] >> nth=6', '16.2');
-  await page.press('input[data-field="retest"] >> nth=6', 'Tab');
+  await page.waitForSelector('input[data-in="test"]');
+  await page.click('[data-act="t-cp"][data-v="End"]');
+  await page.fill('input[data-in="test"] >> nth=0', '9');
+  await page.press('input[data-in="test"] >> nth=0', 'Tab');
+  await page.click('.cyc >> nth=0'); await page.click('.cyc >> nth=0');
   await saved();
-  await shot('08-teacher-tests');
+  const pill = await page.textContent('[data-stage-for] >> nth=0');
+  if (pill !== 'Automatic') errors.push('Stage pill did not update to Automatic: ' + pill);
+  await shot('08-teacher-skill-tests');
+
+  await page.click('[data-act="t-tab"][data-tab="agility"]');
+  await page.waitForSelector('.num-in');
+  await page.fill('input[data-field="retest"] >> nth=2', '16.2');
+  await page.press('input[data-field="retest"] >> nth=2', 'Tab');
+  await saved();
+  await shot('09-teacher-agility');
+
   await page.click('[data-act="t-tab"][data-tab="students"]');
   await page.waitForSelector('.student-card');
-  await shot('09-teacher-students');
   await page.click('.student-card >> nth=0');
   await page.waitForSelector('.cp-strip');
   await shot('10-teacher-views-student');
   await page.click('[data-act="t-back"]');
+
   await page.click('[data-act="t-tab"][data-tab="overview"]');
   await page.waitForSelector('.score-row');
   await page.click('.score-row >> nth=0 >> button[data-n="5"]');
+  await page.click('[data-act="grade-comment"] >> nth=0');
   await saved();
   await shot('11-teacher-overview');
+
   await page.click('[data-act="t-tab"][data-tab="print"]');
   await page.waitForSelector('.sheet');
   await page.locator('.sheet').first().screenshot({ path: path.join(shots, '12-print-sheet.png') });
@@ -102,17 +127,22 @@ async function main() {
   await page.pdf({ path: pdfPath, format: 'A4', printBackground: true });
   await page.emulateMedia({ media: 'screen' });
   const pdfPages = (fs.readFileSync(pdfPath, 'latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
-  const nStudents = await page.$$eval('.sheet', els => els.length);
-  if (pdfPages !== nStudents) errors.push(`Print: ${nStudents} sheets produced ${pdfPages} PDF pages (want one page each)`);
-  await shot('12-teacher-print-logs');
-  await page.click('[data-act="t-class"][data-cls="8A"]');
+  const nSheets = await page.$$eval('.sheet', els => els.length);
+  if (pdfPages !== nSheets) errors.push(`Print: ${nSheets} sheets produced ${pdfPages} PDF pages (want one page each)`);
+  await shot('13-teacher-print-logs');
+
+  // all sports view + section switch
+  await page.click('[data-act="t-sport"][data-v=""]');
+  await page.waitForSelector('.sheet');
+  await page.click('[data-act="t-section"][data-v="Section B"]');
   await page.waitForSelector('.sheet');
   await page.click('[data-act="t-tab"][data-tab="register"]');
   await page.waitForSelector('.reg-row');
 
-  // verify persistence: reload as teacher and check the register value stuck
+  // persistence: register value stuck
   await page.goto(preview + '?role=teacher');
   await page.waitForSelector('.reg-row');
+  await page.click('[data-act="t-sport"][data-v="Net Games"]');
   await page.click('[data-act="t-lesson"][data-n="5"]');
   const on = await page.$eval('.reg-row >> nth=0 >> .ppills button.on', b => b.textContent);
   if (on !== 'Excellent') errors.push('Register value did not persist: ' + on);
