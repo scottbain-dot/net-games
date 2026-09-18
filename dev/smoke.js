@@ -98,8 +98,7 @@ async function main() {
   if (pill !== 'Automatic') errors.push('Stage pill did not update to Automatic: ' + pill);
   await shot('08-teacher-skill-tests');
 
-  await page.click('[data-act="t-tab"][data-tab="agility"]');
-  await page.waitForSelector('.num-in');
+  await page.waitForSelector('input[data-field="retest"]');
   await page.fill('input[data-field="retest"] >> nth=2', '16.2');
   await page.press('input[data-field="retest"] >> nth=2', 'Tab');
   await saved();

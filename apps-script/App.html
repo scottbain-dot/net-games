@@ -71,7 +71,7 @@ const Outbox = {
 async function refreshAfterOutbox() {
   try {
     if (studentMode()) { S.me = await call('getStudent', S.me.section, S.me.student); if (S.view === 'dash') render(); toast('Earlier changes sent ✓'); }
-    else if (S.T.section) { S.T.data = await call('getSectionData', S.T.section); S.T.overview = null; if (['register', 'tests', 'agility', 'students'].indexOf(S.T.tab) !== -1) render(); toast('Earlier changes sent ✓'); }
+    else if (S.T.section) { S.T.data = await call('getSectionData', S.T.section); S.T.overview = null; if (['register', 'tests', 'students'].indexOf(S.T.tab) !== -1) render(); toast('Earlier changes sent ✓'); }
   } catch (e) {}
 }
 // Coalesces rapid teacher taps into one request per (section, lesson/checkpoint).
@@ -178,7 +178,7 @@ function renderStudentPage(me, asTeacher) {
 
   const strip = `<div class="cp-strip">${cps.map(cp => { const done = cpDone(me, cp), isNext = next && next.name === cp.name; return `<div class="cp-card ${done ? 'done' : ''} ${isNext ? 'next' : ''}">
       <div class="cp-name">${esc(cp.name)} check-in</div>
-      <div class="small muted">lesson ${cp.lesson}${lessonByNumber(cp.lesson) ? ' · ' + esc(lessonByNumber(cp.lesson).title) : ''}</div>
+      <div class="small muted">lesson ${cp.lesson}</div>
       <div class="cp-status ${done ? 'done' : 'muted'}">${done ? '✓ Done' : (isNext ? 'Up next' : 'Not yet')}</div>
       <button class="pill-btn ${isNext && !done ? 'primary' : ''} small" data-act="open-cp" data-cp="${esc(cp.name)}">${done ? 'Edit' : 'Enter now'}</button></div>`; }).join('')}</div>`;
 
@@ -206,7 +206,7 @@ function renderStudentPage(me, asTeacher) {
   const attended = me.register.filter(r => r.participation).length;
   const part = `<div class="card"><div class="card-head green">Participation <span class="right">${attended} of ${me.lessonsRun || 0} lesson${me.lessonsRun === 1 ? '' : 's'} so far</span></div><div class="card-body">
     <div class="dots">${cfg.lessons.map(l => { const r = me.register.find(x => x.lesson === l.number); const lvl = r && r.participation; const isCp = cps.some(c => c.lesson === l.number);
-      return `<div class="dot ${lvl ? 'p' + lvl : ''} ${isCp ? 'cp' : ''}" title="L${l.number} ${esc(l.title)}${lvl ? ' · ' + esc(cfg.participationLabels[lvl - 1]) : ''}${r && r.note ? ' · ' + esc(r.note) : ''}">L${l.number}</div>`; }).join('')}</div>
+      return `<div class="dot ${lvl ? 'p' + lvl : ''} ${isCp ? 'cp' : ''}" title="Lesson ${l.number}${lvl ? ' · ' + esc(cfg.participationLabels[lvl - 1]) : ''}${r && r.note ? ' · ' + esc(r.note) : ''}">L${l.number}</div>`; }).join('')}</div>
     <div class="legend">${cfg.participationLabels.map((l, i) => `<span><span class="dot p${i + 1}" style="display:inline-flex;width:18px;height:18px;border-radius:5px"></span> ${esc(l)}</span>`).join('')}<span class="faint">Recorded by your teacher each lesson.</span></div></div></div>`;
 
   let test = '';
@@ -317,7 +317,7 @@ function syncTeacherCache(me) {
 }
 
 // ═══════════════════════ teacher ═══════════════════════
-const TABS = [['register', 'Register'], ['tests', 'Skill tests'], ['agility', 'Agility test'], ['students', 'Students'], ['overview', 'Overview & grades'], ['print', 'Print daily logs']];
+const TABS = [['register', 'Register'], ['tests', 'Tests'], ['students', 'Students'], ['overview', 'Grades'], ['print', 'Print logs']];
 function groupRoster() { return S.cfg.roster.filter(r => r.section === S.T.section && (!S.T.sport || r.sport === S.T.sport)); }
 function sportsInSection() { const out = []; S.cfg.roster.filter(r => r.section === S.T.section).forEach(r => { if (r.sport && out.indexOf(r.sport) === -1) out.push(r.sport); }); return out; }
 async function loadSection(section) {
@@ -344,26 +344,36 @@ function renderTeacher() {
   if (T.tab === 'student' && S.me) return renderStudentPage(S.me, true);
   if (T.tab === 'cpform' && S.me && S.cp) return renderCpForm(S.me, S.cp, true);
   const sports = T.data ? sportsInSection() : [];
-  const head = `<div class="topbar"><div><div class="title">${esc(cfg.unitName)}</div><div class="sub">Teacher &middot; ${esc(S.id.email)}</div></div><div class="grow"></div>
-      ${S.id.alsoStudent ? `<button class="pill-btn" data-act="test-as-on" title="You are also on the Roster as ${esc(S.id.alsoStudent.name)}">Test as student &rsaquo;</button>` : ''}
-      <div class="tabs" style="margin:0">${cfg.sections.map(c => `<button class="tab ${c === T.section ? 'active' : ''}" data-act="t-section" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+  const head = `<div class="topbar">
+      <div><div class="title">${esc(cfg.unitName)}</div><div class="sub">${esc(T.section)}${T.sport ? ' · ' + esc(T.sport) : ''}</div></div>
+      <div class="grow"></div>
+      ${cfg.sections.length > 1 ? `<div class="seg-tabs">${cfg.sections.map(c => `<button class="${c === T.section ? 'on' : ''}" data-act="t-section" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
+      ${sports.length > 1 ? `<div class="seg-tabs">${sports.map(sp => `<button class="${sp === T.sport ? 'on' : ''}" data-act="t-sport" data-v="${esc(sp)}">${esc(sp)}</button>`).join('')}<button class="${!T.sport ? 'on' : ''}" data-act="t-sport" data-v="">All</button></div>` : ''}
+      ${S.id.alsoStudent ? `<button class="pill-btn small" data-act="test-as-on">Test as student &rsaquo;</button>` : ''}
       <div class="savestate" id="savestate"></div></div>
-    <div class="tabs">${TABS.map(([k, l]) => `<button class="tab ${T.tab === k ? 'active' : ''}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</div>
-    ${sports.length > 1 ? `<div class="subtabs sport-tabs"><button class="subtab ${!T.sport ? 'active' : ''}" data-act="t-sport" data-v="">All sports</button>${sports.map(sp => `<button class="subtab ${sp === T.sport ? 'active' : ''}" data-act="t-sport" data-v="${esc(sp)}">${esc(sp)}</button>`).join('')}</div>` : ''}`;
+    <div class="tabs main">${TABS.map(([k, l]) => `<button class="tab ${T.tab === k ? 'active' : ''}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</div>`;
   if (!cfg.sections.length) return head + `<div class="notice"><h2>No students yet</h2><p>Add students to the <b>Roster</b> tab of the Sheet (Section, Sport, Student, Email), then reload.</p></div>`;
-  if (!T.data) return head + `<div class="loading"><div class="spinner"></div> Loading ${esc(T.section)}…</div>`;
-  const body = { register: renderRegister, tests: renderSkillTests, agility: renderAgility, students: renderStudents, overview: renderOverview, print: renderPrint }[T.tab] || renderRegister;
+  if (!T.data) return head + `<div class="loading"><div class="spinner"></div> Loading…</div>`;
+  const body = { register: renderRegister, tests: renderSkillTests, students: renderStudents, overview: renderOverview, print: renderPrint }[T.tab] || renderRegister;
   return head + body();
 }
 
 // ── register ──
 function regEntry(student, lesson) { return S.T.data.register.find(r => r.student === student && r.lesson === lesson); }
 function renderRegister() {
-  const cfg = S.cfg, T = S.T, lesson = T.lesson, L = lessonByNumber(lesson), roster = groupRoster();
+  const cfg = S.cfg, T = S.T, lesson = T.lesson, roster = groupRoster();
   const marked = roster.filter(r => { const e = regEntry(r.student, lesson); return e && e.participation; }).length;
-  return `<div class="subtabs">${cfg.lessons.map(l => { const any = T.data.register.some(r => r.lesson === l.number && r.participation); return `<button class="subtab ${l.number === lesson ? 'active' : ''}" data-act="t-lesson" data-n="${l.number}" title="${esc(l.title)}">L${l.number}${any ? ' ✓' : ''}<span class="tiny">${esc(l.checkpoint || '')}</span></button>`; }).join('')}</div>
-    <div class="card"><div class="card-head green">L${lesson} · ${esc(L ? L.title : '')} <span class="right">${marked} of ${roster.length} marked</span></div><div class="card-body">
-      <div class="toolbar"><span class="small muted">Tap once per student. Notes are optional ("absent", "injured", "led warm-up").</span><div class="grow"></div><button class="pill-btn small" data-act="reg-all" data-n="2">Mark all unmarked as "${esc(cfg.participationLabels[1])}"</button></div>
+  const cp = CPS().find(c => c.lesson === lesson);
+  const idx = cfg.lessons.findIndex(l => l.number === lesson);
+  const prev = cfg.lessons[idx - 1], next = cfg.lessons[idx + 1];
+  return `<div class="lesson-bar">
+      <button class="pill-btn" data-act="t-lesson" data-n="${prev ? prev.number : lesson}" ${prev ? '' : 'disabled'}>&lsaquo;</button>
+      <div class="lesson-title">Lesson ${lesson}${cp ? `<span class="tag">${esc(cp.name)} check-in</span>` : ''}</div>
+      <button class="pill-btn" data-act="t-lesson" data-n="${next ? next.number : lesson}" ${next ? '' : 'disabled'}>&rsaquo;</button>
+      <div class="lesson-pills">${cfg.lessons.map(l => { const any = T.data.register.some(r => r.lesson === l.number && r.participation); return `<button class="lp ${l.number === lesson ? 'on' : ''} ${any ? 'done' : ''}" data-act="t-lesson" data-n="${l.number}">${l.number}</button>`; }).join('')}</div>
+    </div>
+    <div class="card"><div class="card-head green">Participation <span class="right">${marked} of ${roster.length}</span></div><div class="card-body">
+      <div class="toolbar"><div class="grow"></div><button class="pill-btn small" data-act="reg-all" data-n="2">Mark the rest "${esc(cfg.participationLabels[1])}"</button></div>
       ${roster.map(r => { const e = regEntry(r.student, lesson) || {}; return `<div class="reg-row"><div class="name">${avatar(r.student)} <span>${esc(r.student)}${!T.sport ? `<span class="tiny muted"> · ${esc(r.sport)}</span>` : ''}</span></div>
         <div class="ppills">${[1, 2, 3].map(v => `<button type="button" class="${e.participation === v ? 'on p' + v : ''}" data-act="reg" data-student="${esc(r.student)}" data-n="${v}">${esc(cfg.participationLabels[v - 1])}</button>`).join('')}</div>
         <input type="text" placeholder="note" maxlength="200" value="${esc(e.note || '')}" data-in="reg-note" data-student="${esc(r.student)}"></div>`; }).join('')}
@@ -381,22 +391,23 @@ function renderSkillTests() {
   const cfg = S.cfg, T = S.T, cp = CPS().find(c => c.name === T.cpName) || CPS()[0];
   if (!cp) return `<div class="empty">No checkpoints defined — add Early / Middle / End in the Checkpoint column of the Lessons tab.</div>`;
   const sports = T.sport ? [T.sport] : sportsInSection();
-  return `<div class="subtabs">${CPS().map(c => `<button class="subtab ${c.name === cp.name ? 'active' : ''}" data-act="t-cp" data-v="${esc(c.name)}">${esc(c.name)}<span class="tiny">L${c.lesson}</span></button>`).join('')}</div>
+  return `<div class="subtabs">${CPS().map(c => `<button class="subtab ${c.name === cp.name ? 'active' : ''}" data-act="t-cp" data-v="${esc(c.name)}">${esc(c.name)}<span class="tiny">lesson ${c.lesson}</span></button>`).join('')}</div>
     ${sports.map(sp => { const skills = skillsOf(sp); const roster = groupRoster().filter(r => r.sport === sp); if (!roster.length) return '';
-      return `<div class="card"><div class="card-head coral">${esc(cp.name)} · ${esc(sp)} <span class="right">score out of ${cfg.scoreMax} · saves as you type</span></div><div class="card-body">
+      return `<div class="card"><div class="card-head coral">Skill scores · ${esc(sp)} <span class="right">out of ${cfg.scoreMax}</span></div><div class="card-body">
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Student</th><th class="c">Focus</th>${skills.map(s => `<th class="c" title="${esc(s.test)} — ${esc(s.success)}">${esc(s.skill)}<br><span class="tiny" style="text-transform:none;letter-spacing:0;font-weight:400">${esc(s.test)}</span></th>`).join('')}</tr></thead><tbody>
         ${roster.map(r => { const me = { checkins: T.data.checkins.filter(x => x.student === r.student) }; const fc = currentFocus(me);
           return `<tr><td><b>${esc(r.student)}</b></td><td class="c">${fc.skill ? `<span class="tag" title="focus skill">${esc(fc.skill)}</span>` : '<span class="faint">–</span>'}</td>
           ${skills.map(s => { const v = tScore(r.student, cp.name, s.skill); const st = stageOf(v); return `<td class="cell"><div class="score-in"><input class="num-in short" type="number" min="0" max="${cfg.scoreMax}" step="1" inputmode="numeric" value="${v === null ? '' : v}" data-in="test" data-student="${esc(r.student)}" data-skill="${esc(s.skill)}"><span class="stage-pill st${st}" data-stage-for="${esc(r.student)}|${esc(s.skill)}">${st ? esc(stageName(st)) : '–'}</span></div></td>`; }).join('')}</tr>`; }).join('')}
         </tbody></table></div>
-        <div class="legend">${cfg.stageLabels.map((l, i) => `<span><span class="chip st${i + 1}">${i === 0 ? '0–' + cfg.stageBands[0] : i === 1 ? (cfg.stageBands[0] + 1) + '–' + cfg.stageBands[1] : (cfg.stageBands[1] + 1) + '–' + cfg.scoreMax}</span> ${esc(l)}</span>`).join('')}<span class="faint">Tip: at the Middle check-in you only need to retest each student's focus skill.</span></div>
+        <div class="legend">${cfg.stageLabels.map((l, i) => `<span><span class="chip st${i + 1}">${i === 0 ? '0–' + cfg.stageBands[0] : i === 1 ? (cfg.stageBands[0] + 1) + '–' + cfg.stageBands[1] : (cfg.stageBands[1] + 1) + '–' + cfg.scoreMax}</span> ${esc(l)}</span>`).join('')}</div>
       </div></div>`; }).join('')}
-    ${cfg.outcomes.length ? renderOutcomesGrid(cp) : ''}`;
+    ${cfg.outcomes.length ? renderOutcomesGrid(cp) : ''}
+    ${cfg.test.name ? renderAgility() : ''}`;
 }
 function tOutcome(student, cp, outcome) { return S.T.data.outcomes.find(x => x.student === student && x.checkpoint === cp && x.outcome === outcome) || null; }
 function renderOutcomesGrid(cp) {
   const cfg = S.cfg, roster = groupRoster();
-  return `<div class="card"><div class="card-head dark">${esc(cp.name)} · Personal skills <span class="right">tap to cycle 1 → 3 → blank · small number = student's own view</span></div><div class="card-body">
+  return `<div class="card"><div class="card-head dark">Personal skills <span class="right">tap to cycle · small = student's own view</span></div><div class="card-body">
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Student</th>${cfg.outcomes.map(o => `<th class="c" title="${esc(o.looksLike)}">${esc(o.outcome)}</th>`).join('')}</tr></thead><tbody>
     ${roster.map(r => `<tr><td><b>${esc(r.student)}</b>${!S.T.sport ? `<span class="sug-note">${esc(r.sport)}</span>` : ''}</td>${cfg.outcomes.map(o => { const x = tOutcome(r.student, cp.name, o.outcome) || {}; return `<td class="cell"><button type="button" class="cyc ${x.teacher ? 'st' + x.teacher : ''}" data-act="t-outcome" data-student="${esc(r.student)}" data-outcome="${esc(o.outcome)}">${x.teacher || '–'}<small>self ${x.self || '–'}</small></button></td>`; }).join('')}</tr>`).join('')}
     </tbody></table></div><div class="legend">${cfg.outcomeLabels.map((l, i) => `<span><span class="chip st${i + 1}">${i + 1}</span> ${esc(l)}</span>`).join('')}</div></div></div>`;
@@ -419,8 +430,8 @@ function setTestScore(student, skill, value) {
 // ── agility ──
 function renderAgility() {
   const cfg = S.cfg, T = S.T, roster = groupRoster();
-  if (!cfg.test.name) return `<div class="empty">No fitness test configured. Set <b>test_name</b> on the Config tab.</div>`;
-  return `<div class="card"><div class="card-head purple">${esc(cfg.test.name)} <span class="right">${esc(cfg.test.unit)} · ${cfg.test.lowerIsBetter ? 'lower is better' : 'higher is better'} · saves as you type</span></div><div class="card-body">
+  if (!cfg.test.name) return '';
+  return `<div class="card"><div class="card-head purple">${esc(cfg.test.name)} <span class="right">${esc(cfg.test.unit)}</span></div><div class="card-body">
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Student</th>${!T.sport ? '<th>Sport</th>' : ''}<th class="c">Baseline</th><th class="c">Re-test</th><th class="c">Change</th></tr></thead><tbody>
     ${roster.map(r => { const t = T.data.agility[r.student] || {}; const b = num(t.baseline), rt = num(t.retest); let ch = '—';
       if (b !== null && rt !== null) { const d = rt - b, better = cfg.test.lowerIsBetter ? d < 0 : d > 0; ch = `<span style="color:${Math.abs(d) < 1e-9 ? 'var(--muted)' : (better ? 'var(--green)' : 'var(--red)')}">${d > 0 ? '+' : ''}${fmt(d, 2)}</span>`; }
@@ -438,7 +449,7 @@ function setAgility(student, field, value) {
 // ── students ──
 function renderStudents() {
   const T = S.T, roster = groupRoster(), cps = CPS();
-  return `<div class="card"><div class="card-head">Students · ${esc(T.section)}${T.sport ? ' · ' + esc(T.sport) : ''} <span class="right">open a student to see their dashboard or enter a check-in for them</span></div><div class="card-body">
+  return `<div class="card"><div class="card-head">Students <span class="right">tap to open</span></div><div class="card-body">
     <div class="student-list">${roster.map(r => { const me = { checkins: T.data.checkins.filter(x => x.student === r.student) }; const done = cps.filter(c => cpDone(me, c)).length; const fc = currentFocus(me);
       return `<button class="student-card" data-act="t-open-student" data-student="${esc(r.student)}">${avatar(r.student)}<div><div class="n">${esc(r.student)}</div><div class="s">${esc(r.sport)} · ${done}/${cps.length} check-ins${fc.skill ? ' · ' + esc(fc.skill) : ''}</div></div></button>`; }).join('')}</div></div></div>`;
 }
@@ -454,17 +465,12 @@ function renderOverview() {
   const cfg = S.cfg, T = S.T;
   if (!T.overview) { if (!T._loadingOv) { T._loadingOv = true; loadOverview().finally(() => { T._loadingOv = false; }); } return `<div class="loading"><div class="spinner"></div> Building overview…</div>`; }
   const evLabel = { test: 'focus-skill gain + ' + (cfg.test.name || 'test'), reflection: 'check-ins, goal, self-assessment, drill progress', participation: 'register', skills: 'all skill scores at the end', outcomes: 'your personal-skill ratings', none: 'no automatic evidence' };
-  return `<div class="card"><div class="card-body small muted"><b>Suggested</b> scores (dashed) come from the evidence: ${cfg.criteria.map(c => `<b>${esc(c.code)}</b> ← ${esc(evLabel[c.evidence])}`).join(' · ')}. A starting point only. Tap a number to set the <b>final</b> grade; ✎ adds a comment. "Build grade report tab" in the Sheet menu exports everything.</div></div>
-    <div class="card"><div class="card-head dark">Overview · ${esc(T.section)}${T.sport ? ' · ' + esc(T.sport) : ''} <span class="right"><a href="#" data-act="ov-refresh" style="color:#fff">refresh</a></span></div><div class="card-body"><div class="tbl-wrap">
-    <table class="tbl ov"><thead><tr><th class="sticky">Student</th><th class="c">Lessons</th><th class="c">Particip.</th><th class="c">Check-ins</th><th>Focus skill</th><th class="c">Focus score</th><th class="c">Drill</th><th class="c">Self-assess</th>${cfg.outcomes.length ? '<th class="c">Personal<br><span class="tiny" style="text-transform:none;letter-spacing:0">teacher / self</span></th>' : ''}${cfg.test.name ? `<th class="c">${esc(cfg.test.name)}</th>` : ''}<th>Grades <span class="tiny" style="text-transform:none;letter-spacing:0">(dashed = suggested)</span></th></tr></thead><tbody>
+  return `<div class="card"><div class="card-head dark">Grades <span class="right">dashed = suggested from ${cfg.criteria.map(c => `${esc(c.code)}: ${esc(evLabel[c.evidence])}`).join(' · ')} &nbsp; <a href="#" data-act="ov-refresh" style="color:#fff">refresh</a></span></div><div class="card-body"><div class="tbl-wrap">
+    <table class="tbl ov"><thead><tr><th class="sticky">Student</th><th class="c">Register</th><th class="c">Check-ins</th><th>Focus skill</th>${cfg.outcomes.length ? '<th class="c">Personal<br><span class="tiny" style="text-transform:none;letter-spacing:0">teacher / self</span></th>' : ''}${cfg.test.name ? `<th class="c">${esc(cfg.test.name)}</th>` : ''}<th>Grades</th></tr></thead><tbody>
     ${T.overview.map(o => `<tr><td class="sticky"><b>${esc(o.student)}</b>${!T.sport ? `<span class="sug-note">${esc(o.sport)}</span>` : ''}</td>
-      <td class="c">${o.lessonsAttended}/${o.lessonsRun}</td>
-      <td class="c">${o.participationAvg === null ? '—' : fmt(o.participationAvg, 1) + '<span class="tiny muted">/3</span>'}</td>
-      <td class="c">${o.checkins}/${CPS().length}<span class="sug-note">${o.reflections} reflections</span></td>
-      <td>${o.focus ? esc(o.focus) + (o.chosenAtUnderstanding === false ? '<span class="sug-note">not at ' + esc(cfg.stageLabels[0]) + '</span>' : '') : '<span class="faint">—</span>'}</td>
-      <td class="c">${o.focusStart === null ? '<span class="faint">—</span>' : `${stageChip(o.focusStart)} → ${o.focusEnd !== null && o.focusGain !== null ? stageChip(o.focusEnd) : '<span class="chip none">·</span>'}${o.focusGain !== null ? `<span class="sug-note" style="color:${o.focusGain > 0 ? 'var(--green)' : o.focusGain < 0 ? 'var(--red)' : 'inherit'}">${o.focusGain > 0 ? '+' : ''}${o.focusGain}</span>` : ''}`}</td>
-      <td class="c">${o.maxSteps ? (o.drillStep || 0) + '/' + o.maxSteps : '<span class="faint">—</span>'}</td>
-      <td class="c">${o.selfAccuracy === null ? '<span class="faint">—</span>' : Math.round(o.selfAccuracy * 100) + '%'}</td>
+      <td class="c">${o.lessonsAttended}/${o.lessonsRun}<span class="sug-note">${o.participationAvg === null ? '—' : 'avg ' + fmt(o.participationAvg, 1)}</span></td>
+      <td class="c">${o.checkins}/${CPS().length}<span class="sug-note">${o.maxSteps ? 'drill ' + (o.drillStep || 0) + '/' + o.maxSteps : ''}${o.selfAccuracy !== null ? ' · self ' + Math.round(o.selfAccuracy * 100) + '%' : ''}</span></td>
+      <td>${o.focus ? `${esc(o.focus)}<span class="sug-note">${o.focusStart === null ? 'not tested' : `${fmt(o.focusStart, 0)} → ${o.focusEnd !== null && o.focusGain !== null ? fmt(o.focusEnd, 0) : '·'}${o.focusGain !== null ? ` <span style="color:${o.focusGain > 0 ? 'var(--green)' : o.focusGain < 0 ? 'var(--red)' : 'inherit'}">(${o.focusGain > 0 ? '+' : ''}${o.focusGain})</span>` : ''}`}${o.chosenAtUnderstanding === false ? ' · not at ' + esc(cfg.stageLabels[0]) : ''}</span>` : '<span class="faint">—</span>'}</td>
       ${cfg.outcomes.length ? `<td class="c">${fmt(o.outcomesTeacher, 1)} / ${fmt(o.outcomesSelf, 1)}</td>` : ''}
       ${cfg.test.name ? `<td class="c">${o.agility.change === null ? '<span class="faint">—</span>' : `<span style="color:${(cfg.test.lowerIsBetter ? o.agility.change < 0 : o.agility.change > 0) ? 'var(--green)' : 'var(--red)'}">${o.agility.change > 0 ? '+' : ''}${fmt(o.agility.change, 2)}</span><span class="sug-note">adj ${fmt(o.agility.adjusted, 2)}</span>`}</td>` : ''}
       <td class="grade-cell">${cfg.criteria.map(c => { const f = o.final[c.code] || {}, sug = o.suggested[c.code]; return `<div class="grade-line"><span class="grade-code" title="${esc(c.name)}">${esc(c.code)}</span><div class="score-row">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button type="button" class="${f.score === n ? 'on' : ''} ${sug === n && f.score !== n ? 'sug' : ''}" data-act="grade" data-student="${esc(o.student)}" data-code="${esc(c.code)}" data-n="${n}">${n}</button>`).join('')}<button type="button" title="${esc(f.comment || 'Add comment')}" data-act="grade-comment" data-student="${esc(o.student)}" data-code="${esc(c.code)}" style="${f.comment ? 'background:#eef4fb;color:var(--blue)' : ''}">✎</button></div>${f.comment ? `<span class="grade-comment" title="${esc(f.comment)}">💬</span>` : ''}</div>`; }).join('')}</td>
@@ -483,7 +489,7 @@ function renderPrint() {
   return `<div class="toolbar no-print">
       <button class="subtab ${T.printMode === 'all' ? 'active' : ''}" data-act="print-mode" data-v="all">One sheet per student (${groupRoster().length})</button>
       <button class="subtab ${T.printMode === 'blank' ? 'active' : ''}" data-act="print-mode" data-v="blank">Blank sheet</button>
-      <div class="grow"></div><span class="small muted">A4 portrait · one page each · best printed after the ${esc(CPS()[0] ? CPS()[0].name : 'Early')} check-in so each student's focus skill and drills are on it</span>
+      <div class="grow"></div><span class="small muted">Print after the ${esc(CPS()[0] ? CPS()[0].name : 'Early')} check-in so each sheet has the student's drill card</span>
       <button class="pill-btn primary" data-act="print">Print</button></div>
     ${roster.map(r => renderSheet(r)).join('')}`;
 }
@@ -503,8 +509,8 @@ function renderSheet(r) {
     <div class="s-cols">${drillsBox}
       <div class="s-box"><h4>Agility elements (write the number)</h4>${cfg.focus.length ? `<ol class="two">${cfg.focus.map(f => `<li><b>${esc(f.focus)}</b>${f.cue ? ` <span>· ${esc(f.cue)}</span>` : ''}</li>`).join('')}</ol>` : ''}
         <h4 style="margin-top:4px">Effort</h4><div style="font-size:9pt">${cfg.participationLabels.map((l, i) => `${i + 1} = ${esc(l)}`).join(' · ')}</div></div></div>
-    <table><thead><tr><th style="width:7mm">L</th><th style="width:15mm">Date</th><th>Lesson</th><th style="width:11mm">Drill step</th><th style="width:11mm">Agility #</th><th style="width:15mm">Effort</th><th>One thing I learned / will change next time</th><th style="width:10mm">Tchr</th></tr></thead><tbody>
-    ${cfg.lessons.map(l => { const isCp = cps.some(c => c.lesson === l.number); return `<tr class="${isCp ? 'cp' : ''}"><td class="tall"><b>${l.number}</b></td><td>${esc(l.date || '')}</td><td class="ttl">${esc(l.title)}</td><td></td><td></td><td class="circ">1 2 3</td><td></td><td></td></tr>`; }).join('')}
+    <table><thead><tr><th style="width:7mm">L</th><th style="width:16mm">Date</th><th style="width:38mm">What I worked on</th><th style="width:11mm">Drill step</th><th style="width:11mm">Agility #</th><th style="width:15mm">Effort</th><th>One thing I learned / will change next time</th><th style="width:10mm">Tchr</th></tr></thead><tbody>
+    ${cfg.lessons.map(l => { const isCp = cps.some(c => c.lesson === l.number); return `<tr class="${isCp ? 'cp' : ''}"><td class="tall"><b>${l.number}</b></td><td>${esc(l.date || '')}</td><td class="ttl"></td><td></td><td></td><td class="circ">1 2 3</td><td></td><td></td></tr>`; }).join('')}
     </tbody></table>
     <div class="s-foot"><span>Check-ins on the laptop: ${cps.map(c => `<b>${esc(c.name)}</b> L${c.lesson}`).join(' · ')}</span><span>${cfg.test.name ? `${esc(cfg.test.name)}: baseline ______ ${esc(cfg.test.unit)} &nbsp; re-test ______ ${esc(cfg.test.unit)}` : ''}</span></div>
   </div>`;

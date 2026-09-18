@@ -207,7 +207,6 @@ table.tbl th.sticky { background: #fafaf8; }
 .sheet td.circ { white-space: nowrap; letter-spacing: .25em; text-align: center; font-weight: 600; }
 .sheet td.tall { height: 12mm; }
 .sheet tr.cp td { background: #fff7d6; }
-.sheet tr.cp td.ttl::after { content: ' ★ check-in on the laptop'; font-weight: 700; font-size: 8pt; }
 .sheet .s-foot { margin-top: 6px; font-size: 8.5pt; color: #444; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 @media print {
   body { background: #fff; }
@@ -252,6 +251,18 @@ table.tbl tr.focus-row td { background: #fff8e6; }
 .sheet table.s-drills td.box { width: 9mm; height: 7mm; }
 .sheet .s-cols { grid-template-columns: 1.5fr 1fr; }
 
+/* ── teacher chrome ── */
+.seg-tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; background: #fff; overflow: hidden; }
+.seg-tabs button { padding: 7px 13px; border: 0; background: transparent; font-size: .8rem; color: var(--muted); }
+.seg-tabs button.on { background: var(--ink); color: #fff; }
+.tabs.main .tab { padding: 10px 18px; font-size: .9rem; }
+.lesson-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.lesson-title { font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.lesson-pills { display: inline-flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+.lp { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: #fff; font-size: .8rem; color: var(--muted); }
+.lp.done { border-color: var(--green); color: var(--green); }
+.lp.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+.sheet tr.cp td.ttl::after { content: '★ check-in on the laptop'; font-weight: 700; font-size: 8pt; }
 @media (max-width: 640px) {
   #app { padding: 12px 10px 50px; }
   .rate-row { grid-template-columns: 1fr; gap: 6px; }
