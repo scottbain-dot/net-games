@@ -6,22 +6,39 @@ Students sign in with their **school Google account**. No PINs.
 
 ---
 
-## How the unit works
+## The unit in one page
 
-Every student is in **one sport** for the whole unit. Sections of ~70 are split into sport groups, each with a teacher.
+Every student is in **one sport** for the whole unit. A section of ~70 is split into sport groups, each with a teacher. Paper is the daily record; the laptop comes out three times.
 
-| When | Who | What | Where |
-|---|---|---|---|
-| L1 | Teacher | Test the 3–4 key skills of the sport, score out of 10, plus the agility baseline | App → **Skill tests** / **Agility test** (phone or laptop) |
-| L1 or L2 · **Early check-in** | Student | See scores and stage, pick **one focus skill** (ideally one at *Understanding*), confirm a goal, place themselves on each skill and personal skill | App, on a laptop |
-| Every lesson | Student | Work the drill progression for the focus skill; **peer check** each step; **teacher signs the paper log** to move on; one line on the paper log | Paper |
-| Every lesson | Teacher | Tap participation 1–3 per student (+ optional note) | App → **Register** |
-| L5 · **Middle check-in** | Student | Reflect, update drill step, refocus | App |
-| L5 | Teacher | Quick retest of each student's **focus skill only**; rate personal skills | App → **Skill tests** |
-| L9 · **End check-in** | Student | Final reflection | App |
-| L9 | Teacher | Retest all skills, agility re-test, rate personal skills, final grades | App |
+| Lesson | Student | Teacher |
+|---|---|---|
+| **L1** | Skill tests in pairs (peer counts 10 attempts), scores written on the paper log | Watches, spot-checks. Runs the agility test and writes the times down. |
+| **Early check-in** (end of L1 or start of L2, laptops, ~8 min) | Types the 4 scores from paper, picks **one** focus skill (the lowest is recommended), edits the drafted goal, picks an agility element, answers one question | Same day, phone or laptop, ~3 min: **Check-ins → Early**. Glance at each row, fix a wrong score, type the agility baseline, tap ✓, rate engagement and personal skills. Then **Print logs**. |
+| **L2–L4** | Works the drill progression on the paper card; peer check each step; one line on the log | Circulates; **signs the paper** to let a student move to the next drill step. **No app.** |
+| **Middle check-in** (L5, laptops) | Types the focus-skill retest score, taps the drill step reached, places themselves, one reflection | **Check-ins → Middle**: check the retest, ✓, engagement, personal skills. |
+| **L6–L8** | Paper only | Paper only |
+| **End check-in** (L9) | Taps drill step, places themselves on the focus skill, personal-skill self-rating, two reflections | **Check-ins → End**: **you** type each student's final retest of their focus skill and their agility re-test, ✓, engagement, personal skills. |
+| After | — | **Grades**: *Accept all suggested*, then adjust the ones you disagree with, add comments. **PE Tracker → Build grade report tab**. |
 
-The three **stages** come from the score: 0–3 *Understanding*, 4–7 *Intermediate*, 8–10 *Automatic* (editable on the Config tab).
+The three **stages** come from the score out of 10: 0–3 *Understanding*, 4–7 *Intermediate*, 8–10 *Automatic* (editable on Config).
+
+---
+
+## Assessment: what counts, and who records it
+
+The rule: **nothing self-reported feeds the skill-improvement grade.** Students type numbers only where inflating them would hurt them or where you confirm.
+
+| Criterion | Evidence the app uses for the *suggested* score | Recorded by |
+|---|---|---|
+| **S1 Skill development** | Focus-skill gain: Early score → End retest, in points and in stage. Plus agility change, baseline → re-test, with a handicap so fast starters aren't penalised. Averaged. | Early score: student types, **teacher confirms**. End retest: **teacher**. Agility: **teacher**, both times. |
+| **S2 Skill identification** | Check-ins completed · chose a skill at *Understanding* · goal written · drill steps progressed (teacher-signed on paper) · self-placement matches the confirmed score · reflections written | Student, against teacher-confirmed data. Read the reflections in **Students** when finalising. |
+| **S4 Active participation** | Engagement rating at each check-in (1–3), plus personal-skills rating | **Teacher**, three taps per student per unit. Paper log with your initials is the backing evidence. |
+
+Suggested scores are a starting point. The final grade is always your tap.
+
+Two fairness notes built in:
+- A student who picks a skill already at *Intermediate* has less room to gain. The app flags "not at Understanding" in Grades, and stage gains carry a bonus so a genuine step up still scores well.
+- A student who under-reports an Early score to inflate their gain is caught at your ✓, and the End retest is yours anyway.
 
 ---
 
@@ -31,19 +48,16 @@ The three **stages** come from the score: 0–3 *Understanding*, 4–7 *Intermed
 2. **Extensions → Apps Script.** An editor opens with an empty `Code.gs`.
 3. Open this link, click on the page, select all (Cmd/Ctrl+A), copy:
    **https://raw.githubusercontent.com/scottbain-dot/net-games/main/dist/Code.gs**
-   Back in Apps Script, click inside `Code.gs`, select all, paste over it. Press save. (That one file contains the whole app. If the last line number is under 800, the copy was cut short — try again.)
+   Back in Apps Script, click inside `Code.gs`, select all, paste over it. Save. (That one file is the whole app. If the last line number is under 800, the copy was cut short.)
 4. Close the editor tab and **reload the Sheet**.
-5. A **PE Tracker** menu appears next to *Help*. Choose **1. Set up tabs**. Google asks you to authorise: *Continue* → your account → *Advanced* → *Go to … (unsafe)* → *Allow*. ("Unsafe" only because you wrote it yourself.) Run **1. Set up tabs** again if it did not finish.
-6. Fill in the **Roster** tab: `Section`, `Sport`, `Student`, `Email` (school Google address). One row per student, all sections on the one tab. Delete the two example rows. The sport must match a name on the **Skills** tab exactly.
-7. Check **Skills**, **Drills**, **Lessons**, **Focus**, **Outcomes** and **Criteria** — pre-filled with a draft for Net Games, Ultimate, Table Tennis and Handball (see Part C to change them).
+5. A **PE Tracker** menu appears next to *Help*. Choose **1. Set up tabs**. Authorise: *Continue* → your account → *Advanced* → *Go to … (unsafe)* → *Allow*. Run **1. Set up tabs** again if it did not finish.
+6. Fill in the **Roster** tab: `Section`, `Sport`, `Student`, `Email` (school Google address). One row per student, all sections on the one tab. The sport must match a name on the **Skills** tab exactly. Extra columns (e.g. a Teacher column for your own reference) are ignored.
+7. Check **Skills**, **Drills**, **Lessons**, **Focus**, **Outcomes**, **Criteria** — pre-filled with a draft for Net Games, Ultimate, Table Tennis and Handball (see Part C).
 8. **PE Tracker → 2. Check roster & config.** Fix anything it lists.
-9. **Deploy the web app:** Extensions → Apps Script → **Deploy → New deployment** → gear ⚙ next to *Select type* → **Web app**:
-   - Execute as: **Me**
-   - Who has access: **Anyone within [your school]** ← this is what lets the app know who each student is
-   - **Deploy**, authorise if asked.
-10. **PE Tracker → 3. Show app link.** One link for students and teachers.
+9. **Deploy:** Extensions → Apps Script → **Deploy → New deployment** → gear ⚙ → **Web app**: Execute as **Me**; Who has access **Anyone within [your school]** (this is what lets the app know who each student is) → **Deploy**.
+10. **PE Tracker → 3. Show app link.** One link for students and teachers. If it ever says "unable to open the file", copy the URL from **Deploy → Manage deployments** instead.
 
-Add colleagues on the **Teachers** tab (Email, Name, and optionally their Sport so the app opens on their group).
+Add colleagues on the **Teachers** tab (Email, Name, and optionally their Sport so the app opens on their group). A teacher who is also on the Roster gets a **Test as student** button.
 
 ---
 
@@ -52,7 +66,7 @@ Add colleagues on the **Teachers** tab (Email, Name, and optionally their Sport 
 1. **File → Make a copy** of the Sheet.
 2. In the copy: **PE Tracker → 1. Set up tabs**, authorise when asked.
 3. Fill in **Roster**; edit the unit tabs if needed.
-4. **Extensions → Apps Script → Deploy → New deployment → Web app** (settings as above). A copied Sheet does not copy the deployment, so this step cannot be skipped.
+4. **Extensions → Apps Script → Deploy → New deployment → Web app** (settings as above). A copied Sheet does not copy the deployment.
 5. **PE Tracker → 3. Show app link.**
 
 ---
@@ -61,54 +75,13 @@ Add colleagues on the **Teachers** tab (Email, Name, and optionally their Sport 
 
 Everything is a tab. Edit cells; the app updates within a couple of minutes (or immediately after **PE Tracker → Refresh app config now**).
 
-**Skills** — the key skills you test. `Sport`, `Skill`, `Test` (how the 10 attempts are run), `Success` (what counts as one). Three or four per sport. Tests should be countable by a peer and verifiable by you.
-
-**Drills** — the progression for each skill. `Sport`, `Skill`, `Step` (1, 2, 3 …), `Drill`, `Criteria` (what the peer checks before you sign off). Three or four steps per skill. This prints on each student's paper log once they have chosen a focus skill.
-
-**Lessons** — `Number`, `Title`, `Checkpoint` (write `Early`, `Middle`, `End` on the check-in lessons), `Date` (optional, prints on the log), `Sport` (optional; leave blank for all groups).
-
-**Focus** — the agility elements students pick one of each lesson on paper.
-
-**Outcomes** — the personal skills for an independent task (draft: self-management, perseverance, collaboration, independence). `Outcome`, `LooksLike`. Students place themselves at each check-in; you rate them per check-in with one tap each. Use `outcomes` as a criterion's Evidence to grade from them.
-
-**Criteria** — `Code`, `Name`, `Evidence`, `TopBand`. Evidence decides where the *suggested* score comes from:
-- `test` → focus-skill improvement (score and stage) averaged with agility improvement
-- `reflection` → check-ins done, goal written, self-assessment accuracy, drill progress, reflections
-- `participation` → the register
-- `skills` → all skill scores at the end
-- `outcomes` → your personal-skill ratings
-- `none` → you grade from observation
-
-**Config** — `unit_name`, `stage_labels`, `stage_bands`, `score_max`, `participation_labels`, `outcome_labels`, `test_name` / `test_unit` / `test_lower_is_better` / `test_top_gain`, `goal_template`, the two reflection prompts, `show_grades_to_students`.
-
----
-
-## Part D — running the unit
-
-**L1**
-- **Skill tests** → *Early* → type each score. The stage appears next to it. Saves as you type.
-- **Agility test** → baselines.
-- **Register** → tap participation.
-
-**Early check-in (end of L1 or start of L2, laptops)**
-- Students open the link. They see their scores and stages, pick a focus skill (those at *Understanding* are marked *recommended*), a goal is drafted for them to edit, they place themselves on each skill and personal skill, and save.
-- Then **Print daily logs** → *Print*. One A4 page per student with their name, focus skill, goal and drill progression with peer/teacher tick boxes. Print after the check-in so the drill card is personalised.
-
-**Every lesson**
-- Students work their drill step, get a peer check, and you initial the *Teacher ✓* box on their log to let them move on. They fill in one line.
-- You: **Register** → *Mark all unmarked as Regular* → adjust the exceptions.
-
-**Middle check-in (L5)**
-- **Skill tests** → *Middle* → retest each student's focus skill only (shown in the *Focus* column). Rate personal skills below.
-- Students do their check-in on a laptop: update drill step, reflect, refocus.
-
-**End (L9)**
-- **Skill tests** → *End* → all skills. **Agility test** → re-tests. Personal skills.
-- Students do the End check-in.
-- **Overview & grades** → evidence per student, dashed suggested scores, tap the final grade, ✎ for a comment.
-- **PE Tracker → Build grade report tab** writes it all to a `GradeReport` tab.
-
-**Absent student at a check-in?** **Students** → their name → *Enter now* to type it in for them.
+- **Skills** — `Sport`, `Skill`, `Test` (how the 10 attempts run), `Success` (what counts as one). Three or four per sport. Tests should be countable by a peer.
+- **Drills** — `Sport`, `Skill`, `Step`, `Drill`, `Criteria` (what the peer checks before you sign). Three or four steps per skill. Prints on the student's paper log once they have a focus skill.
+- **Lessons** — `Number`, `Checkpoint` (write `Early`, `Middle`, `End` on the check-in lessons), `Date` (optional, prints on the log). No titles: what happens in a lesson is up to you.
+- **Focus** — the agility elements students pick one of each lesson on paper.
+- **Outcomes** — personal skills for an independent task. `Outcome`, `LooksLike`. Students self-rate at the End check-in; you give one overall rating per check-in (expand a row for per-outcome detail).
+- **Criteria** — `Code`, `Name`, `Evidence`, `TopBand`. Evidence is one of `test`, `reflection`, `participation`, `skills`, `outcomes`, `none` (see the assessment table).
+- **Config** — `unit_name`, `stage_labels`, `stage_bands`, `score_max`, `participation_labels`, `outcome_labels`, `test_name` / `test_unit` / `test_lower_is_better` / `test_top_gain`, `goal_template`, `reflection_prompt_early`, the two later prompts, `show_grades_to_students`, and `daily_register` (TRUE adds a per-lesson register tab if you want one; off by default).
 
 ---
 
@@ -116,7 +89,8 @@ Everything is a tab. Edit cells; the app updates within a couple of minutes (or 
 
 - **"You are not on the roster yet"** — the email shown is not on the Roster tab. Add or correct it; they reload.
 - **"Please sign in with your school Google account"** — private window, personal Gmail, or the deployment's *Who has access* is *Anyone* instead of *Anyone within [school]*.
+- **"Sorry, unable to open the file at this time"** — use the URL from **Deploy → Manage deployments**; it should look like `script.google.com/a/macros/<school>/s/…/exec`.
 - **Teacher sees the student view or "Teachers only"** — add their email to **Teachers**.
 - **Changes to the unit tabs not showing** — PE Tracker → *Refresh app config now*, then reload the app.
-- **I changed the code** — after pasting a new `Code.gs` you must **Deploy → Manage deployments → ✎ → Version: New version → Deploy**. The link stays the same.
-- **Stuck on "Loading…" forever** — the paste was cut short. Re-paste from the raw link and check the last line number is over 800, then redeploy as a new version.
+- **I pasted a new Code.gs** — **Deploy → Manage deployments → ✎ → Version: New version → Deploy**, otherwise the old version stays live. The link stays the same. (The `/dev` link under *Test deployments* always runs the latest saved code.)
+- **Stuck on "Loading…" forever** — the paste was cut short. Re-paste and check the last line number, then redeploy.

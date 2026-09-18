@@ -263,6 +263,24 @@ table.tbl tr.focus-row td { background: #fff8e6; }
 .lp.done { border-color: var(--green); color: var(--green); }
 .lp.on { background: var(--blue); border-color: var(--blue); color: #fff; }
 .sheet tr.cp td.ttl::after { content: '★ check-in on the laptop'; font-weight: 700; font-size: 8pt; }
+/* ── teacher check-in ── */
+.num-in.by-student { color: var(--muted); border-style: dashed; }
+table.tbl.tc th, table.tbl.tc td { padding: 6px 6px; }
+table.tbl.tc tr.ok td { background: #f2fbf6; }
+.ok-btn { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: #fff; color: var(--faint); font-weight: 700; }
+.ok-btn.on { background: var(--green); border-color: var(--green); color: #fff; }
+.ppills.tight button { padding: 5px 8px; min-width: 28px; }
+.ppills.st button.on.st1 { background: var(--st1); } .ppills.st button.on.st2 { background: var(--st2); } .ppills.st button.on.st3 { background: var(--st3); }
+.ppills + a.tiny { display: block; margin-top: 3px; color: var(--faint); }
+tr.detail td { background: #fafaf8; }
+.detail-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: .8rem; }
+.detail-item { display: inline-flex; align-items: center; gap: 6px; }
+.cyc.sm { min-width: 38px; height: 32px; font-size: .8rem; }
+.legend .grow { flex: 1; }
+.eng-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.eng { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.eng-cp { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.stage-pill.p1 { background: var(--p1); } .stage-pill.p2 { background: var(--p2); } .stage-pill.p3 { background: var(--p3); }
 @media (max-width: 640px) {
   #app { padding: 12px 10px 50px; }
   .rate-row { grid-template-columns: 1fr; gap: 6px; }
