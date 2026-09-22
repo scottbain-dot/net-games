@@ -34,6 +34,8 @@
     const roster = FakeSheets.book.getSheetByName('Roster');
     roster.clear(); roster.getRange(1, 1, 1, 4).setValues([['Section', 'Sport', 'Student', 'Email']]);
     roster.getRange(2, 1, rosterRows.length, 4).setValues(rosterRows);
+    const back = FakeSheets.book.getSheetByName('BackPage');
+    back.getRange(2, 1, 5, 2).setValues([['Net Games', '# My court'], ['Net Games', 'Draw where you stand to serve and to receive.'], ['Net Games', ''], ['Net Games', '___'], ['Net Games', '___']]);
     const teachers = FakeSheets.book.getSheetByName('Teachers');
     teachers.getRange(teachers.getLastRow() + 1, 1, 1, 4).setValues([['coach@example.edu', 'TT Coach', 'Table Tennis', 'coach']]);
     clearConfigCache();
