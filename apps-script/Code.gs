@@ -69,21 +69,21 @@ var EVIDENCE_TYPES = ['test', 'reflection', 'participation', 'skills', 'outcomes
 // ---------- Example unit (seeded only into EMPTY tabs — edit freely) ----------
 var EXAMPLE = {
   Lessons: [
-    [1, '', ''], [2, 'Early', ''], [3, '', ''], [4, '', ''], [5, 'Middle', ''],
-    [6, '', ''], [7, '', ''], [8, '', ''], [9, 'End', '']
+    [1, '', ''], [2, '', ''], [3, 'Early', ''], [4, '', ''], [5, '', ''], [6, 'Middle', ''],
+    [7, '', ''], [8, '', ''], [9, '', ''], [10, 'End', '']
   ],
   Skills: [
-    ['Net Games',    'Serve',           '10 serves into the correct service area',                          'Legal serve, in (badminton: diagonal box · volleyball: over the net, in court · pickleball: diagonal box, past the kitchen)', ''],
-    ['Net Games',    'Rally',           '10 shots in a rally with a partner who sends you side to side: count shots that land in the back half', 'Over the net, lands in the back half of the court, and the partner can return it', ''],
-    ['Net Games',    'Attacking shot',  '10 fed balls high to the net: attack (smash · spike · drive volley) into a 1 m target zone in a back corner', 'Lands in the corner zone (stretch test)', ''],
+    ['Net Games',    'Serve',           '10 serves from the marked spot. Badminton: into the diagonal box · Volleyball: over the net, in the court', 'Legal serve that lands in; partner calls in or out', ''],
+    ['Net Games',    'Defensive return', '10 identical attacking feeds from a marked spot. Badminton: fast flat feed to mid-court · Volleyball: hard overhead throw from 3 m', 'Badminton: returned into the back half · Volleyball: forearm pass into a 2 m circle at the setter spot', ''],
+    ['Net Games',    'Attacking shot',  '10 identical high feeds from a marked spot. Badminton: high lift to the rear court · Volleyball: toss above the net. Attack into a 1 m corner zone', 'Lands in the corner zone (stretch test)', ''],
     ['Ultimate',     'Backhand throw',  '10 backhand throws to a partner 10 m away',                         'Catchable at chest height without the partner moving', ''],
     ['Ultimate',     'Forehand throw',  '10 forehand (flick) throws to a partner 10 m away',                 'Flat and catchable at chest height without the partner moving', ''],
     ['Ultimate',     'Hammer throw',    '10 hammer throws over a 2 m obstacle to a partner 15 m away',       'Clears the obstacle and arrives catchable (stretch test)', ''],
     ['Table Tennis', 'Short serve',     '10 serves: the ball must bounce twice on the far side before the end of the table', 'Legal serve, second bounce before the end line', ''],
     ['Table Tennis', 'Forehand topspin', '10 fed balls, forehand topspin (brush up the back of the ball)',   'On the table, past the middle, with visible topspin', ''],
     ['Table Tennis', 'Third-ball attack', '10 rallies: serve, partner returns anywhere, attack and win the point within two shots', 'Winner or forced error against a partner who defends (stretch test)', ''],
-    ['Handball',     'Passing',         '60 s of continuous passing with a partner 4–5 m apart: count successful passes, then convert', 'A clean catch by the partner', '≤15→1 · 16–20→2 · 21–25→3 · 26–30→4 · 31–35→5 · 36–40→6 · 41–45→7 · 46–50→8 · 51–55→9 · 56+→10'],
-    ['Handball',     'Dribbling',       '3 laps of 20 m: total time for all three, then convert',   'Ball under control the whole way; a lost ball restarts that lap', '>36 s→1 · 33–36→2 · 30–32→3 · 27–29→4 · 24–26→5 · 22–23→6 · 20–21→7 · 18–19→8 · 16–17→9 · ≤15 s→10'],
+    ['Handball',     'Passing',         '60 s continuous passing, partner 4–5 m apart: count passes, then convert', 'A clean catch by the partner', '≤15→1 · 16–20→2 · 21–25→3 · 26–30→4 · 31–35→5 · 36–40→6 · 41–45→7 · 46–50→8 · 51–55→9 · 56+→10'],
+    ['Handball',     'Dribbling',       '3 laps of 20 m: total time, then convert',   'Ball under control the whole way; a lost ball restarts that lap', '>36 s→1 · 33–36→2 · 30–32→3 · 27–29→4 · 24–26→5 · 22–23→6 · 20–21→7 · 18–19→8 · 16–17→9 · ≤15 s→10'],
     ['Handball',     'Shooting',        '10 shots at the goal corners, a mix of standing and jump shots',     'Ball enters a corner zone (stretch test)', '']
   ],
   Drills: [
@@ -91,10 +91,10 @@ var EXAMPLE = {
     ['Net Games', 'Serve', 2, 'Serve over and in', '7 of 10 legal and in the service area'],
     ['Net Games', 'Serve', 3, 'Serve to the deep half', '6 of 10 land in the back half of the service area'],
     ['Net Games', 'Serve', 4, 'Serve to a target', '5 of 10 into a hoop or marked zone'],
-    ['Net Games', 'Rally', 1, 'Solo control', '10 in a row: badminton keep-ups · volleyball self-passes · pickleball bounce-and-hit on a wall'],
-    ['Net Games', 'Rally', 2, 'Cooperative rally, half court', '8 in a row, twice'],
-    ['Net Games', 'Rally', 3, 'Deep rally', 'Partner rallies with you: 6 of 10 of your shots land in the back half'],
-    ['Net Games', 'Rally', 4, 'Rally on the move, deep', 'Partner sends you side to side and calls a side: 6 of 10 land there, in the back half'],
+    ['Net Games', 'Defensive return', 1, 'Ready shape', 'Badminton: racket up, split step as the feed is hit · Volleyball: flat platform, knees bent. Partner checks 5 in a row'],
+    ['Net Games', 'Defensive return', 2, 'Soft feeds, big zone', '7 of 10 returned over the net and in (badminton) · to the front half (volleyball)'],
+    ['Net Games', 'Defensive return', 3, 'Hard feeds, marked zone', '6 of 10 into the back half (badminton) · the 2 m setter circle (volleyball)'],
+    ['Net Games', 'Defensive return', 4, 'Hard feeds, moving', 'Feeder alternates left and right: 5 of 10 into the zone'],
     ['Net Games', 'Attacking shot', 1, 'Shadow the attack', 'Side-on, elbow high, contact in front and above: partner checks 5 times'],
     ['Net Games', 'Attacking shot', 2, 'Fed balls, in court', '7 of 10 hit down and in'],
     ['Net Games', 'Attacking shot', 3, 'Fed balls to the deep half', '6 of 10 land in the back half'],
