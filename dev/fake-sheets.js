@@ -8,6 +8,7 @@
 
   class Range {
     constructor(sheet, r, c, nr, nc) { this.sheet = sheet; this.r = r; this.c = c; this.nr = nr; this.nc = nc; }
+    clearContent() { const blank = []; for (let i = 0; i < this.nr; i++) blank.push(new Array(this.nc).fill('')); return this.setValues(blank); }
     getValues() {
       const out = [];
       for (let i = 0; i < this.nr; i++) {
@@ -71,7 +72,9 @@
   const ui = {
     _log: [],
     createMenu(name) { const m = { addItem() { return m; }, addSeparator() { return m; }, addToUi() {} }; return m; },
-    alert(msg) { ui._log.push(msg); if (g.console) console.log('[Ui.alert]', msg); },
+    ButtonSet: { OK: 'OK', OK_CANCEL: 'OK_CANCEL', YES_NO: 'YES_NO' },
+    Button: { OK: 'OK', CANCEL: 'CANCEL', YES: 'YES', NO: 'NO' },
+    alert(msg) { ui._log.push(msg); if (g.console) console.log('[Ui.alert]', msg); return 'OK'; },
     showModalDialog(html, title) { ui._log.push(title); }
   };
   const FakeSheets = {

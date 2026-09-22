@@ -97,6 +97,7 @@ Each check-in is one request, and Google runs them one after another, about half
 - **"Please sign in with your school Google account"** — private window, personal Gmail, or the deployment's *Who has access* is *Anyone* instead of *Anyone within [school]*.
 - **"Sorry, unable to open the file at this time"** — use the URL from **Deploy → Manage deployments**; it should look like `script.google.com/a/macros/<school>/s/…/exec`.
 - **Teacher sees the student view or "Teachers only"** — add their email to **Teachers**.
+- **A new Code.gs came with new draft tests or drills** — **PE Tracker → 1b. Replace unit tabs with the draft**. It overwrites Lessons, Skills, Drills, Outcomes and Criteria only; Roster, Teachers, Config and all student data stay. Skip it if you have written your own tests and drills.
 - **Changes to the unit tabs not showing** — PE Tracker → *Refresh app config now*, then reload the app.
 - **I pasted a new Code.gs** — **Deploy → Manage deployments → ✎ → Version: New version → Deploy**, otherwise the old version stays live. The link stays the same. (The `/dev` link under *Test deployments* always runs the latest saved code.)
 - **Stuck on "Loading…" forever** — the paste was cut short. Re-paste and check the last line number, then redeploy.
