@@ -627,7 +627,7 @@ function renderPrint() {
       <button class="subtab ${T.printMode === 'unit' ? 'active' : ''}" data-act="print-mode" data-v="unit">Unit plan${T.sport ? ' · ' + esc(T.sport) : ''}</button>
       <div class="grow"></div><span class="small muted">${T.printMode === 'unit' ? 'The tests, drill steps and personal skills for this sport on one page. Hand it to the teacher taking the group to check before lesson 1.' : 'Print before lesson 1. Every sheet is the same day-one sheet with the student\'s name: they write their scores, skill and goal on it.'}</span>
       <button class="pill-btn primary" data-act="print">Print</button></div>
-    ${T.printMode === 'unit' ? (T.sport ? [T.sport] : sportsInSection()).map(sp => renderUnitSheet(sp)).join('') : roster.map(r => renderSheet(r)).join('')}`;
+    ${T.printMode === 'unit' ? (T.sport ? [T.sport] : sportsInSection()).map(sp => renderUnitSheet(sp)).join('') : roster.map(r => renderSheet(r) + renderBackPage(r ? r.sport : (T.sport || ''))).join('')}`;
 }
 // ── "what do I do today" strip for teachers ──
 function todayStrip() {
@@ -709,6 +709,23 @@ const ICO = {
   star: '<svg viewBox="0 0 24 24"><path d="M12 3l2.8 5.8 6.2.9-4.5 4.4 1 6.3L12 17.5 6.5 20.4l1-6.3L3 9.7l6.2-.9z" fill="currentColor"/></svg>'
 };
 const ico = k => `<span class="ico">${ICO[k]}</span>`;
+// Optional page 2 of the student log, written by the teacher on the BackPage tab.
+function renderBackPage(sport) {
+  const bp = S.cfg.backPages || {}; const lines = (bp[sport] && bp[sport].length) ? bp[sport] : (bp[''] || []);
+  if (!lines.length) return '';
+  let html = '', list = [];
+  const flush = () => { if (list.length) { html += `<ul>${list.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`; list = []; } };
+  lines.forEach(l => {
+    if (/^- /.test(l)) { list.push(l.slice(2)); return; }
+    flush();
+    if (/^# /.test(l)) html += `<h4>${esc(l.slice(2))}</h4>`;
+    else if (/^_{3,}$/.test(l)) html += '<div class="rule"></div>';
+    else if (l === '') html += '<div class="gap"></div>';
+    else html += `<p>${esc(l)}</p>`;
+  });
+  flush();
+  return `<div class="sheet v2 back">${html}</div>`;
+}
 function renderSheet(r) {
   const cfg = S.cfg, cps = CPS(); const T = S.T;
   const sport = r ? r.sport : (T.sport || '');

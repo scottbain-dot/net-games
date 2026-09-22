@@ -187,7 +187,9 @@ async function main() {
     await page.pdf({ path: spPdf, format: 'A4', printBackground: true });
     await page.emulateMedia({ media: 'screen' });
     const spPages = (fs.readFileSync(spPdf, 'latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
-    if (spPages !== 1) errors.push(`${sp} student log prints on ${spPages} pages`);
+    const spSheets = await page.$$eval('.sheet', els => els.length);  // a back page counts as a sheet
+    if (spPages !== spSheets) errors.push(`${sp} student log: ${spSheets} sheet(s) printed on ${spPages} pages`);
+    if (sp === 'Net Games' && spSheets !== 2) errors.push('Net Games back page from the BackPage tab did not print');
     await page.click('[data-act="print-mode"][data-v="unit"]');
     await page.waitForSelector('.sheet.unit');
     await page.emulateMedia({ media: 'print' });

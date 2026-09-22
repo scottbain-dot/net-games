@@ -27,6 +27,7 @@ var CONFIG_TABS = {
   Skills:   ['Sport', 'Skill', 'Test', 'Success', 'Scale'],
   Drills:   ['Sport', 'Skill', 'Step', 'Drill', 'Criteria'],
   Outcomes: ['Outcome', 'LooksLike'],
+  BackPage: ['Sport', 'Line'],
   Criteria: ['Code', 'Name', 'Evidence', 'TopBand'],
   Roster:   ['Section', 'Sport', 'Student', 'Email'],
   Teachers: ['Email', 'Name', 'Sport', 'Role']
@@ -285,6 +286,11 @@ function buildConfig_() {
   });
 
   var outcomes = readTab_('Outcomes').map(function(r) { return { outcome: str_(r.Outcome), looksLike: str_(r.LooksLike) }; }).filter(function(o) { return o.outcome; });
+  // Optional back page for the printed student log: one row per line, in
+  // order. Sport blank = every sport. A line starting "# " is a heading,
+  // "- " a bullet, "___" a ruled writing line, blank a gap.
+  var backPages = {};
+  readTab_('BackPage').forEach(function(r) { var sp = str_(r.Sport); (backPages[sp] = backPages[sp] || []).push(str_(r.Line)); });
   var criteria = readTab_('Criteria').map(function(r) {
     var ev = lower_(r.Evidence);
     return { code: str_(r.Code), name: str_(r.Name), evidence: EVIDENCE_TYPES.indexOf(ev) === -1 ? 'none' : ev, top: str_(r.TopBand) };
@@ -312,7 +318,7 @@ function buildConfig_() {
     reflectionPrompts: [kv.reflection_prompt_1, kv.reflection_prompt_2], earlyPrompt: kv.reflection_prompt_early,
     showGradesToStudents: bool_(kv.show_grades_to_students), dailyRegister: bool_(kv.daily_register),
     lessons: lessons, sports: sports, skills: skills, checkpoints: checkpoints,
-    outcomes: outcomes, criteria: criteria, sections: sections, roster: roster, teachers: teachers
+    outcomes: outcomes, criteria: criteria, sections: sections, roster: roster, teachers: teachers, backPages: backPages
   };
 }
 function stageOf_(cfg, score) {
