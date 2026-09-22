@@ -188,6 +188,13 @@ async function main() {
     await page.emulateMedia({ media: 'screen' });
     const spPages = (fs.readFileSync(spPdf, 'latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
     if (spPages !== 1) errors.push(`${sp} student log prints on ${spPages} pages`);
+    await page.click('[data-act="print-mode"][data-v="unit"]');
+    await page.waitForSelector('.sheet.unit');
+    await page.emulateMedia({ media: 'print' });
+    await page.pdf({ path: spPdf, format: 'A4', printBackground: true });
+    await page.emulateMedia({ media: 'screen' });
+    const upPages = (fs.readFileSync(spPdf, 'latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+    if (upPages !== 1) errors.push(`${sp} unit plan prints on ${upPages} pages`);
   }
   await page.click('[data-act="t-sport"][data-v="Net Games"]');
   await page.click('[data-act="print-mode"][data-v="all"]');
