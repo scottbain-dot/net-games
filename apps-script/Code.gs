@@ -29,7 +29,7 @@ var CONFIG_TABS = {
   Outcomes: ['Outcome', 'LooksLike'],
   Criteria: ['Code', 'Name', 'Evidence', 'TopBand'],
   Roster:   ['Section', 'Sport', 'Student', 'Email'],
-  Teachers: ['Email', 'Name', 'Sport']
+  Teachers: ['Email', 'Name', 'Sport', 'Role']
 };
 var DATA_TABS = {
   Register:   ['Section', 'Sport', 'Student', 'Lesson', 'Participation', 'Note', 'Updated'],
@@ -288,7 +288,8 @@ function buildConfig_() {
     .filter(function(r) { return r.section && r.student; });
   var sections = [];
   roster.forEach(function(r) { if (sections.indexOf(r.section) === -1) sections.push(r.section); });
-  var teachers = readTab_('Teachers').map(function(r) { return { email: lower_(r.Email), sport: str_(r.Sport) }; }).filter(function(t) { return t.email; });
+  // Role: blank = teacher (everything). 'coach' = an outside instructor: their sport only, no Grades tab, plain wording.
+  var teachers = readTab_('Teachers').map(function(r) { return { email: lower_(r.Email), sport: str_(r.Sport), role: lower_(str_(r.Role)) }; }).filter(function(t) { return t.email; });
 
   var stageLabels = splitList_(kv.stage_labels); while (stageLabels.length < 3) stageLabels.push('Stage ' + (stageLabels.length + 1));
   var bands = splitList_(kv.stage_bands).map(num_); if (bands.length < 2 || bands[0] === null || bands[1] === null) bands = [3, 7];
@@ -323,7 +324,7 @@ function identity_(cfg) {
   var t = cfg.teachers.filter(function(x) { return x.email === email; })[0];
   var me = email ? cfg.roster.filter(function(r) { return r.email === email; })[0] : null;
   if (email && (email === owner || t)) {
-    out.role = 'teacher'; out.sport = t ? t.sport : '';
+    out.role = 'teacher'; out.sport = t ? t.sport : ''; out.coach = !!(t && t.role === 'coach');
     // A teacher who is also on the Roster can "Test as student" in the app.
     if (me) out.alsoStudent = { name: me.student, section: me.section, sport: me.sport };
     return out;
@@ -711,7 +712,7 @@ function setupTabs() {
     t.getRange(2, 1, rows.length, hdrs.length).setValues(rows);
   });
   var teachers = tab_('Teachers');
-  if (teachers.getLastRow() < 2) teachers.getRange(2, 1, 1, 3).setValues([[Session.getEffectiveUser().getEmail(), 'Sheet owner (automatic)', '']]);
+  if (teachers.getLastRow() < 2) teachers.getRange(2, 1, 1, 4).setValues([[Session.getEffectiveUser().getEmail(), 'Sheet owner (automatic)', '', '']]);
   var roster = tab_('Roster');
   if (roster.getLastRow() < 2) roster.getRange(2, 1, 2, 4).setValues([['Section A', 'Net Games', 'Example Student', 'example@school.edu'], ['Section A', 'Handball', 'Another Student', 'another@school.edu']]);
 
@@ -762,6 +763,7 @@ function checkConfig() {
     else if (seen[r.email]) problems.push('Duplicate email ' + r.email);
     seen[r.email] = true;
   });
+  cfg.teachers.forEach(function(t) { if (t.role === 'coach' && !t.sport) problems.push('Coach ' + t.email + ' has no Sport on the Teachers tab.'); if (t.sport && !cfg.skills[t.sport]) problems.push('Teacher ' + t.email + ' has sport "' + t.sport + '" which is not on the Skills tab.'); });
   if (!cfg.criteria.length) problems.push('Criteria tab is empty.');
   cfg.criteria.forEach(function(c) { if (c.evidence === 'none') problems.push('Criterion ' + c.code + ' has no Evidence type (test / reflection / participation / skills / outcomes).'); });
   var msg = problems.length ? problems.join('\n') : 'Looks good: ' + cfg.sections.length + ' sections, ' + cfg.roster.length + ' students, ' + cfg.sports.length + ' sports, ' + cfg.checkpoints.length + ' checkpoints.';

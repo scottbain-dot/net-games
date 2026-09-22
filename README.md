@@ -16,6 +16,7 @@ dist/
   Code.gs      GENERATED single-file build of the four above (what teachers paste) — node dev/build-single.js
 docs/
   TEACHER-GUIDE.md
+  COACH-CARD.md      one page for a teacher or outside coach who only runs a group
 dev/
   fake-sheets.js     in-memory stand-in for SpreadsheetApp & co, so Code.gs runs in a browser / Node
   mock-runtime.js    fake google.script.run + example sections seed (browser)
@@ -27,7 +28,7 @@ dev/
 ## Developing
 
 ```
-node dev/build-preview.js                     # dev/preview.html — open ?role=teacher | student | student2 | unknown, &fail=1, &latency=1500, &reset=1
+node dev/build-preview.js                     # dev/preview.html — open ?role=teacher | student | student2 | unknown, &fail=1, &latency=1500, &reset=1 (also ?role=coach)
 NODE_PATH=$(npm root -g) node dev/smoke.js    # needs playwright + Chromium; screenshots in dev/shots/
 node dev/build-single.js                      # regenerate dist/Code.gs — commit it, it's what teachers paste
 ```
@@ -36,7 +37,7 @@ The preview runs the real `Code.gs` against a fake spreadsheet kept in `localSto
 
 ## Data model (Sheet tabs)
 
-Configuration: `Config`, `Lessons`, `Skills`, `Drills`, `Outcomes`, `Criteria`, `Roster` (Section, Sport, Student, Email), `Teachers`.
+Configuration: `Config`, `Lessons`, `Skills`, `Drills`, `Outcomes`, `Criteria`, `Roster` (Section, Sport, Student, Email), `Teachers` (Email, Name, Sport, Role: blank or `coach` for a sport-locked view without Grades).
 
 Data, one row per key, written by the app:
 
