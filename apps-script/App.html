@@ -48,7 +48,8 @@ const OUTBOX_KEY = 'mfs_outbox_v1';
 const Outbox = {
   items: [], draining: false, failed: false, lastError: '', waiters: {},
   load() { try { this.items = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]'); } catch (e) { this.items = []; } },
-  persist() { try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(this.items)); } catch (e) {} },
+  volatile: false,
+  persist() { try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(this.items)); this.volatile = false; } catch (e) { this.volatile = true; } },
   mine() { return this.items.filter(i => i.owner === S.id.email); },
   add(fn, payload, label) {
     const id = String(Date.now()) + Math.random().toString(36).slice(2, 7);
@@ -64,13 +65,15 @@ const Outbox = {
     let item, sentOrphan = false;
     while ((item = this.mine()[0])) {
       try {
-        await call(item.fn, item.payload);
+        const res = await call(item.fn, item.payload);
+        if (!res || res.ok !== true) throw new Error('No confirmation from the server');
         this.items = this.items.filter(i => i.id !== item.id); this.persist(); this.failed = false;
         if (this.waiters[item.id]) { this.waiters[item.id].res(); delete this.waiters[item.id]; } else sentOrphan = true;
       } catch (e) {
         this.lastError = e.message;
         if (PERMANENT.test(e.message)) {
           this.items = this.items.filter(i => i.id !== item.id); this.persist();
+          banner('err', `<b>Not saved:</b> ${esc(item.label || 'a change')} — ${esc(e.message)}. Open it and save again, or tell your teacher.`);
           if (this.waiters[item.id]) { this.waiters[item.id].rej(e); delete this.waiters[item.id]; }
           continue;
         }
@@ -94,6 +97,9 @@ async function refreshAfterOutbox() {
 }
 // Coalesces rapid teacher taps into one request per (section, checkpoint/lesson).
 // `scores` and `agility` sub-objects are merged rather than replaced.
+// Taps are also written to localStorage straight away, so a phone that kills
+// the tab before the 900 ms flush still sends them on the next open.
+const PENDING_KEY = 'mfs_pending_v1';
 const Pending = {
   map: {}, timer: null,
   put(key, fn, base, entryKey, entry) {
@@ -103,21 +109,30 @@ const Pending = {
       if (k === 'scores' && entry[k] && typeof entry[k] === 'object') cur[k] = Object.assign(cur[k] || {}, entry[k]);
       else cur[k] = entry[k];
     });
+    this.persist();
     clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 900); updateSaveState();
+  },
+  persist() { try { localStorage.setItem(PENDING_KEY, JSON.stringify({ owner: S.id.email, map: this.map })); } catch (e) {} },
+  restore() {
+    try { const st = JSON.parse(localStorage.getItem(PENDING_KEY) || 'null'); if (st && st.owner === S.id.email && st.map && Object.keys(st.map).length) { this.map = st.map; this.flush(); } } catch (e) {}
   },
   count() { return Object.keys(this.map).length; },
   flush() {
     clearTimeout(this.timer);
     const m = this.map; this.map = {};
+    try { localStorage.removeItem(PENDING_KEY); } catch (e) {}
     Object.keys(m).forEach(key => { const p = m[key]; Outbox.add(p.fn, Object.assign({}, p.base, { entries: Object.values(p.entries) }), key).catch(() => {}); });
   }
 };
 window.addEventListener('beforeunload', () => Pending.flush());
+window.addEventListener('pagehide', () => Pending.flush());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') Pending.flush(); });
+window.addEventListener('online', () => Outbox.retry());
 function updateSaveState() {
   const el = $('#savestate'); if (!el) return;
   const n = Outbox.mine().length + Pending.count();
   if (Outbox.failed) { el.className = 'savestate failed'; el.innerHTML = `${n} change${n === 1 ? '' : 's'} not saved · <a href="#" data-act="retry">retry</a>`; }
-  else if (n > 0) { el.className = 'savestate pending'; el.textContent = 'Saving…'; }
+  else if (n > 0) { el.className = 'savestate pending'; el.textContent = Outbox.volatile ? 'Saving… keep this page open' : 'Saving…'; }
   else { el.className = 'savestate'; el.textContent = 'All saved ✓'; }
   if (Outbox.failed) banner('warn', `Busy server — your work is saved on this device and will be sent automatically. You can carry on. <span class="tiny">${esc(Outbox.lastError)}</span><button data-act="retry">Retry now</button>`);
   else banner();
@@ -171,7 +186,7 @@ async function boot() {
       if (URL_VIEW) S.T.tab = URL_VIEW;
       S.T.sport = S.id.sport && S.cfg.sports.indexOf(S.id.sport) !== -1 ? S.id.sport : '';
     }
-    render(); Outbox.drain();
+    render(); Pending.restore(); Outbox.drain();
     if (S.id.role === 'teacher' && S.T.section) loadSection(S.T.section);
   } catch (e) {
     $('#app').innerHTML = `<div class="notice"><h2>Could not load</h2><p>${esc(e.message)}</p><p><button class="pill-btn primary" data-act="reload">Try again</button></p></div>`;
@@ -715,7 +730,8 @@ function renderSheet(r) {
       <div class="s-box"><h4>${ico('target')}Skill tests <small>out of ${cfg.scoreMax} · a partner counts 10 tries</small></h4><table class="s-drills s-tests"><thead><tr><th style="width:26%">Skill</th><th>Test</th><th style="width:16%">Score</th></tr></thead><tbody>${skills.map(s => `<tr><td><b>${esc(s.skill)}</b></td><td>${esc(s.test)}</td><td class="box score">/${cfg.scoreMax}</td></tr>`).join('')}</tbody></table></div>
       <div class="s-box"><h4>${ico('people')}Personal skills <small>what your teacher looks for</small></h4>${oc.map(o => `<div class="ps">${n(esc(o.outcome[0]), 'lt')}<div><b>${esc(o.outcome)}</b><span>${esc(o.looksLike)}</span></div></div>`).join('')}</div>
     </div>
-    <div class="s-box"><h4>${ico('steps')}Drill steps <small>tick the skill you chose · work only that block</small></h4><table class="s-drills"><thead><tr><th style="width:7%">Step</th><th style="width:27%">Drill</th><th style="width:44%">You've got it when…</th><th style="width:11%">Partner ✓</th><th style="width:11%">Teacher ✓</th></tr></thead><tbody>${skills.map(sk => `<tr class="skhead"><td colspan="5"><span class="cb"></span><b>${esc(sk.skill)}</b></td></tr>` + sk.drills.map(d => `<tr><td>${n(d.step)}</td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td><td class="box"></td><td class="box"></td></tr>`).join('')).join('')}<tr class="extra"><td>${n('+')}</td><td>Extension: ____________</td><td>All steps signed? Agree a new skill and drill with your teacher.</td><td class="box"></td><td class="box"></td></tr></tbody></table></div>
+    <div class="s-box"><h4>${ico('steps')}Drill steps <small>tick the skill you chose · work only that block</small></h4><table class="s-drills"><thead><tr><th style="width:7%">Step</th><th style="width:27%">Drill</th><th style="width:44%">You've got it when…</th><th style="width:11%">Partner ✓</th><th style="width:11%">Teacher ✓</th></tr></thead><tbody>${skills.map(sk => `<tr class="skhead"><td colspan="5"><span class="cb"></span><b>${esc(sk.skill)}</b></td></tr>` + sk.drills.map(d => `<tr><td>${n(d.step)}</td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td><td class="box"></td><td class="box"></td></tr>`).join('')).join('')}</tbody></table></div>
+    <div class="s-box ext-box"><h4>${ico('star')}Extension <small>every step signed? Agree a new skill and its steps with your teacher</small><span class="ext-skill">New skill ${blank(50)}</span></h4><table class="s-drills"><thead><tr><th style="width:7%">Step</th><th style="width:27%">Drill</th><th style="width:44%">You've got it when…</th><th style="width:11%">Partner ✓</th><th style="width:11%">Teacher ✓</th></tr></thead><tbody>${[1, 2, 3].map(i => `<tr><td>${n(i)}</td><td></td><td></td><td class="box"></td><td class="box"></td></tr>`).join('')}</tbody></table></div>
   </div>`;
 }
 

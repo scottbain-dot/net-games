@@ -85,6 +85,8 @@ Everything is a tab. Edit cells; the app updates within a couple of minutes (or 
 
 ## When a whole class saves at once
 
+Every write is kept on the device until the server confirms it. Teacher taps are written to the browser's storage the moment they are made and sent within a second; a phone that closes the tab first sends them on the next open. A reply from the server that is not a clear "saved" is treated as not saved and retried. Anything the server refuses outright (a student no longer on the roster, an unknown checkpoint) shows a red banner naming the change so it can be redone rather than silently vanishing.
+
 Each check-in is one request, and Google runs them one after another, about half a second each. Seventy students saving in the same minute clears in about a minute. If the server is busy, a student sees "Saved — sending in the background", goes back to their dashboard, and the app keeps retrying quietly; nothing is lost even if they close the laptop, because the entry is kept on that device until it gets through. Ask students not to reload while the yellow banner is showing.
 
 ---
