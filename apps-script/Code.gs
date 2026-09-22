@@ -69,7 +69,7 @@ var EVIDENCE_TYPES = ['test', 'reflection', 'participation', 'skills', 'outcomes
 // ---------- Example unit (seeded only into EMPTY tabs — edit freely) ----------
 var EXAMPLE = {
   Lessons: [
-    [1, 'Early', ''], [2, '', ''], [3, '', ''], [4, '', ''], [5, 'Middle', ''],
+    [1, '', ''], [2, 'Early', ''], [3, '', ''], [4, '', ''], [5, 'Middle', ''],
     [6, '', ''], [7, '', ''], [8, '', ''], [9, 'End', '']
   ],
   Skills: [
