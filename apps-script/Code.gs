@@ -96,7 +96,7 @@ var EXAMPLE = {
     ['Net Games', 'Rally control', 2, 'Stage 2 · further, side to side', '4 of 5 (see the back)'],
     ['Net Games', 'Rally control', 3, 'Stage 3 · across the net, to a target', '3 of 5 (see the back)'],
     ['Net Games', 'Rally control', 4, 'Stage 4 · your design', 'You can explain the added difficulty'],
-    ['Net Games', 'Attacking shot', 1, 'Stage 1 · the swing, standing', '4 of 5 hit down, over and in (see the back)'],
+    ['Net Games', 'Attacking shot', 1, 'Stage 1 · the swing (wall or low net)', '4 of 5 hit down (see the back)'],
     ['Net Games', 'Attacking shot', 2, 'Stage 2 · move in and hit a feed', '4 of 5 down, over and in (see the back)'],
     ['Net Games', 'Attacking shot', 3, 'Stage 3 · called zone from the centre cone (the test)', '3 of 5 (see the back)'],
     ['Net Games', 'Attacking shot', 4, 'Stage 4 · your design', 'You can explain why your version is harder'],
@@ -155,7 +155,7 @@ var EXAMPLE = {
     ['Net Games', '## Attacking shot · spike (volleyball) and smash (badminton)'],
     ['Net Games', 'Two cone zones, LEFT and RIGHT, at the back of the opponent\'s court, and a centre cone on your side. Stage 3 is the test. Recovery is a rule, not a score: the feeder waits until you touch the centre cone before the next feed, so your partner only counts whether the shot landed in the zone. If a stage stops working, go back one.'],
     ['Net Games', '| Stage | Volleyball | Move on when… | Badminton | Move on when… |'],
-    ['Net Games', '| 1 · the swing | Stand at the net. Toss to yourself, reach high and hit the top of the ball down over the net. No approach, no jump. (Or hit down against a wall from 3 m.) | 4/5 hit down, over and in | Throw a shuttle overhead first (5 throws). Then a hand-fed high shuttle from close: reach high, hit it down over the net. No movement. | 4/5 hit down, over and in |'],
+    ['Net Games', '| 1 · the swing | No net. Stand 3 m from a wall, toss to yourself, reach high and hit the top of the ball so it bounces on the floor before the wall and comes back to you. Or use a net lowered to head height and hit over it into the court. No approach, no jump. | 4/5 floor-then-wall (or over the low net and in) | Throw a shuttle overhead first (5 throws). Then a hand-fed high shuttle from close: reach high, hit it down over the net. No movement. | 4/5 hit down, over and in |'],
     ['Net Games', '| 2 · move in and hit | Step-close approach with no ball (5 reps, partner checks the rhythm). Then approach, jump and spike a partner\'s toss to the same spot, anywhere in. Standing overhead attack allowed. | 4/5 down, over and in | Racket-fed lift from across the net to the same spot. Step under it (chassé), smash down over the net, anywhere in. | 4/5 down, over and in |'],
     ['Net Games', '| 3 · on the move (the test) | Start at the centre cone. Tosses to alternating sides; partner calls LEFT or RIGHT before each. Touch the cone before the next toss. | 3/5 in the called zone | Start at the centre cone. Lifts to alternating sides; partner calls LEFT or RIGHT before each. Touch the cone before the next lift. | 3/5 in the called zone |'],
     ['Net Games', '| 4 · your design | Faster toss, a blocker at the net or a third zone. At least 5 reps. Record what changed, attempts, successes. | You can explain why it is harder | Faster lift, a defender on the far side or a third zone. At least 5 reps. Record what changed, attempts, successes. | You can explain why it is harder |']
