@@ -649,19 +649,33 @@ function todayStrip() {
 function renderUnitSheet(sport) {
   const n = (v, cls) => `<span class="num ${cls || ''}">${v}</span>`;
   const cfg = S.cfg, cps = CPS(); const skills = skillsOf(sport); const lastTwo = cfg.lessons.slice(-2).map(l => l.number);
-  const lessonLine = cfg.lessons.map(l => { const cp = cps.find(c => c.lesson === l.number); return `<td class="${cp ? 'cp' : ''}"><b>${l.number}</b><br>${cp ? esc(cp.name) + '<br>laptop' : (lastTwo.indexOf(l.number) !== -1 ? 'game play' : l === cfg.lessons[0] ? 'tests' : 'drills')}</td>`; }).join('');
+  const first = cfg.lessons[0];
+  const ps = cfg.outcomes.map(o => esc(o.outcome)).join(', ');
+  const psTap = `one personal-skills tap (${cfg.outcomeLabels.map(esc).join(' / ')})`;
+  // One row per kind of lesson, in order: what students do, what the teacher does.
+  const rows = []; const done = {};
+  cfg.lessons.forEach(l => {
+    const cp = cps.find(c => c.lesson === l.number); const game = lastTwo.indexOf(l.number) !== -1;
+    if (cp) { const m = cpMode(cp);
+      if (m === 'early') rows.push([`L${l.number}`, `${esc(cp.name)} check-in`, 'laptop', `Type the ${skills.length} scores from the paper. Choose <b>one</b> skill (the lowest is suggested). Edit the drafted goal. One question. Write the skill and goal on the paper and tick that block. ~8 min.`, `Same lesson, Check-ins → ${esc(cp.name)}: glance at each row, fix a wrong score, tap ✓, ${psTap}. ~3 min per group.`]);
+      else if (m === 'end') rows.push([`L${l.number}`, `${esc(cp.name)} check-in`, 'laptop', `Retest the chosen skill (partner counts). Tap the step reached, place yourself, self-rate personal skills, two reflections.`, `Check-ins → ${esc(cp.name)}: type each student's final retest score, tap ✓, ${psTap}. The game-play level is already there.`]);
+      else rows.push([`L${l.number}`, `${esc(cp.name)} check-in`, 'laptop', `Retest the chosen skill (partner counts), type the score. Tap the step reached, place yourself, one reflection. All steps signed? Choose an extension skill.`, `Check-ins → ${esc(cp.name)}: check the score, tap ✓, ${psTap}.`]);
+      if (game && !done.game) { done.game = true; rows.push([`L${lastTwo.join('–')}`, 'Game play', '', `Play. Use the chosen skill in games.`, `Check-ins → Game play, on your phone while you watch: tap the level you see for each student (${cfg.gameLevels.map(esc).join(' · ')}). This is the skill grade.`]); }
+    } else if (l === first) rows.push([`L${l.number}`, 'Intro and tests', '', `In pairs: all ${skills.length} tests, a partner counts 10 tries, scores written on the paper log.`, `Hand out the logs. Explain the four steps. Spot-check a few counts. No app.`]);
+    else if (game) { if (!done.game) { done.game = true; rows.push([`L${lastTwo.join('–')}`, 'Game play', '', `Play. Use the chosen skill in games.`, `Check-ins → Game play, on your phone while you watch: tap the level you see for each student (${cfg.gameLevels.map(esc).join(' · ')}). This is the skill grade.`]); } }
+    else if (!done.drills) { done.drills = true; const drillLessons = cfg.lessons.filter(x => !cps.some(c => c.lesson === x.number) && lastTwo.indexOf(x.number) === -1 && x !== first).map(x => x.number); rows.push([`L${drillLessons.join(', ')}`, 'Drills', '', `Work the drill steps of the chosen skill. A partner initials when the "done when" line is met.`, `Circulate. Sign the step on the paper so they move on. No app.`]); }
+  });
   return `<div class="sheet unit">
     <div class="s-head"><div><div class="u">${esc(cfg.unitName)} · Unit plan</div><div class="n">${esc(sport)}</div></div><div style="text-align:right;font-size:8.5pt;color:#555">Check this before lesson 1.<br>Cross out, rewrite, hand it back.</div></div>
-    <div class="s-how"><span>${n(1)}${ico('target')}<div>Test all ${skills.length} skills<small>lesson ${cfg.lessons[0].number}</small></div></span><span>${n(2)}${ico('star')}<div>Each student chooses one skill<small>lesson ${cps[0] ? cps[0].lesson : 2} · laptop</small></div></span><span>${n(3)}${ico('steps')}<div>Drills<small>partner initials · you sign</small></div></span><span>${n(4)}${ico('ball')}<div>Game play<small>lessons ${lastTwo.join('–')} · you tap a level</small></div></span></div>
-    <div class="s-box"><h4>The ${cfg.lessons.length} lessons</h4><table class="s-plan"><tr>${lessonLine}</tr></table></div>
+    <div class="s-how"><span>${n(1)}${ico('target')}<div>Test all ${skills.length} skills<small>lesson ${first.number}</small></div></span><span>${n(2)}${ico('star')}<div>Each student chooses one skill<small>lesson ${cps[0] ? cps[0].lesson : 2} · laptop</small></div></span><span>${n(3)}${ico('steps')}<div>Drills<small>partner initials · you sign</small></div></span><span>${n(4)}${ico('ball')}<div>Game play<small>lessons ${lastTwo.join('–')} · you tap a level</small></div></span></div>
+    <div class="s-box"><h4>Lesson by lesson</h4>
+      <table class="s-drills s-lbl"><thead><tr><th style="width:9%">When</th><th style="width:14%">What</th><th style="width:38%">Students</th><th>You</th></tr></thead><tbody>${rows.map(r => `<tr class="${r[2] ? 'lap' : ''}"><td><b>${r[0]}</b></td><td><b>${r[1]}</b>${r[2] ? '<br><span class="lapt">' + ico('laptop') + r[2] + '</span>' : ''}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join('')}</tbody></table>
+      <div style="font-size:8pt;color:#555;margin-top:3px">Personal skills you rate at each check-in: ${ps}. Three taps per student for the whole unit; students see these on their log as "what your teacher looks for".</div></div>
     <div class="s-box" style="margin-top:3mm"><h4>Three skill tests · score out of ${cfg.scoreMax} · a partner counts ten attempts</h4>
       <table class="s-drills"><thead><tr><th style="width:18%">Skill</th><th style="width:44%">Test</th><th>Counts as one</th></tr></thead><tbody>${skills.map(s => `<tr><td><b>${esc(s.skill)}</b></td><td>${esc(s.test)}</td><td>${esc(s.success)}</td></tr>`).join('')}</tbody></table>
       <div style="font-size:8pt;color:#555;margin-top:3px">0–${cfg.stageBands[0]} ${esc(cfg.stageLabels[0])} · ${cfg.stageBands[0] + 1}–${cfg.stageBands[1]} ${esc(cfg.stageLabels[1])} · ${cfg.stageBands[1] + 1}–${cfg.scoreMax} ${esc(cfg.stageLabels[2])}. Students pick their lowest.</div></div>
     <div class="s-box" style="margin-top:3mm"><h4>Drill steps · partner initials, you sign, next step</h4>
       <table class="s-drills"><thead><tr><th style="width:18%">Skill</th><th style="width:6%">Step</th><th style="width:32%">Drill</th><th>Done when…</th></tr></thead><tbody>${skills.map(sk => sk.drills.map((d, i) => `<tr class="${i === 0 ? 'skfirst' : ''}"><td>${i === 0 ? '<b>' + esc(sk.skill) + '</b>' : ''}</td><td><b>${d.step}</b></td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td></tr>`).join('')).join('')}</tbody></table></div>
-    <div class="s-box" style="margin-top:3mm"><h4>Personal skills · what you look for · you rate each student once at each of the ${cps.length} check-ins</h4>
-      <table class="s-drills"><tbody>${cfg.outcomes.map(o => `<tr><td style="width:18%"><b>${esc(o.outcome)}</b></td><td>${esc(o.looksLike)}</td></tr>`).join('')}</tbody></table>
-      <div style="font-size:8pt;color:#555;margin-top:3px">Rating: ${cfg.outcomeLabels.map(esc).join(' · ')}. Three taps per student for the whole unit; nothing on the other lessons.</div></div>
     <div class="s-foot"><span>App: ${cps.map(c => esc(c.name) + ' check-in (L' + c.lesson + ')').join(', ')}, game play (L${lastTwo.join('–')}).</span><span>Everything else is paper and a pen.</span></div>
   </div>`;
 }
