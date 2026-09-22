@@ -23,4 +23,19 @@ vm.runInContext(`
   if (skills.some(r => r[1] === 'OLD NAME') || drills.some(r => r[3] === 'hand-written')) throw new Error('old rows survived');
   if (tt.join() !== 'Short serve,Forehand topspin,Third-ball attack') throw new Error('TT not reseeded');
   console.log('RESET OK');
+  // end-of-unit clear: data tabs emptied, roster and unit tabs kept
+  FakeSheets.user = roster.getDataRange().getValues()[1][3];
+  saveCheckin({ checkpoint: 'Early', scores: {}, focusSkill: '', goal: '', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'to be cleared', nextGoal: '' });
+  FakeSheets.user = FakeSheets.owner;
+  if (FakeSheets.book.getSheetByName('Checkins').getLastRow() < 2) throw new Error('test check-in was not written');
+  clearStudentData();
+  ['Register', 'SkillTests', 'Checkins', 'OutcomeRatings', 'Grades'].forEach(n => { if (FakeSheets.book.getSheetByName(n).getDataRange().getValues().slice(1).some(r => r.some(v => v !== ''))) throw new Error(n + ' not cleared'); });
+  if (roster.getDataRange().getValues()[1][2] !== 'Keep Me') throw new Error('roster lost');
+  if (sk.getDataRange().getValues().length < 4) throw new Error('unit tabs lost');
+  // student bootstrap: own roster row only
+  FakeSheets.user = 'keep@example.edu';
+  const b = bootstrap();
+  if (b.identity.role !== 'student' || b.config.roster.length !== 1 || b.config.roster[0].student !== 'Keep Me') throw new Error('student received more than their own roster row: ' + JSON.stringify(b.config.roster));
+  if (JSON.stringify(b).indexOf('@') !== -1 && JSON.stringify(b.config).indexOf('@') !== -1) throw new Error('email address in student config');
+  console.log('CLEAR + MINIMISATION OK');
 `, ctx);

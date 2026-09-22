@@ -377,7 +377,12 @@ function bootstrap() {
   var cfg = getConfig_();
   var id = identity_(cfg);
   var out = { config: publicConfig_(cfg), identity: id, appUrl: appUrl_() };
-  if (id.role === 'student') out.student = studentData_(cfg, id.section, id.name);
+  if (id.role === 'student') {
+    // Data minimisation: a student's browser gets their own roster row only, never the class list.
+    out.config.roster = out.config.roster.filter(function(r) { return r.section === id.section && r.student === id.name; });
+    out.config.sections = [id.section];
+    out.student = studentData_(cfg, id.section, id.name);
+  }
   return out;
 }
 
@@ -682,6 +687,8 @@ function onOpen() {
     .addSeparator()
     .addItem('Build grade report tab', 'buildGradeReport')
     .addItem('Refresh app config now', 'clearConfigCache')
+    .addSeparator()
+    .addItem('End of unit: clear all student data…', 'clearStudentData')
     .addToUi();
 }
 function onEdit(e) {
@@ -721,6 +728,21 @@ function resetUnitTabs() {
   UNIT_TABS.forEach(function(n) { ensureTab_(n, CONFIG_TABS[n]); seedUnitTab_(n, true); });
   clearConfigCache();
   if (ui) ui.alert('Done. ' + UNIT_TABS.join(', ') + ' now hold the draft. Reload the app to see it.');
+}
+// Menu: clear every data tab (Register, SkillTests, Checkins, OutcomeRatings,
+// Grades) at the end of a unit. Config, Roster and Teachers stay. Make a copy
+// of the Sheet first if the records must be kept.
+function clearStudentData() {
+  var ui = null; try { ui = SpreadsheetApp.getUi(); } catch (e) {}
+  if (ui) {
+    var a1 = ui.alert('Clear all student data?', 'This empties: ' + Object.keys(DATA_TABS).join(', ') + '.\n\nScores, check-ins, reflections, ratings and grades are deleted. Roster, Teachers and the unit tabs stay.\n\nIf the records must be kept, cancel and File → Make a copy first.', ui.ButtonSet.OK_CANCEL);
+    if (a1 !== ui.Button.OK) return;
+    var a2 = ui.alert('Last check', 'Delete every student record in this Sheet now?', ui.ButtonSet.YES_NO);
+    if (a2 !== ui.Button.YES) return;
+  }
+  Object.keys(DATA_TABS).forEach(function(n) { var t = tab_(n); if (t && t.getLastRow() >= 2) t.getRange(2, 1, t.getLastRow() - 1, Math.max(1, t.getLastColumn())).clearContent(); });
+  var gr = tab_('GradeReport'); if (gr) ss_().deleteSheet(gr);
+  if (ui) ui.alert('Student data cleared.');
 }
 function setupTabs() {
   var book = ss_();
@@ -791,7 +813,7 @@ function checkConfig() {
   if (!cfg.criteria.length) problems.push('Criteria tab is empty.');
   cfg.criteria.forEach(function(c) { if (c.evidence === 'none') problems.push('Criterion ' + c.code + ' has no Evidence type (test / reflection / participation / skills / outcomes).'); });
   var msg = problems.length ? problems.join('\n') : 'Looks good: ' + cfg.sections.length + ' sections, ' + cfg.roster.length + ' students, ' + cfg.sports.length + ' sports, ' + cfg.checkpoints.length + ' checkpoints.';
-  Logger.log(msg);
+  Logger.log(problems.length ? problems.length + ' problem(s) found — see the dialog' : 'Config looks good');  // names and emails stay out of the script log
   try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
   return msg;
 }
