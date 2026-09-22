@@ -74,9 +74,9 @@ var EXAMPLE = {
     [7, '', ''], [8, '', ''], [9, '', ''], [10, 'End', '']
   ],
   Skills: [
-    ['Net Games',    'Serve',           '10 serves from the marked spot. Badminton: into the diagonal box · Volleyball: over the net, in the court', 'Legal serve that lands in; partner calls in or out', ''],
-    ['Net Games',    'Defensive return', '10 identical attacking feeds from a marked spot. Badminton: fast flat feed to mid-court · Volleyball: hard overhead throw from 3 m', 'Badminton: returned into the back half · Volleyball: forearm pass into a 2 m circle at the setter spot', ''],
-    ['Net Games',    'Attacking shot',  '10 identical high feeds from a marked spot. Badminton: high lift to the rear court · Volleyball: toss above the net. Attack into a 1 m corner zone', 'Lands in the corner zone (stretch test)', ''],
+    ['Net Games',    'Serve accuracy',  '10 serves from full distance. Partner calls the target before each serve. Volleyball: left or right half · Badminton: short or long', 'Legal serve that lands in the called half (volleyball) or the called zone: front corners short, back corners long (badminton)', ''],
+    ['Net Games',    'Rally control',   '10 feeds, one at a time, from a partner across the net. Volleyball: firm toss · Badminton: gentle clear or drop', 'Volleyball: forearm pass catchable in the target partner\'s hands at setter position · Badminton: return lands in the marked zone', ''],
+    ['Net Games',    'Attacking movement', '10 feeds. Two cone zones at the back of the opponent\'s court, LEFT and RIGHT. Partner calls one before each feed; get back to the centre cone between reps', 'Shot lands in the called zone (stretch test)', ''],
     ['Ultimate',     'Backhand throw',  '10 backhand throws to a partner 10 m away',                         'Catchable at chest height without the partner moving', ''],
     ['Ultimate',     'Forehand throw',  '10 forehand (flick) throws to a partner 10 m away',                 'Flat and catchable at chest height without the partner moving', ''],
     ['Ultimate',     'Hammer throw',    '10 hammer throws over a 2 m obstacle to a partner 15 m away',       'Clears the obstacle and arrives catchable (stretch test)', ''],
@@ -88,18 +88,18 @@ var EXAMPLE = {
     ['Handball',     'Shooting',        '10 shots at the goal corners, a mix of standing and jump shots',     'Ball enters a corner zone (stretch test)', '']
   ],
   Drills: [
-    ['Net Games', 'Serve', 1, 'Toss / drop & contact', 'Contact point looks the same 5 times in a row (partner checks)'],
-    ['Net Games', 'Serve', 2, 'Serve over and in', '7 of 10 legal and in the service area'],
-    ['Net Games', 'Serve', 3, 'Serve to the deep half', '6 of 10 land in the back half of the service area'],
-    ['Net Games', 'Serve', 4, 'Serve to a target', '5 of 10 into a hoop or marked zone'],
-    ['Net Games', 'Defensive return', 1, 'Ready shape', 'Badminton: racket up, split step as the feed is hit · Volleyball: flat platform, knees bent. Partner checks 5 in a row'],
-    ['Net Games', 'Defensive return', 2, 'Soft feeds, big zone', '7 of 10 returned over the net and in (badminton) · to the front half (volleyball)'],
-    ['Net Games', 'Defensive return', 3, 'Hard feeds, marked zone', '6 of 10 into the back half (badminton) · the 2 m setter circle (volleyball)'],
-    ['Net Games', 'Defensive return', 4, 'Hard feeds, moving', 'Feeder alternates left and right: 5 of 10 into the zone'],
-    ['Net Games', 'Attacking shot', 1, 'Shadow the attack', 'Side-on, elbow high, contact in front and above: partner checks 5 times'],
-    ['Net Games', 'Attacking shot', 2, 'Fed balls, in court', '7 of 10 hit down and in'],
-    ['Net Games', 'Attacking shot', 3, 'Fed balls to the deep half', '6 of 10 land in the back half'],
-    ['Net Games', 'Attacking shot', 4, 'Fed balls to the corner', '4 of 10 in the 1 m corner zone'],
+    ['Net Games', 'Serve accuracy', 1, 'Stage 1 · over the net', '4 of 5 (see the back)'],
+    ['Net Games', 'Serve accuracy', 2, 'Stage 2 · called half or type', '4 of 5 (see the back)'],
+    ['Net Games', 'Serve accuracy', 3, 'Stage 3 · called zone', '3 of 5 (see the back)'],
+    ['Net Games', 'Serve accuracy', 4, 'Stage 4 · your design', 'You can explain why your version is harder'],
+    ['Net Games', 'Rally control', 1, 'Stage 1 · close, straight feed', '4 of 5 (see the back)'],
+    ['Net Games', 'Rally control', 2, 'Stage 2 · further, side to side', '4 of 5 (see the back)'],
+    ['Net Games', 'Rally control', 3, 'Stage 3 · across the net, to a target', '3 of 5 (see the back)'],
+    ['Net Games', 'Rally control', 4, 'Stage 4 · your design', 'You can explain the added difficulty'],
+    ['Net Games', 'Attacking movement', 1, 'Stage 1 · standing, called zone', '4 of 5 (see the back)'],
+    ['Net Games', 'Attacking movement', 2, 'Stage 2 · moving, called zone', '4 of 5 (see the back)'],
+    ['Net Games', 'Attacking movement', 3, 'Stage 3 · recover to the centre cone', '3 of 5 (see the back)'],
+    ['Net Games', 'Attacking movement', 4, 'Stage 4 · your design', 'You can explain what you changed and why it is harder'],
     ['Ultimate', 'Backhand throw', 1, 'Stationary target hit', '7 of 10 through a 1 m gate from 10 m'],
     ['Ultimate', 'Backhand throw', 2, 'Pivot & lead throw', '6 of 10 catchable to a partner cutting across, after a pivot'],
     ['Ultimate', 'Backhand throw', 3, 'Pressure backhand under mark', '5 of 10 completed past a live mark'],
@@ -133,6 +133,29 @@ var EXAMPLE = {
     ['Handball', 'Shooting', 2, 'Shooting off a pass', '7 of 10 catch-and-shoot attempts on target'],
     ['Handball', 'Shooting', 3, 'Shooting off the approach / dribble (jump shot)', '7 of 10 jump shots on target'],
     ['Handball', 'Shooting', 4, 'Challenge: shooting vs a goalkeeper, or your own drill', 'Score against a live keeper, aiming for the corners: 5 of 10']
+  ],
+  BackPage: [
+    ['Net Games', '# Net Games · the stages in detail'],
+    ['Net Games', 'Work the stages for your chosen skill in the game you play. A partner checks the "move on when" line; your teacher signs the front. Stage 4 is yours to design: record what you changed, attempts (at least 5) and successes.'],
+    ['Net Games', '## Serve accuracy'],
+    ['Net Games', '| Stage | Volleyball | Move on when… | Badminton | Move on when… |'],
+    ['Net Games', '| 1 | Self-toss, serve over the net from the attack line (~3 m). No target. | 4/5 clear the net with a full toss and swing | Stationary short serve, low, into the service box. No zone. | 4/5 clear the net legally and land in the box |'],
+    ['Net Games', '| 2 | Full distance. Alternate left half / right half on call. | 4/5 land in bounds on the correct side | Full distance. Short or long on call, in bounds. | 4/5 legal and in, correct type |'],
+    ['Net Games', '| 3 | Full distance, deep-left and deep-right zones marked. Partner calls the zone. | 3/5 land in the called zone | Zones: front corners short, back corners long. Partner calls the type. | 3/5 land in the correct zone |'],
+    ['Net Games', '| 4 | Your design: smaller zone or a third zone, at least 5 attempts. | You can explain why it is harder | Your design: narrower zones or a set pattern (short-long-short-long), at least 5 attempts. | You can explain why it is harder |'],
+    ['Net Games', '## Rally control'],
+    ['Net Games', '| Stage | Volleyball | Move on when… | Badminton | Move on when… |'],
+    ['Net Games', '| 1 | Partner tosses underhand from ~2 m. Pass straight back to their hands. | 4/5 clean forearm contacts, caught by the feeder | Partner tosses gently and straight. Return high and soft to their hands. | 4/5 clean returns, correct racket face and follow-through |'],
+    ['Net Games', '| 2 | ~4–5 m, toss varies left and right. Pass catchable to the feeder. | 4/5 caught cleanly despite moving | Further away, some movement. Return clears the net into the other half. | 4/5 clear the net legally from a moved position |'],
+    ['Net Games', '| 3 | Firmer toss from across the net. A target partner stands at setter position; pass into their hands. (3 students) | 3/5 caught cleanly by the target partner | Partner feeds a gentle clear or drop from across the net. Return into a marked zone. | 3/5 land in the zone |'],
+    ['Net Games', '| 4 | Your design: faster, further or a new angle; you choose the target. At least 5 reps. | You can explain the added difficulty | Your design: varied pace or placement and a target zone. At least 5 reps. | You can explain the added difficulty |'],
+    ['Net Games', '## Attacking movement'],
+    ['Net Games', 'Same set-up every stage: two cone zones, LEFT and RIGHT, at the back of the opponent\'s court. The feeder calls a zone before each feed.'],
+    ['Net Games', '| Stage | Volleyball | Move on when… | Badminton | Move on when… |'],
+    ['Net Games', '| 1 | Feed to the same spot. Stand still, hit the called zone. | 4/5 in the called zone | Feed to the same spot. Stand still, play the shot (smash, drop or clear) into the called zone. | 4/5 in the called zone |'],
+    ['Net Games', '| 2 | Feeds alternate sides. Move to the ball, hit the called zone. | 4/5 in the called zone while moving | Feeds alternate sides. Move to the shuttle, play the called zone. | 4/5 in the called zone while moving |'],
+    ['Net Games', '| 3 | As stage 2, plus return to the centre cone between hits. | 3/5 back to the cone in time AND in the zone | As stage 2, plus return to the centre cone between shots. | 3/5 back to the cone in time AND in the zone |'],
+    ['Net Games', '| 4 | Your design: faster feed, a third zone, etc. At least 5 reps. | You can explain what changed and why it is harder | Your design: faster feed, a third zone, etc. At least 5 reps. | You can explain what changed and why it is harder |']
   ],
   Outcomes: [
     ['Self-management', 'Starts without being told, keeps the paper log up to date, moves on only after sign-off, asks for help at the right moment'],
@@ -707,7 +730,7 @@ function onEdit(e) {
   try { var name = e && e.range && e.range.getSheet().getName(); if (name && CONFIG_TABS[name]) clearConfigCache(); } catch (err) {}
 }
 
-var UNIT_TABS = ['Lessons', 'Skills', 'Drills', 'Outcomes', 'Criteria'];
+var UNIT_TABS = ['Lessons', 'Skills', 'Drills', 'Outcomes', 'Criteria', 'BackPage'];
 // Seed a unit tab from the draft by header NAME, not position (a tab kept from
 // an older version may have extra or re-ordered columns). With replace=true
 // the tab's rows are cleared first; otherwise only an empty tab is seeded.

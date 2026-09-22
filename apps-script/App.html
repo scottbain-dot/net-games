@@ -713,12 +713,18 @@ const ico = k => `<span class="ico">${ICO[k]}</span>`;
 function renderBackPage(sport) {
   const bp = S.cfg.backPages || {}; const lines = (bp[sport] && bp[sport].length) ? bp[sport] : (bp[''] || []);
   if (!lines.length) return '';
-  let html = '', list = [];
-  const flush = () => { if (list.length) { html += `<ul>${list.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`; list = []; } };
+  let html = '', list = [], rows = [];
+  const cells = l => l.replace(/^\|/, '').replace(/\|\s*$/, '').split('|').map(x => x.trim());
+  const flush = () => {
+    if (list.length) { html += `<ul>${list.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`; list = []; }
+    if (rows.length) { html += `<table class="bt"><thead><tr>${rows[0].map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.slice(1).map(r => `<tr>${r.map((c, i) => `<td class="${i === 0 ? 'n' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`; rows = []; }
+  };
   lines.forEach(l => {
-    if (/^- /.test(l)) { list.push(l.slice(2)); return; }
+    if (/^- /.test(l)) { if (rows.length) flush(); list.push(l.slice(2)); return; }
+    if (/^\|/.test(l)) { if (list.length) flush(); rows.push(cells(l)); return; }
     flush();
-    if (/^# /.test(l)) html += `<h4>${esc(l.slice(2))}</h4>`;
+    if (/^## /.test(l)) html += `<h5>${esc(l.slice(3))}</h5>`;
+    else if (/^# /.test(l)) html += `<h4>${esc(l.slice(2))}</h4>`;
     else if (/^_{3,}$/.test(l)) html += '<div class="rule"></div>';
     else if (l === '') html += '<div class="gap"></div>';
     else html += `<p>${esc(l)}</p>`;
@@ -752,7 +758,7 @@ function renderSheet(r) {
       <div class="s-box"><h4>${ico('target')}Skill tests <small>out of ${cfg.scoreMax} · same set-up · 2 practice tries · partner counts</small></h4><table class="s-drills s-tests"><thead><tr><th style="width:26%">Skill</th><th>Test</th><th style="width:16%">Score</th></tr></thead><tbody>${skills.map(s => `<tr><td><b>${esc(s.skill)}</b></td><td>${esc(s.test)}${s.scale ? `<div class="scale">${esc(s.scale)}</div>` : ''}</td><td class="box score">/${cfg.scoreMax}</td></tr>`).join('')}</tbody></table></div>
       <div class="s-box"><h4>${ico('people')}Personal skills <small>what your teacher looks for</small></h4>${oc.map(o => `<div class="ps">${n(esc(o.outcome[0]), 'lt')}<div><b>${esc(o.outcome)}</b><span>${esc(o.looksLike)}</span></div></div>`).join('')}</div>
     </div>
-    <div class="s-box"><h4>${ico('steps')}Drill steps <small>tick the skill you chose · work only that block</small></h4><table class="s-drills"><thead><tr><th style="width:6%">Step</th><th style="width:30%">Drill</th><th style="width:44%">You've got it when…</th><th style="width:10%">Partner ✓</th><th style="width:10%">Teacher ✓</th></tr></thead><tbody>${skills.map(sk => `<tr class="skhead"><td colspan="5"><span class="cb"></span><b>${esc(sk.skill)}</b></td></tr>` + sk.drills.map(d => `<tr><td>${n(d.step)}</td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td><td class="box"></td><td class="box"></td></tr>`).join('')).join('')}</tbody></table></div>
+    <div class="s-box"><h4>${ico('steps')}Drill steps <small>tick the skill you chose · work only that block${(S.cfg.backPages && ((S.cfg.backPages[sport] || []).length || (S.cfg.backPages[''] || []).length)) ? ' · details on the back' : ''}</small></h4><table class="s-drills"><thead><tr><th style="width:6%">Step</th><th style="width:30%">Drill</th><th style="width:44%">You've got it when…</th><th style="width:10%">Partner ✓</th><th style="width:10%">Teacher ✓</th></tr></thead><tbody>${skills.map(sk => `<tr class="skhead"><td colspan="5"><span class="cb"></span><b>${esc(sk.skill)}</b></td></tr>` + sk.drills.map(d => `<tr><td>${n(d.step)}</td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td><td class="box"></td><td class="box"></td></tr>`).join('')).join('')}</tbody></table></div>
     <div class="s-box ext-box"><h4>${ico('star')}Extension <small>every step signed? Agree a new skill and its steps with your teacher</small><span class="ext-skill">New skill ${blank(50)}</span></h4><table class="s-drills"><colgroup><col style="width:6%"><col style="width:30%"><col style="width:44%"><col style="width:10%"><col style="width:10%"></colgroup><tbody>${[1, 2, 3].map(i => `<tr><td>${n(i)}</td><td></td><td></td><td class="box"></td><td class="box"></td></tr>`).join('')}</tbody></table></div>
   </div>`;
 }
