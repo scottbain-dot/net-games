@@ -76,7 +76,7 @@ var EXAMPLE = {
   Skills: [
     ['Net Games',    'Serve accuracy',  '10 serves from full distance. Partner calls the target before each serve. Volleyball: left or right half · Badminton: short or long', 'Legal serve that lands in the called half (volleyball) or the called zone: front corners short, back corners long (badminton)', ''],
     ['Net Games',    'Rally control',   '10 feeds, one at a time, from a partner across the net. Volleyball: firm toss · Badminton: gentle clear or drop', 'Volleyball: forearm pass catchable in the target partner\'s hands at setter position · Badminton: return lands in the marked zone', ''],
-    ['Net Games',    'Attacking shot',  '10 feeds to alternating sides from a partner. Start at the centre cone; partner calls LEFT or RIGHT, then feeds. Volleyball: spike · Badminton: smash into the called cone zone at the back', 'Spike or smash that lands in the called zone (stretch test)', ''],
+    ['Net Games',    'Attacking shot',  '10 feeds to alternating sides from a partner. Touch the centre cone between feeds. Volleyball: spike · Badminton: smash', 'Spike or smash that lands in the court (stretch test)', ''],
     ['Ultimate',     'Backhand throw',  '10 backhand throws to a partner 10 m away',                         'Catchable at chest height without the partner moving', ''],
     ['Ultimate',     'Forehand throw',  '10 forehand (flick) throws to a partner 10 m away',                 'Flat and catchable at chest height without the partner moving', ''],
     ['Ultimate',     'Hammer throw',    '10 hammer throws over a 2 m obstacle to a partner 15 m away',       'Clears the obstacle and arrives catchable (stretch test)', ''],
@@ -98,7 +98,7 @@ var EXAMPLE = {
     ['Net Games', 'Rally control', 4, 'Stage 4 · your design', 'You can explain the added difficulty'],
     ['Net Games', 'Attacking shot', 1, 'Stage 1 · the swing (wall or low net)', '4 of 5 hit down (see the back)'],
     ['Net Games', 'Attacking shot', 2, 'Stage 2 · move in and hit a feed', '4 of 5 down, over and in (see the back)'],
-    ['Net Games', 'Attacking shot', 3, 'Stage 3 · called zone from the centre cone (the test)', '3 of 5 (see the back)'],
+    ['Net Games', 'Attacking shot', 3, 'Stage 3 · on the move from the centre cone (the test)', '3 of 5 in (see the back)'],
     ['Net Games', 'Attacking shot', 4, 'Stage 4 · your design', 'You can explain why your version is harder'],
     ['Ultimate', 'Backhand throw', 1, 'Stationary target hit', '7 of 10 through a 1 m gate from 10 m'],
     ['Ultimate', 'Backhand throw', 2, 'Pivot & lead throw', '6 of 10 catchable to a partner cutting across, after a pivot'],
@@ -153,12 +153,12 @@ var EXAMPLE = {
     ['Net Games', '| 3 · across the net | Firmer toss from across the net. A target partner stands at setter position; pass into their hands. (3 students) | 3/5 caught cleanly by the target partner | Partner feeds a gentle clear or drop from across the net. Return into a marked zone. | 3/5 land in the zone |'],
     ['Net Games', '| 4 · your design | Faster, further or a new angle; you choose the target. At least 5 reps. | You can explain the added difficulty | Varied pace or placement and a target zone. At least 5 reps. | You can explain the added difficulty |'],
     ['Net Games', '## Attacking shot · spike (volleyball) and smash (badminton)'],
-    ['Net Games', 'Two cone zones, LEFT and RIGHT, at the back of the opponent\'s court, and a centre cone on your side. Stage 3 is the test. Recovery is a rule, not a score: the feeder waits until you touch the centre cone before the next feed, so your partner only counts whether the shot landed in the zone. If a stage stops working, go back one.'],
+    ['Net Games', 'One centre cone on your side. Stage 3 is the test. The feeder waits until you touch the cone before the next feed, so your partner only counts whether the shot landed in. If a stage stops working, go back one.'],
     ['Net Games', '| Stage | Volleyball | Move on when… | Badminton | Move on when… |'],
     ['Net Games', '| 1 · the swing | No net. Stand 3 m from a wall, toss to yourself, reach high and hit the top of the ball so it bounces on the floor before the wall and comes back to you. Or use a net lowered to head height and hit over it into the court. No approach, no jump. | 4/5 floor-then-wall (or over the low net and in) | Throw a shuttle overhead first (5 throws). Then a hand-fed high shuttle from close: reach high, hit it down over the net. No movement. | 4/5 hit down, over and in |'],
     ['Net Games', '| 2 · move in and hit | Step-close approach with no ball (5 reps, partner checks the rhythm). Then approach, jump and spike a partner\'s toss to the same spot, anywhere in. Standing overhead attack allowed. | 4/5 down, over and in | Racket-fed lift from across the net to the same spot. Step under it (chassé), smash down over the net, anywhere in. | 4/5 down, over and in |'],
-    ['Net Games', '| 3 · on the move (the test) | Start at the centre cone. Tosses to alternating sides; partner calls LEFT or RIGHT before each. Touch the cone before the next toss. | 3/5 in the called zone | Start at the centre cone. Lifts to alternating sides; partner calls LEFT or RIGHT before each. Touch the cone before the next lift. | 3/5 in the called zone |'],
-    ['Net Games', '| 4 · your design | Faster toss, a blocker at the net or a third zone. At least 5 reps. Record what changed, attempts, successes. | You can explain why it is harder | Faster lift, a defender on the far side or a third zone. At least 5 reps. Record what changed, attempts, successes. | You can explain why it is harder |']
+    ['Net Games', '| 3 · on the move (the test) | Start at the centre cone. Tosses to alternating sides. Move, spike, touch the cone before the next toss. | 3/5 down, over and in | Start at the centre cone. Lifts to alternating sides. Move, smash, touch the cone before the next lift. | 3/5 down, over and in |'],
+    ['Net Games', '| 4 · your design | Faster toss, a blocker at the net, or a target zone. At least 5 reps. Record what changed, attempts, successes. | You can explain why it is harder | Faster lift, a defender on the far side, or a target zone. At least 5 reps. Record what changed, attempts, successes. | You can explain why it is harder |']
   ],
   Outcomes: [
     ['Self-management', 'Starts without being told, keeps the paper log up to date, moves on only after sign-off, asks for help at the right moment'],
