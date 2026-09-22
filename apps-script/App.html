@@ -143,6 +143,7 @@ const S = {
   cfg: null, id: null, me: null, view: 'dash', cp: null, form: null, testAs: false,
   T: { section: '', sport: '', tab: 'checkins', lesson: null, cpName: '', data: null, overview: null, viewing: null, printMode: 'all', expanded: {} }
 };
+if (window.__preview) window.__S = S;  // preview/test hook only
 const CPS = () => S.cfg.checkpoints;
 const studentMode = () => S.id.role === 'student' || S.testAs;
 const skillsOf = sport => S.cfg.skills[sport] || [];

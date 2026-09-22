@@ -26,6 +26,10 @@ dev/
   reset-unit-test.js Node check that the 'Replace unit tabs with the draft' menu item works
 ```
 
+## Privacy
+
+No external services: no fetches, CDNs, fonts, analytics or AI calls. Data lives in the school's Google Sheet; the web app runs in the school Workspace and executes as the Sheet owner. A student's browser receives only their own roster row and data; emails and the Teachers tab never reach any browser. Browser storage holds a change only until the server confirms it. `PE Tracker → End of unit: clear all student data…` empties the data tabs. Details for teachers: [docs/TEACHER-GUIDE.md](docs/TEACHER-GUIDE.md#privacy-and-data-protection). Keep real rosters and screenshots out of this public repository.
+
 ## Developing
 
 ```

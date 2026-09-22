@@ -83,6 +83,32 @@ Everything is a tab. Edit cells; the app updates within a couple of minutes (or 
 - **Criteria** — `Code`, `Name`, `Evidence`, `TopBand`. Evidence is one of `test`, `reflection`, `participation`, `skills`, `outcomes`, `none` (see the assessment table).
 - **Config** — `unit_name`, `stage_labels`, `stage_bands`, `score_max`, `participation_labels`, `outcome_labels`, `game_levels` / `game_level_scores`, `goal_template`, `reflection_prompt_early`, the two later prompts, `show_grades_to_students`, and `daily_register` (TRUE adds a per-lesson register tab if you want one; off by default).
 
+## Privacy and data protection
+
+Everything stays inside the school's Google Workspace. There is no server of ours, no third-party service, no analytics, no fonts or scripts loaded from outside Google, and nothing is sent to any AI service. Google is the only processor, under the school's existing Workspace for Education agreement.
+
+**What is stored, and where**
+
+- The Sheet holds: student name, school email, section, sport; test scores; check-in choices and the two short reflections; teacher confirmations, ratings, game-play level and note; grades and comments. Nothing else is collected.
+- The app runs as an Apps Script web app in the school Workspace. It executes as the Sheet owner, so students never get access to the Sheet itself.
+- A copy of the unit set-up (including the roster with emails) sits in Apps Script's cache for up to a few minutes so pages load quickly. That cache is Google-internal to this script.
+- While a change is being sent, it is held in that browser's local storage and deleted the moment the server confirms. On a shared laptop nothing remains after a successful save. If a save is still pending when a student walks away, the entry stays on that device until the next time that same login opens the app.
+
+**Who sees what**
+
+- A student sees only their own page. Their browser receives their own roster row, not the class list. The server checks identity on every request; a student cannot request another student's data.
+- Teachers on the Teachers tab see their sections. A `coach` sees their sport only and no grades.
+- Anyone in the school domain can open the link, but sees "not on the roster" unless they are on it.
+- The Sheet should be shared only with the PE teachers who need to edit it, never "anyone in the organisation with the link".
+
+**Deployment settings that matter:** Execute as *Me*, Who has access *Anyone within [school]*. Never *Anyone*.
+
+**Retention:** at the end of the unit, export what you need (*Build grade report tab*, or File → Make a copy), then **PE Tracker → End of unit: clear all student data…** removes every score, check-in, reflection, rating and grade. Roster, Teachers and the unit tabs stay.
+
+**Subject access:** a student's full record is the rows with their name on the data tabs, plus their grade report row. Filter by name and export.
+
+**The public code:** the GitHub repository contains code and example data with made-up names only. Do not commit a Sheet, a roster, or screenshots of real students to it.
+
 ## When a whole class saves at once
 
 Every write is kept on the device until the server confirms it. Teacher taps are written to the browser's storage the moment they are made and sent within a second; a phone that closes the tab first sends them on the next open. A reply from the server that is not a clear "saved" is treated as not saved and retried. Anything the server refuses outright (a student no longer on the roster, an unknown checkpoint) shows a red banner naming the change so it can be redone rather than silently vanishing.

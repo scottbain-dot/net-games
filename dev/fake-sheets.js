@@ -74,7 +74,7 @@
     createMenu(name) { const m = { addItem() { return m; }, addSeparator() { return m; }, addToUi() {} }; return m; },
     ButtonSet: { OK: 'OK', OK_CANCEL: 'OK_CANCEL', YES_NO: 'YES_NO' },
     Button: { OK: 'OK', CANCEL: 'CANCEL', YES: 'YES', NO: 'NO' },
-    alert(msg) { ui._log.push(msg); if (g.console) console.log('[Ui.alert]', msg); return 'OK'; },
+    alert(msg, body, buttons) { ui._log.push(msg); if (g.console) console.log('[Ui.alert]', msg); return buttons === 'YES_NO' ? 'YES' : 'OK'; },
     showModalDialog(html, title) { ui._log.push(title); }
   };
   const FakeSheets = {

@@ -84,6 +84,14 @@ async function main() {
   try { await page.waitForFunction(() => /Queued while offline/.test(document.body.textContent), null, { timeout: 8000 }); }
   catch (e) { errors.push('Outbox did not re-send the Middle check-in after reload'); }
 
+  // privacy: a student's browser holds only their own roster row and no email but their own
+  await page.goto(preview + '?role=student');
+  await page.waitForSelector('.cp-strip');
+  const priv = await page.evaluate(() => ({ roster: __S.cfg.roster.length, cfgHasEmail: /@/.test(JSON.stringify(__S.cfg)), teachers: 'teachers' in __S.cfg }));
+  if (priv.roster !== 1) errors.push('Student browser received the class list (' + priv.roster + ' roster rows)');
+  if (priv.cfgHasEmail) errors.push('Student config contains an email address');
+  if (priv.teachers) errors.push('Student config contains the Teachers tab');
+
   await page.goto(preview + '?role=unknown'); await page.waitForSelector('.notice'); await shot('06-unknown-user');
   await page.goto(preview + '?role=anon'); await page.waitForSelector('.notice');
 
