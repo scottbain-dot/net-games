@@ -609,7 +609,7 @@ function renderPrint() {
       <button class="subtab ${T.printMode === 'all' ? 'active' : ''}" data-act="print-mode" data-v="all">One sheet per student (${groupRoster().length})</button>
       <button class="subtab ${T.printMode === 'blank' ? 'active' : ''}" data-act="print-mode" data-v="blank">Blank sheet</button>
       <button class="subtab ${T.printMode === 'unit' ? 'active' : ''}" data-act="print-mode" data-v="unit">Unit plan${T.sport ? ' · ' + esc(T.sport) : ''}</button>
-      <div class="grow"></div><span class="small muted">${T.printMode === 'unit' ? 'The tests, drill steps and personal skills for this sport on one page. Hand it to the teacher taking the group to check before lesson 1.' : 'Print before lesson 1: every sheet carries all three drill progressions. Printed later, the chosen skill is starred.'}</span>
+      <div class="grow"></div><span class="small muted">${T.printMode === 'unit' ? 'The tests, drill steps and personal skills for this sport on one page. Hand it to the teacher taking the group to check before lesson 1.' : 'Print before lesson 1. Every sheet is the same day-one sheet with the student\'s name: they write their scores, skill and goal on it.'}</span>
       <button class="pill-btn primary" data-act="print">Print</button></div>
     ${T.printMode === 'unit' ? (T.sport ? [T.sport] : sportsInSection()).map(sp => renderUnitSheet(sp)).join('') : roster.map(r => renderSheet(r)).join('')}`;
 }
@@ -679,8 +679,8 @@ const ico = k => `<span class="ico">${ICO[k]}</span>`;
 function renderSheet(r) {
   const cfg = S.cfg, cps = CPS(); const T = S.T;
   const sport = r ? r.sport : (T.sport || '');
-  const me = r ? meOf(r.student) : { checkins: [], tests: [], outcomes: [] };
-  const fc = currentFocus(me);
+  // Always the day-one sheet: name and sport from the roster, nothing from the app.
+  // Students write their skill, goal and scores on it themselves.
   const skills = skillsOf(sport);
   const first = cps[0], retests = cps.slice(1);
   const firstLesson = cfg.lessons[0];
@@ -696,12 +696,12 @@ function renderSheet(r) {
       <span>${n(2)}${ico('star')}<div>Choose one skill<small>lesson ${first ? first.lesson : 2} · laptop</small></div></span>
       <span>${n(3)}${ico('steps')}<div>Drills<small>partner initials · teacher signs</small></div></span>
       <span>${n(4)}${ico('ball')}<div>Game play<small>lessons ${lastTwo.join('–')}</small></div></span></div>
-    <div class="s-goal"><div><b>My skill</b> ${fc.skill ? esc(fc.skill) : blank(45)}</div><div class="grow"><b>My goal</b> ${fc.goal ? esc(fc.goal) : blank(90)}</div><div class="retest"><b>Retest</b> ${retests.map(c => `<span class="rt">L${c.lesson} <span class="rbox"></span></span>`).join('')}</div></div>
+    <div class="s-goal"><div><b>My skill</b> ${blank(45)}</div><div class="grow"><b>My goal</b> ${blank(90)}</div><div class="retest"><b>Retest</b> ${retests.map(c => `<span class="rt">L${c.lesson} <span class="rbox"></span></span>`).join('')}</div></div>
     <div class="s-cols two">
-      <div class="s-box"><h4>${ico('target')}Skill tests <small>out of ${cfg.scoreMax} · a partner counts 10 tries</small></h4><table class="s-drills s-tests"><thead><tr><th style="width:26%">Skill</th><th>Test</th><th style="width:16%">Score</th></tr></thead><tbody>${skills.map(s => `<tr><td><b>${esc(s.skill)}</b>${fc.skill === s.skill ? ' ★' : ''}</td><td>${esc(s.test)}</td><td class="box score">/${cfg.scoreMax}</td></tr>`).join('')}</tbody></table></div>
+      <div class="s-box"><h4>${ico('target')}Skill tests <small>out of ${cfg.scoreMax} · a partner counts 10 tries</small></h4><table class="s-drills s-tests"><thead><tr><th style="width:26%">Skill</th><th>Test</th><th style="width:16%">Score</th></tr></thead><tbody>${skills.map(s => `<tr><td><b>${esc(s.skill)}</b></td><td>${esc(s.test)}</td><td class="box score">/${cfg.scoreMax}</td></tr>`).join('')}</tbody></table></div>
       <div class="s-box"><h4>${ico('people')}Personal skills <small>what your teacher looks for</small></h4>${oc.map(o => `<div class="ps">${n(esc(o.outcome[0]), 'lt')}<div><b>${esc(o.outcome)}</b><span>${esc(o.looksLike)}</span></div></div>`).join('')}</div>
     </div>
-    <div class="s-box"><h4>${ico('steps')}Drill steps <small>only your skill${fc.skill ? '' : ' · tick the one you chose'}</small></h4><table class="s-drills"><thead><tr><th style="width:7%">Step</th><th style="width:27%">Drill</th><th style="width:44%">You've got it when…</th><th style="width:11%">Partner ✓</th><th style="width:11%">Teacher ✓</th></tr></thead><tbody>${skills.map(sk => { const isF = fc.skill === sk.skill; return `<tr class="skhead ${isF ? 'mine' : ''}"><td colspan="5">${fc.skill ? (isF ? ico('star') : '') : '<span class="cb"></span>'}<b>${esc(sk.skill)}</b></td></tr>` + sk.drills.map(d => `<tr class="${fc.skill && !isF ? 'dim' : ''}"><td>${n(d.step)}</td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td><td class="box"></td><td class="box"></td></tr>`).join(''); }).join('')}<tr class="extra"><td>${n('+')}</td><td>${fc.extension ? esc(fc.extension) : 'Extension: ____________'}</td><td>${fc.extensionDrill ? esc(fc.extensionDrill) : 'All steps signed? Agree a new skill and drill with your teacher.'}</td><td class="box"></td><td class="box"></td></tr></tbody></table></div>
+    <div class="s-box"><h4>${ico('steps')}Drill steps <small>tick the skill you chose · work only that block</small></h4><table class="s-drills"><thead><tr><th style="width:7%">Step</th><th style="width:27%">Drill</th><th style="width:44%">You've got it when…</th><th style="width:11%">Partner ✓</th><th style="width:11%">Teacher ✓</th></tr></thead><tbody>${skills.map(sk => `<tr class="skhead"><td colspan="5"><span class="cb"></span><b>${esc(sk.skill)}</b></td></tr>` + sk.drills.map(d => `<tr><td>${n(d.step)}</td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td><td class="box"></td><td class="box"></td></tr>`).join('')).join('')}<tr class="extra"><td>${n('+')}</td><td>Extension: ____________</td><td>All steps signed? Agree a new skill and drill with your teacher.</td><td class="box"></td><td class="box"></td></tr></tbody></table></div>
   </div>`;
 }
 

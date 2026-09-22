@@ -12,7 +12,7 @@ Every student is in **one sport** for the whole unit. A section of ~70 is split 
 
 | Lesson | Student | Teacher |
 |---|---|---|
-| **Before L1** | — | **Print → Unit plan** for each sport and hand it to the teacher taking that group to check. Then **Print → One sheet per student**: every sheet carries the three tests, a blank focus-skill line with retest boxes and all three skills' drill steps, so one sheet lasts the whole unit. |
+| **Before L1** | — | **Print → Unit plan** for each sport and hand it to the teacher taking that group to check. Then **Print → One sheet per student**: every sheet is the same day-one sheet with the student's name: the three tests, a blank skill and goal line with retest boxes, and all three skills' drill steps. Nothing from the app is printed on it; students write their own scores, skill and goal. One sheet lasts the whole unit. |
 | **L1** | Intro and the three skill tests in pairs (a partner counts 10 attempts), scores written on the paper log. No laptops. | Watches, spot-checks |
 | **L2 · Early check-in** (start of the lesson, laptops, ~8 min) | Types the three scores from paper, picks **one** focus skill (the lowest is recommended), edits the drafted goal, answers one question | Same day, phone or laptop, ~3 min: **Check-ins → Early**. Glance at each row, fix a wrong score, tap ✓, rate personal skills (one tap: Not yet / Sometimes / Consistently). |
 | **L2–L4** | Works the drill steps on the paper log; a partner initials each step; you sign it | Circulates; **signs the step** to let a student move on. **No app.** |
