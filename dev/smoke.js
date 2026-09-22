@@ -177,6 +177,22 @@ async function main() {
   if (pdfPages !== nSheets) errors.push(`Print: ${nSheets} sheets produced ${pdfPages} PDF pages (want one page each)`);
   await shot('13-teacher-print-logs');
 
+  // every sport's blank student log fits one page
+  for (const sp of ['Net Games', 'Ultimate', 'Table Tennis', 'Handball']) {
+    await page.click(`[data-act="t-sport"][data-v="${sp}"]`);
+    await page.click('[data-act="print-mode"][data-v="blank"]');
+    await page.waitForSelector('.sheet');
+    await page.emulateMedia({ media: 'print' });
+    const spPdf = path.join(shots, 'blank-' + sp.replace(/\s+/g, '-').toLowerCase() + '.pdf');
+    await page.pdf({ path: spPdf, format: 'A4', printBackground: true });
+    await page.emulateMedia({ media: 'screen' });
+    const spPages = (fs.readFileSync(spPdf, 'latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+    if (spPages !== 1) errors.push(`${sp} student log prints on ${spPages} pages`);
+  }
+  await page.click('[data-act="t-sport"][data-v="Net Games"]');
+  await page.click('[data-act="print-mode"][data-v="all"]');
+  await page.waitForSelector('.sheet');
+
   // unit plan print: one page per sport
   await page.click('[data-act="print-mode"][data-v="unit"]');
   await page.waitForSelector('.sheet.unit');
