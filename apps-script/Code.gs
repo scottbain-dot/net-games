@@ -24,7 +24,7 @@
 var CONFIG_TABS = {
   Config:   ['Key', 'Value', 'What it does'],
   Lessons:  ['Number', 'Checkpoint', 'Date'],
-  Skills:   ['Sport', 'Skill', 'Test', 'Success'],
+  Skills:   ['Sport', 'Skill', 'Test', 'Success', 'Scale'],
   Drills:   ['Sport', 'Skill', 'Step', 'Drill', 'Criteria'],
   Outcomes: ['Outcome', 'LooksLike'],
   Criteria: ['Code', 'Name', 'Evidence', 'TopBand'],
@@ -73,18 +73,18 @@ var EXAMPLE = {
     [6, '', ''], [7, '', ''], [8, '', ''], [9, 'End', '']
   ],
   Skills: [
-    ['Net Games',    'Serve',           '10 serves into the correct service area',                          'Legal serve, in (badminton: diagonal box · volleyball: over the net, in court · pickleball: diagonal box, past the kitchen)'],
-    ['Net Games',    'Rally',           '10 shots in a cooperative rally over the net with a partner',       'Playable: over the net, in, and the partner can return it'],
-    ['Net Games',    'Attacking shot',  '10 fed balls high to the net: attack (smash · spike · drive volley) into a 1 m target zone in a back corner', 'Lands in the corner zone (stretch test)'],
-    ['Ultimate',     'Backhand throw',  '10 throws to a partner 10 m away',                                  'Catchable at chest height without moving'],
-    ['Ultimate',     'Catching',        '10 throws from a partner, mixed height',                            'Two-hand catch, disc held'],
-    ['Ultimate',     'Break the mark',  '10 throws past a live mark to a receiver cutting away, before a stall count of 5', 'Completed to the cutter past the mark before stall 5 (stretch test)'],
-    ['Table Tennis', 'Short serve',     '10 serves: the ball must bounce twice on the far side before the end of the table', 'Legal serve, second bounce before the end line'],
-    ['Table Tennis', 'Forehand topspin', '10 fed balls, forehand topspin (brush up the back of the ball)',   'On the table, past the middle, with visible topspin'],
-    ['Table Tennis', 'Third-ball attack', '10 rallies: serve, partner returns anywhere, attack and win the point within two shots', 'Winner or forced error against a partner who defends (stretch test)'],
-    ['Handball',     'Pass & catch',    '10 passes on the move over 5 m',                                    'Caught cleanly by the partner'],
-    ['Handball',     'Jump shot',       '10 shots from the 9 m line over a passive defender',                'On target from a legal jump'],
-    ['Handball',     'Beat and score',  '10 attempts: beat a live defender 1v1 and shoot past a goalkeeper', 'Goal (stretch test)']
+    ['Net Games',    'Serve',           '10 serves into the correct service area',                          'Legal serve, in (badminton: diagonal box · volleyball: over the net, in court · pickleball: diagonal box, past the kitchen)', ''],
+    ['Net Games',    'Rally',           '10 shots in a rally with a partner who sends you side to side: count shots that land in the back half', 'Over the net, lands in the back half of the court, and the partner can return it', ''],
+    ['Net Games',    'Attacking shot',  '10 fed balls high to the net: attack (smash · spike · drive volley) into a 1 m target zone in a back corner', 'Lands in the corner zone (stretch test)', ''],
+    ['Ultimate',     'Backhand throw',  '10 backhand throws to a partner 10 m away',                         'Catchable at chest height without the partner moving', ''],
+    ['Ultimate',     'Forehand throw',  '10 forehand (flick) throws to a partner 10 m away',                 'Flat and catchable at chest height without the partner moving', ''],
+    ['Ultimate',     'Hammer throw',    '10 hammer throws over a 2 m obstacle to a partner 15 m away',       'Clears the obstacle and arrives catchable (stretch test)', ''],
+    ['Table Tennis', 'Short serve',     '10 serves: the ball must bounce twice on the far side before the end of the table', 'Legal serve, second bounce before the end line', ''],
+    ['Table Tennis', 'Forehand topspin', '10 fed balls, forehand topspin (brush up the back of the ball)',   'On the table, past the middle, with visible topspin', ''],
+    ['Table Tennis', 'Third-ball attack', '10 rallies: serve, partner returns anywhere, attack and win the point within two shots', 'Winner or forced error against a partner who defends (stretch test)', ''],
+    ['Handball',     'Passing',         '60 s of continuous passing with a partner 4–5 m apart: count successful passes, then convert', 'A clean catch by the partner', '≤15→1 · 16–20→2 · 21–25→3 · 26–30→4 · 31–35→5 · 36–40→6 · 41–45→7 · 46–50→8 · 51–55→9 · 56+→10'],
+    ['Handball',     'Dribbling',       '3 laps of 20 m: total time for all three, then convert',   'Ball under control the whole way; a lost ball restarts that lap', '>36 s→1 · 33–36→2 · 30–32→3 · 27–29→4 · 24–26→5 · 22–23→6 · 20–21→7 · 18–19→8 · 16–17→9 · ≤15 s→10'],
+    ['Handball',     'Shooting',        '10 shots at the goal corners, a mix of standing and jump shots',     'Ball enters a corner zone (stretch test)', '']
   ],
   Drills: [
     ['Net Games', 'Serve', 1, 'Toss / drop & contact', 'Contact point looks the same 5 times in a row (partner checks)'],
@@ -93,21 +93,24 @@ var EXAMPLE = {
     ['Net Games', 'Serve', 4, 'Serve to a target', '5 of 10 into a hoop or marked zone'],
     ['Net Games', 'Rally', 1, 'Solo control', '10 in a row: badminton keep-ups · volleyball self-passes · pickleball bounce-and-hit on a wall'],
     ['Net Games', 'Rally', 2, 'Cooperative rally, half court', '8 in a row, twice'],
-    ['Net Games', 'Rally', 3, 'Rally on the move', 'Partner sends you side to side: 6 in a row'],
-    ['Net Games', 'Rally', 4, 'Rally to called targets', 'Partner calls left or right before each shot: 6 of 10 land there'],
+    ['Net Games', 'Rally', 3, 'Deep rally', 'Partner rallies with you: 6 of 10 of your shots land in the back half'],
+    ['Net Games', 'Rally', 4, 'Rally on the move, deep', 'Partner sends you side to side and calls a side: 6 of 10 land there, in the back half'],
     ['Net Games', 'Attacking shot', 1, 'Shadow the attack', 'Side-on, elbow high, contact in front and above: partner checks 5 times'],
     ['Net Games', 'Attacking shot', 2, 'Fed balls, in court', '7 of 10 hit down and in'],
     ['Net Games', 'Attacking shot', 3, 'Fed balls to the deep half', '6 of 10 land in the back half'],
     ['Net Games', 'Attacking shot', 4, 'Fed balls to the corner', '4 of 10 in the 1 m corner zone'],
-    ['Ultimate', 'Backhand throw', 1, 'Grip & wrist snap', 'Disc flies flat 5 m, 5 in a row'],
-    ['Ultimate', 'Backhand throw', 2, 'Step & throw 10 m', '7 of 10 catchable'],
-    ['Ultimate', 'Backhand throw', 3, 'Throw to a moving target', '6 of 10 catchable on the run'],
-    ['Ultimate', 'Catching', 1, 'Pancake catch, standing', '8 of 10 from 5 m'],
-    ['Ultimate', 'Catching', 2, 'Two-hand rim catch, high & low', '7 of 10 mixed height'],
-    ['Ultimate', 'Catching', 3, 'Catch on the run', '6 of 10 while cutting'],
-    ['Ultimate', 'Break the mark', 1, 'Pivot foot only', 'Pivot 10 times without lifting the foot'],
-    ['Ultimate', 'Break the mark', 2, 'Fake then throw, passive mark', '7 of 10 past the mark'],
-    ['Ultimate', 'Break the mark', 3, 'Live mark, stall count', '5 of 10 past a live mark before stall 5'],
+    ['Ultimate', 'Backhand throw', 1, 'Stationary target hit', '7 of 10 through a 1 m gate from 10 m'],
+    ['Ultimate', 'Backhand throw', 2, 'Pivot & lead throw', '6 of 10 catchable to a partner cutting across, after a pivot'],
+    ['Ultimate', 'Backhand throw', 3, 'Pressure backhand under mark', '5 of 10 completed past a live mark'],
+    ['Ultimate', 'Backhand throw', 4, 'Your choice: a harder drill you design', 'Agree the "done when" line with your teacher before you start'],
+    ['Ultimate', 'Forehand throw', 1, 'Wrist snap isolation (5 m)', 'Flat, spinning flick over 5 m: 8 of 10 catchable'],
+    ['Ultimate', 'Forehand throw', 2, 'Lateral step & target gate (10 m)', '7 of 10 through a 2 m gate from 10 m after a lateral step'],
+    ['Ultimate', 'Forehand throw', 3, 'Rapid pivot & flick lead (12 m)', '6 of 10 catchable to a leading cutter from 12 m after a pivot'],
+    ['Ultimate', 'Forehand throw', 4, 'Your choice: a harder drill you design', 'Agree the "done when" line with your teacher before you start'],
+    ['Ultimate', 'Hammer throw', 1, 'Overhead arc target throw (8 m)', '7 of 10 land inside a 2 m circle at 8 m'],
+    ['Ultimate', 'Hammer throw', 2, 'Over-the-obstacle grid drop (12 m)', '6 of 10 clear a 2 m obstacle and land in a 3 m grid at 12 m'],
+    ['Ultimate', 'Hammer throw', 3, 'Deep hammer placement (15 m)', '5 of 10 land flat inside a 3 m zone at 15 m'],
+    ['Ultimate', 'Hammer throw', 4, 'Your choice: a harder drill you design', 'Agree the "done when" line with your teacher before you start'],
     ['Table Tennis', 'Short serve', 1, 'Toss & low contact', 'Legal toss, contact below net height, 5 in a row'],
     ['Table Tennis', 'Short serve', 2, 'Serve short, big target', '7 of 10 land in the far half and bounce twice'],
     ['Table Tennis', 'Short serve', 3, 'Serve short to a target', '6 of 10 bounce twice inside a paper target'],
@@ -117,15 +120,18 @@ var EXAMPLE = {
     ['Table Tennis', 'Third-ball attack', 1, 'Serve then topspin', 'Serve, partner returns long, topspin on the table: 6 of 10'],
     ['Table Tennis', 'Third-ball attack', 2, 'Attack the short return', 'Serve, partner returns short, attack on the table: 5 of 10'],
     ['Table Tennis', 'Third-ball attack', 3, 'Live points', 'Win the point within two shots of the serve: 4 of 10'],
-    ['Handball', 'Pass & catch', 1, 'Standing pass 5 m', '8 of 10 caught cleanly'],
-    ['Handball', 'Pass & catch', 2, 'Pass on the move', '7 of 10 caught cleanly while jogging'],
-    ['Handball', 'Pass & catch', 3, 'Pass with a passive defender', '6 of 10 completed'],
-    ['Handball', 'Jump shot', 1, 'Three-step & jump, no ball', 'Correct footwork 5 times in a row'],
-    ['Handball', 'Jump shot', 2, 'Jump shot at goal', '7 of 10 on target'],
-    ['Handball', 'Jump shot', 3, 'Jump shot over a defender', '5 of 10 on target'],
-    ['Handball', 'Beat and score', 1, 'Fake and go, cone defender', 'Beats the cone and shoots on target 7 of 10'],
-    ['Handball', 'Beat and score', 2, 'Passive defender, empty goal', 'Beats the defender and scores 6 of 10'],
-    ['Handball', 'Beat and score', 3, 'Live defender and goalkeeper', 'Beats the defender and scores 3 of 10']
+    ['Handball', 'Passing', 1, 'Stationary partner passing: pass types', '5 clean reps each of overhead, bounce, hip and lateral pass'],
+    ['Handball', 'Passing', 2, 'Triangle passing', '10 consecutive passes with no drops, moving to a new position after each pass'],
+    ['Handball', 'Passing', 3, 'Passing to a target / on the move', '8 of 10 clean passes hit a moving or marked target, any pass type'],
+    ['Handball', 'Passing', 4, 'Challenge: keep-away 3v1 or 4v2, or your own drill', '8–10 consecutive passes keeping possession against a live defender'],
+    ['Handball', 'Dribbling', 1, 'Stationary dribble control, both hands', '10 controlled touches with each hand without losing the ball'],
+    ['Handball', 'Dribbling', 2, 'Straight-line dribbling, change of speed', 'A 20 m length under control with each hand, including a controlled acceleration'],
+    ['Handball', 'Dribbling', 3, 'Dribbling through obstacles', '4 of 5 clean runs through 5 obstacles, keeping control'],
+    ['Handball', 'Dribbling', 4, 'Challenge: 1v1 vs a defender, or your own drill', 'Beat the defender on 5 of 10 attempts using a change of direction or pace'],
+    ['Handball', 'Shooting', 1, 'Standing shot technique', '7 of 10 shots on target from standing, correct technique'],
+    ['Handball', 'Shooting', 2, 'Shooting off a pass', '7 of 10 catch-and-shoot attempts on target'],
+    ['Handball', 'Shooting', 3, 'Shooting off the approach / dribble (jump shot)', '7 of 10 jump shots on target'],
+    ['Handball', 'Shooting', 4, 'Challenge: shooting vs a goalkeeper, or your own drill', 'Score against a live keeper, aiming for the corners: 5 of 10']
   ],
   Outcomes: [
     ['Self-management', 'Starts without being told, keeps the paper log up to date, moves on only after sign-off, asks for help at the right moment'],
@@ -263,7 +269,7 @@ function buildConfig_() {
     var sp = str_(s.Sport), sk = str_(s.Skill);
     if (!sp || !sk) return;
     if (sports.indexOf(sp) === -1) sports.push(sp);
-    (skills[sp] = skills[sp] || []).push({ skill: sk, test: str_(s.Test), success: str_(s.Success), drills: [] });
+    (skills[sp] = skills[sp] || []).push({ skill: sk, test: str_(s.Test), success: str_(s.Success), scale: str_(s.Scale), drills: [] });
   });
   readTab_('Drills').forEach(function(d) {
     var sp = str_(d.Sport), sk = str_(d.Skill), step = num_(d.Step);
