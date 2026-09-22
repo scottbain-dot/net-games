@@ -131,6 +131,7 @@ const S = {
 const CPS = () => S.cfg.checkpoints;
 const studentMode = () => S.id.role === 'student' || S.testAs;
 const skillsOf = sport => S.cfg.skills[sport] || [];
+const isCoach = () => !!(S.id && S.id.coach);
 const skillDef = (sport, name) => skillsOf(sport).find(s => s.skill === name) || null;
 function stageOf(score) { if (score === null || score === undefined || score === '') return 0; if (score <= S.cfg.stageBands[0]) return 1; if (score <= S.cfg.stageBands[1]) return 2; return 3; }
 const stageName = n => n ? S.cfg.stageLabels[n - 1] : '';
@@ -397,7 +398,7 @@ function syncTeacherCache(me) {
 }
 
 // ═══════════════════════ teacher ═══════════════════════
-function TABS() { const t = [['checkins', 'Check-ins'], ['students', 'Students'], ['overview', 'Grades'], ['print', 'Print logs']]; if (S.cfg.dailyRegister) t.unshift(['register', 'Register']); return t; }
+function TABS() { const t = [['checkins', 'Check-ins'], ['students', 'Students'], ['overview', 'Grades'], ['print', 'Print']]; if (S.cfg.dailyRegister) t.unshift(['register', 'Register']); return isCoach() ? t.filter(x => x[0] !== 'overview') : t; }
 function groupRoster() { return S.cfg.roster.filter(r => r.section === S.T.section && (!S.T.sport || r.sport === S.T.sport)); }
 function sportsInSection() { const out = []; S.cfg.roster.filter(r => r.section === S.T.section).forEach(r => { if (r.sport && out.indexOf(r.sport) === -1) out.push(r.sport); }); return out; }
 function meOf(student) { const T = S.T.data; return { checkins: T.checkins.filter(x => x.student === student), tests: T.tests.filter(x => x.student === student), outcomes: T.outcomes.filter(x => x.student === student) }; }
@@ -435,10 +436,10 @@ function renderTeacher() {
       <div><div class="title">${esc(cfg.unitName)}</div><div class="sub">${esc(T.section)}${T.sport ? ' · ' + esc(T.sport) : ''}</div></div>
       <div class="grow"></div>
       ${cfg.sections.length > 1 ? `<div class="seg-tabs">${cfg.sections.map(c => `<button class="${c === T.section ? 'on' : ''}" data-act="t-section" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
-      ${sports.length > 1 ? `<div class="seg-tabs">${sports.map(sp => `<button class="${sp === T.sport ? 'on' : ''}" data-act="t-sport" data-v="${esc(sp)}">${esc(sp)}</button>`).join('')}<button class="${!T.sport ? 'on' : ''}" data-act="t-sport" data-v="">All</button></div>` : ''}
-      ${S.id.alsoStudent ? `<button class="pill-btn small" data-act="test-as-on">Test as student &rsaquo;</button>` : ''}
+      ${sports.length > 1 && !(isCoach() && T.sport) ? `<div class="seg-tabs">${sports.map(sp => `<button class="${sp === T.sport ? 'on' : ''}" data-act="t-sport" data-v="${esc(sp)}">${esc(sp)}</button>`).join('')}<button class="${!T.sport ? 'on' : ''}" data-act="t-sport" data-v="">All</button></div>` : ''}
+      ${S.id.alsoStudent && !isCoach() ? `<button class="pill-btn small" data-act="test-as-on">Test as student &rsaquo;</button>` : ''}
       <div class="savestate" id="savestate"></div></div>
-    <div class="tabs main">${TABS().map(([k, l]) => `<button class="tab ${T.tab === k ? 'active' : ''}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</div>`;
+    <div class="tabs main">${TABS().map(([k, l]) => `<button class="tab ${T.tab === k ? 'active' : ''}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</div>${T.data ? todayStrip() : ''}`;
   if (!cfg.sections.length) return head + `<div class="notice"><h2>No students yet</h2><p>Add students to the <b>Roster</b> tab of the Sheet (Section, Sport, Student, Email), then reload.</p></div>`;
   if (!T.data) return head + `<div class="loading"><div class="spinner"></div> Loading…</div>`;
   const body = { register: renderRegister, checkins: renderTeacherCheckin, students: renderStudents, overview: renderOverview, print: renderPrint }[T.tab] || renderTeacherCheckin;
@@ -459,7 +460,7 @@ function renderGamePlayPage() {
   const lastTwo = cfg.lessons.slice(-2).map(l => l.number).join(' and ');
   const rated = roster.filter(r => { const c = T.data.checkins.find(x => x.student === r.student && x.checkpoint === end.name); return c && c.gamePlay; }).length;
   return `${cpSubtabs(GAME_TAB)}
-    <div class="card"><div class="card-body small muted">Lessons ${lastTwo}: watch each student use their <b>focus skill in game play</b> and tap the level. This is the S1 assessment. Add a note if it helps you remember. Works on a phone.</div></div>
+    <div class="card"><div class="card-body small muted">Lessons ${lastTwo}: watch each student use their <b>focus skill in a game</b> and tap the level you see. This is the skill grade. Add a note if it helps you remember. Works on a phone.</div></div>
     <div class="card"><div class="card-head purple">Game play · ${esc(T.sport || 'all sports')} <span class="right">${rated} of ${roster.length} rated</span></div><div class="card-body">
       ${roster.map(r => { const me = meOf(r.student); const c = me.checkins.find(x => x.checkpoint === end.name) || {}; const fc = currentFocus(me);
         return `<div class="gp-row ${c.gamePlay ? 'rated' : ''}"><div class="gp-name">${avatar(r.student)}<div><b>${esc(r.student)}</b><div class="tiny muted">${fc.skill ? esc(fc.skill) : 'no focus skill yet'}${!T.sport ? ' · ' + esc(r.sport) : ''}${fc.extension ? ' · + ' + esc(fc.extension) : ''}</div></div></div>
@@ -494,7 +495,7 @@ function renderTeacherCheckin() {
           ${mode !== 'early' ? (fc.skill ? cell(fc.skill) : '<td class="c faint">no focus</td>') + `<td class="c">${fdef ? (fc.step || 0) + '/' + fdef.drills.length : '–'}${fdef && (fc.step || 0) >= fdef.drills.length ? '<span class="sug-note">done</span>' : ''}</td>` : ''}
           ${mode === 'end' ? `<td class="c"><div class="ppills tight gp">${[1, 2, 3, 4].map(v => `<button type="button" class="${c.gamePlay === v ? 'on gl' + v : ''}" data-act="t-game" data-student="${esc(r.student)}" data-n="${v}">${esc(cfg.gameLevels[v - 1])}</button>`).join('')}</div></td>` : ''}
           <td class="c"><button type="button" class="ok-btn ${c.confirmed ? 'on' : ''}" data-act="t-confirm" data-student="${esc(r.student)}" title="${c.confirmed ? 'Checked — tap to undo' : 'I have checked this row'}">✓</button></td>
-          <td class="c"><div class="ppills st wide">${[1, 2, 3].map(v => `<button type="button" class="${c.personal === v ? 'on st' + v : ''}" data-act="t-pers" data-student="${esc(r.student)}" data-n="${v}">${esc(cfg.outcomeLabels[v - 1])}</button>`).join('')}</div>${cfg.outcomes.length > 1 ? `<a href="#" class="tiny" data-act="t-expand" data-student="${esc(r.student)}">${T.expanded[r.student] ? 'hide detail' : 'rate each'}</a>` : ''}</td></tr>
+          <td class="c"><div class="ppills st wide">${[1, 2, 3].map(v => `<button type="button" class="${c.personal === v ? 'on st' + v : ''}" data-act="t-pers" data-student="${esc(r.student)}" data-n="${v}">${esc(cfg.outcomeLabels[v - 1])}</button>`).join('')}</div>${cfg.outcomes.length > 1 && !isCoach() ? `<a href="#" class="tiny" data-act="t-expand" data-student="${esc(r.student)}">${T.expanded[r.student] ? 'hide detail' : 'rate each'}</a>` : ''}</td></tr>
           ${T.expanded[r.student] ? `<tr class="detail"><td></td><td colspan="${cols}"><div class="detail-row">${cfg.outcomes.map(o => { const x = me.outcomes.find(y => y.checkpoint === cp.name && y.outcome === o.outcome) || {}; return `<span class="detail-item"><span class="muted">${esc(o.outcome)}</span> <button type="button" class="cyc sm ${x.teacher ? 'st' + x.teacher : ''}" data-act="t-outcome" data-student="${esc(r.student)}" data-outcome="${esc(o.outcome)}">${x.teacher || '–'}<small>self ${x.self || '–'}</small></button></span>`; }).join('')}</div></td></tr>` : ''}`; }).join('')}
         </tbody></table></div>
         <div class="legend">${bandsLegend()}<span class="grow"></span>${mode === 'end' ? `<span>Game play: the level of the focus skill you saw in games (7 = top)</span>` : ''}<span>Personal skills: ${cfg.outcomes.map(o => esc(o.outcome)).join(', ')} since the last check-in</span></div>
@@ -607,9 +608,60 @@ function renderPrint() {
   return `<div class="toolbar no-print">
       <button class="subtab ${T.printMode === 'all' ? 'active' : ''}" data-act="print-mode" data-v="all">One sheet per student (${groupRoster().length})</button>
       <button class="subtab ${T.printMode === 'blank' ? 'active' : ''}" data-act="print-mode" data-v="blank">Blank sheet</button>
-      <div class="grow"></div><span class="small muted">Print before lesson 1: every sheet carries all three drill progressions. Printed later, the chosen skill is starred.</span>
+      <button class="subtab ${T.printMode === 'unit' ? 'active' : ''}" data-act="print-mode" data-v="unit">Unit plan${T.sport ? ' · ' + esc(T.sport) : ''}</button>
+      <div class="grow"></div><span class="small muted">${T.printMode === 'unit' ? 'The tests, drill steps and personal skills for this sport on one page. Hand it to the teacher taking the group to check before lesson 1.' : 'Print before lesson 1: every sheet carries all three drill progressions. Printed later, the chosen skill is starred.'}</span>
       <button class="pill-btn primary" data-act="print">Print</button></div>
-    ${roster.map(r => renderSheet(r)).join('')}`;
+    ${T.printMode === 'unit' ? (T.sport ? [T.sport] : sportsInSection()).map(sp => renderUnitSheet(sp)).join('') : roster.map(r => renderSheet(r)).join('')}`;
+}
+// ── "what do I do today" strip for teachers ──
+function todayStrip() {
+  const cfg = S.cfg, T = S.T, cps = CPS(); if (!cfg.lessons.length || !T.data) return '';
+  const roster = groupRoster();
+  const iso = d => { const x = new Date(d); return isNaN(x) ? '' : x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+  const today = iso(new Date());
+  const dated = cfg.lessons.map(l => ({ l, d: l.date ? iso(l.date) : '' })).filter(x => x.d);
+  const lastTwo = cfg.lessons.slice(-2).map(l => l.number);
+  const todo = cp => roster.filter(r => { const c = T.data.checkins.find(x => x.student === r.student && x.checkpoint === cp.name); return !(c && c.confirmed); }).length;
+  const rated = () => { const end = cps[cps.length - 1]; return roster.filter(r => { const c = T.data.checkins.find(x => x.student === r.student && x.checkpoint === end.name); return c && c.gamePlay; }).length; };
+  const describe = l => {
+    const cp = cps.find(c => c.lesson === l.number);
+    if (cp) { const m = cpMode(cp); return { text: m === 'early' ? `<b>${esc(cp.name)} check-in.</b> Students type their three test scores. You: open Check-ins → ${esc(cp.name)}, glance at each row, tap ✓, one personal-skills tap. ${todo(cp)} of ${roster.length} still to check.`
+      : m === 'end' ? `<b>${esc(cp.name)} check-in.</b> You: type each student's final retest, tap ✓, one personal-skills tap. ${todo(cp)} of ${roster.length} still to check.`
+      : `<b>${esc(cp.name)} check-in.</b> Students type their focus-skill retest. You: open Check-ins → ${esc(cp.name)}, check it, tap ✓, one personal-skills tap. ${todo(cp)} of ${roster.length} still to check.`, tab: 'checkins', cp: cp.name }; }
+    if (lastTwo.indexOf(l.number) !== -1 && cps.length) return { text: `<b>Game play.</b> Watch each student's focus skill in a game and tap a level on the Game play tab. ${rated()} of ${roster.length} rated.`, tab: 'checkins', cp: GAME_TAB };
+    return { text: `<b>Paper only.</b> Circulate, sign drill steps as students meet them. Nothing to do in the app.`, tab: '', cp: '' };
+  };
+  let head = '', info = null;
+  const t = dated.find(x => x.d === today);
+  if (t) { head = 'Today · lesson ' + t.l.number; info = describe(t.l); }
+  else {
+    const next = dated.filter(x => x.d > today).sort((a, b) => a.d < b.d ? -1 : 1)[0];
+    if (next) { head = 'Next · lesson ' + next.l.number + ' · ' + esc(next.l.date); info = describe(next.l); }
+    else if (cps.length) { const open = cps.find(cp => todo(cp) > 0); if (open) { head = 'Next up · lesson ' + open.lesson; info = describe(cfg.lessons.find(l => l.number === open.lesson) || { number: open.lesson }); } else if (rated() < roster.length) { head = 'Next up'; info = describe({ number: lastTwo[lastTwo.length - 1] }); } }
+  }
+  if (!info) return '';
+  const goBtn = info.tab && !(T.tab === info.tab && (info.cp ? T.cpName === info.cp : true)) ? `<button class="pill-btn small" data-act="t-goto" data-tab="${info.tab}" data-cp="${esc(info.cp)}">Open</button>` : '';
+  return `<div class="today no-print"><span class="today-h">${head}</span><span class="today-t">${info.text}</span>${goBtn}</div>`;
+}
+
+// ── one-page unit plan for a sport: what the coach checks before lesson 1 ──
+function renderUnitSheet(sport) {
+  const cfg = S.cfg, cps = CPS(); const skills = skillsOf(sport); const lastTwo = cfg.lessons.slice(-2).map(l => l.number);
+  const lessonLine = cfg.lessons.map(l => { const cp = cps.find(c => c.lesson === l.number); return `<td class="${cp ? 'cp' : ''}"><b>${l.number}</b><br>${cp ? esc(cp.name) + '<br>laptop' : (lastTwo.indexOf(l.number) !== -1 ? 'game play' : 'drills')}</td>`; }).join('');
+  return `<div class="sheet unit">
+    <div class="s-head"><div><div class="u">${esc(cfg.unitName)} · Unit plan</div><div class="n">${esc(sport)}</div></div><div style="text-align:right;font-size:8.5pt;color:#555">Check the tests and drill steps before lesson 1.<br>Cross out, rewrite, hand it back: the Sheet is updated for you.</div></div>
+    <div class="s-box"><h4>The nine lessons</h4><table class="s-plan"><tr>${lessonLine}</tr></table>
+      <div style="font-size:8pt;color:#555;margin-top:3px">Lesson 1: every student does the three tests in pairs and writes the scores on their paper log, then chooses one focus skill. Lessons ${lastTwo.join(' and ')}: you watch each student's focus skill in a game and tap a level.</div></div>
+    <div class="s-box" style="margin-top:3mm"><h4>Three skill tests · score out of ${cfg.scoreMax} · a partner counts ten attempts</h4>
+      <table class="s-drills"><thead><tr><th style="width:18%">Skill</th><th style="width:44%">Test</th><th>Counts as one</th></tr></thead><tbody>${skills.map(s => `<tr><td><b>${esc(s.skill)}</b></td><td>${esc(s.test)}</td><td>${esc(s.success)}</td></tr>`).join('')}</tbody></table>
+      <div style="font-size:8pt;color:#555;margin-top:3px">0–${cfg.stageBands[0]} ${esc(cfg.stageLabels[0])} · ${cfg.stageBands[0] + 1}–${cfg.stageBands[1]} ${esc(cfg.stageLabels[1])} · ${cfg.stageBands[1] + 1}–${cfg.scoreMax} ${esc(cfg.stageLabels[2])}. Students are steered to the skill where they scored lowest.</div></div>
+    <div class="s-box" style="margin-top:3mm"><h4>Drill progressions · partner initials, you sign, then the next step</h4>
+      <table class="s-drills"><thead><tr><th style="width:18%">Skill</th><th style="width:6%">Step</th><th style="width:32%">Drill</th><th>Done when…</th></tr></thead><tbody>${skills.map(sk => sk.drills.map((d, i) => `<tr class="${i === 0 ? 'skfirst' : ''}"><td>${i === 0 ? '<b>' + esc(sk.skill) + '</b>' : ''}</td><td><b>${d.step}</b></td><td>${esc(d.drill)}</td><td>${esc(d.criteria)}</td></tr>`).join('')).join('')}</tbody></table></div>
+    <div class="s-box" style="margin-top:3mm"><h4>Personal skills · students tick daily on paper · you give one rating at each check-in</h4>
+      <table class="s-drills"><tbody>${cfg.outcomes.map(o => `<tr><td style="width:18%"><b>${esc(o.outcome)}</b></td><td>${esc(o.looksLike)}</td></tr>`).join('')}</tbody></table>
+      <div style="font-size:8pt;color:#555;margin-top:3px">Rating: ${cfg.outcomeLabels.map(esc).join(' · ')}</div></div>
+    <div class="s-foot"><span>Your four app moments: ${cps.map(c => esc(c.name) + ' (L' + c.lesson + ')').join(', ')}, game play (L${lastTwo.join('–')}).</span><span>Everything else is paper and a pen.</span></div>
+  </div>`;
 }
 function renderSheet(r) {
   const cfg = S.cfg, cps = CPS(); const T = S.T;
@@ -669,6 +721,7 @@ const actions = {
   't-back'() { S.T.tab = 'students'; S.T.viewing = null; render(); },
   't-lesson'(t) { S.T.lesson = parseInt(t.dataset.n, 10); render(); },
   't-cp'(t) { S.T.cpName = t.dataset.v; render(); },
+  't-goto'(t) { S.T.tab = t.dataset.tab; if (t.dataset.cp) S.T.cpName = t.dataset.cp; S.T.viewing = null; render(); },
   't-open-student'(t) { openStudentAsTeacher(t.dataset.student); },
   't-confirm'(t) { const c = tCheckin(t.dataset.student); c.confirmed = !c.confirmed; putTeacherCheckin(t.dataset.student, { confirmed: c.confirmed }); render(); },
   't-game'(t) { const c = tCheckin(t.dataset.student), n = parseInt(t.dataset.n, 10); c.gamePlay = c.gamePlay === n ? null : n; putTeacherCheckin(t.dataset.student, { gamePlay: c.gamePlay }); render(); if (S.T.cpName === GAME_TAB) { const el = document.querySelector(`input[data-in="gnote"][data-student="${CSS.escape(t.dataset.student)}"]`); if (el && !el.value) el.focus(); } },

@@ -1,7 +1,7 @@
 // Browser-only: wires the real Code.gs (running against fake-sheets.js) up to
 // a fake google.script.run, seeds an example section, and picks who "you" are
 // from the URL:
-//   ?role=teacher | ?role=student | ?role=student2 | ?role=unknown | ?role=anon | ?as=email
+//   ?role=teacher | ?role=coach | ?role=student | ?role=student2 | ?role=unknown | ?role=anon | ?as=email
 //   &fail=1        every write fails (to test the outbox)
 //   &latency=800   simulated round-trip in ms
 //   &reset=1       wipe the fake spreadsheet stored in localStorage
@@ -34,6 +34,8 @@
     const roster = FakeSheets.book.getSheetByName('Roster');
     roster.clear(); roster.getRange(1, 1, 1, 4).setValues([['Section', 'Sport', 'Student', 'Email']]);
     roster.getRange(2, 1, rosterRows.length, 4).setValues(rosterRows);
+    const teachers = FakeSheets.book.getSheetByName('Teachers');
+    teachers.getRange(teachers.getLastRow() + 1, 1, 1, 4).setValues([['coach@example.edu', 'TT Coach', 'Table Tennis', 'coach']]);
     clearConfigCache();
     const cfg = buildConfig_();
     const A = rosterRows.filter(r => r[0] === 'Section A');
@@ -65,6 +67,7 @@
   else if (role === 'student') FakeSheets.user = rosterTab[0][3];
   else if (role === 'student2') FakeSheets.user = rosterTab[4][3];
   else if (role === 'unknown') FakeSheets.user = 'nobody@example.edu';
+  else if (role === 'coach') FakeSheets.user = 'coach@example.edu';
   else if (role === 'anon') FakeSheets.user = '';
   else FakeSheets.user = FakeSheets.owner;
 

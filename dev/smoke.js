@@ -169,6 +169,19 @@ async function main() {
   if (pdfPages !== nSheets) errors.push(`Print: ${nSheets} sheets produced ${pdfPages} PDF pages (want one page each)`);
   await shot('13-teacher-print-logs');
 
+  // unit plan print: one page per sport
+  await page.click('[data-act="print-mode"][data-v="unit"]');
+  await page.waitForSelector('.sheet.unit');
+  await page.locator('.sheet.unit').first().screenshot({ path: path.join(shots, '13b-print-unit-plan.png') });
+  await page.emulateMedia({ media: 'print' });
+  const unitPdf = path.join(shots, 'unit-plan.pdf');
+  await page.pdf({ path: unitPdf, format: 'A4', printBackground: true });
+  await page.emulateMedia({ media: 'screen' });
+  const unitPages = (fs.readFileSync(unitPdf, 'latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  const nUnit = await page.$$eval('.sheet.unit', els => els.length);
+  if (unitPages !== nUnit) errors.push(`Unit plan: ${nUnit} sheets produced ${unitPages} PDF pages`);
+  await page.click('[data-act="print-mode"][data-v="all"]');
+
   // all sports + section switch
   await page.click('[data-act="t-sport"][data-v=""]');
   await page.waitForSelector('.sheet');
@@ -198,7 +211,25 @@ async function main() {
   const persOn = await page.locator(`[data-act="t-pers"][data-student="${name}"].on`).count();
   if (!persOn) errors.push('Personal-skills rating did not persist for ' + name);
 
+  // ── coach role: one sport, no Grades, today strip ──
+  await page.goto(preview + '?role=coach');
+  await page.waitForSelector('.ok-btn');
+  if (await page.$('[data-act="t-tab"][data-tab="overview"]')) errors.push('Coach can see the Grades tab');
+  if (await page.$('[data-act="t-sport"]')) errors.push('Coach can see the sport picker');
+  if (await page.$('[data-act="test-as-on"]')) errors.push('Coach sees Test as student');
+  if (await page.$('[data-act="t-expand"]')) errors.push('Coach sees rate-each links');
+  const coachSub = await page.$eval('.topbar .sub', e => e.textContent);
+  if (!/Table Tennis/.test(coachSub)) errors.push('Coach not locked to their sport: ' + coachSub);
+  if (!(await page.$('.today'))) errors.push('Coach has no today/next strip');
+  const goto = await page.$('[data-act="t-goto"]');
+  if (goto) { await goto.click(); await page.waitForTimeout(100); }
+  await shot('15-coach-checkins');
+  await page.click('[data-act="t-cp"][data-v="__game"]');
+  await page.waitForSelector('.gp-row');
+  await shot('16-coach-gameplay');
+
   await browser.close();
+
   if (errors.length) { console.error('SMOKE FAILED\n' + errors.join('\n')); process.exit(1); }
   console.log('SMOKE OK — screenshots in dev/shots/');
 }

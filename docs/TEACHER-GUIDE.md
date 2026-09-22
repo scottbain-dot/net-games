@@ -12,7 +12,7 @@ Every student is in **one sport** for the whole unit. A section of ~70 is split 
 
 | Lesson | Student | Teacher |
 |---|---|---|
-| **Before L1** | — | **Print logs** (teacher view → Print). Every student's sheet already carries the three tests, a blank focus-skill line and all three skills' drill progressions, so one sheet lasts the whole unit. |
+| **Before L1** | — | **Print → Unit plan** for each sport and hand it to the teacher taking that group to check. Then **Print → One sheet per student**: every sheet carries the three tests, a blank focus-skill line and all three skills' drill progressions, so one sheet lasts the whole unit. |
 | **L1** | The three skill tests in pairs (a partner counts 10 attempts), scores written on the paper log; writes the chosen focus skill on the sheet | Watches, spot-checks |
 | **Early check-in** (end of L1 or start of L2, laptops, ~8 min) | Types the three scores from paper, picks **one** focus skill (the lowest is recommended), edits the drafted goal, answers one question | Same day, phone or laptop, ~3 min: **Check-ins → Early**. Glance at each row, fix a wrong score, tap ✓, rate personal skills (one tap: Not yet / Sometimes / Consistently). |
 | **L2–L4** | Works the drill progression on the paper card; a partner initials each step; you sign and date it; ticks the three personal skills; one line | Circulates; **signs the paper** to let a student move to the next step. **No app.** |
@@ -58,7 +58,7 @@ Two fairness notes built in:
 9. **Deploy:** Extensions → Apps Script → **Deploy → New deployment** → gear ⚙ → **Web app**: Execute as **Me**; Who has access **Anyone within [your school]** (this is what lets the app know who each student is) → **Deploy**.
 10. **PE Tracker → 3. Show app link.** One link for students and teachers. If it ever says "unable to open the file", copy the URL from **Deploy → Manage deployments** instead.
 
-Add colleagues on the **Teachers** tab (Email, Name, and optionally their Sport so the app opens on their group). A teacher who is also on the Roster gets a **Test as student** button.
+Add colleagues on the **Teachers** tab (Email, Name, Sport, Role). Sport makes the app open on their group. Put `coach` in **Role** for an outside instructor or anyone who only runs a group: they see their sport only, no Grades tab, no *Test as student*, and a one-line "today / next up" strip telling them what the app needs from them. Give them [docs/COACH-CARD.md](COACH-CARD.md) and the **Print → Unit plan** page for their sport. An outside coach still needs a school Google account to sign in. A teacher who is also on the Roster gets a **Test as student** button.
 
 ---
 
@@ -78,7 +78,7 @@ Everything is a tab. Edit cells; the app updates within a couple of minutes (or 
 
 - **Skills** — `Sport`, `Skill`, `Test` (how the 10 attempts run), `Success` (what counts as one). **Three per sport**, one of them a stretch test that challenges a proficient player. Tests must be countable by a partner.
 - **Drills** — `Sport`, `Skill`, `Step`, `Drill`, `Criteria` (the "done when" line a partner checks before you sign). Three or four steps per skill. All three skills' progressions print on the paper log from day one (the focus skill is starred once chosen), with an extension row underneath.
-- **Lessons** — `Number`, `Checkpoint` (write `Early`, `Middle`, `End` on the check-in lessons), `Date` (optional, prints on the log). No titles: what happens in a lesson is up to you.
+- **Lessons** — `Number`, `Checkpoint` (write `Early`, `Middle`, `End` on the check-in lessons), `Date` (optional, prints on the log and drives the "Today · lesson N" strip at the top of the teacher view; without dates the strip shows the next check-in that still has rows to check). No titles: what happens in a lesson is up to you.
 - **Outcomes** — personal skills for an independent task: self-management, perseverance, collaboration. `Outcome`, `LooksLike`. Students tick them daily on paper and self-rate at the End check-in; you give one rating per check-in (tap *rate each* on a row for per-outcome detail).
 - **Criteria** — `Code`, `Name`, `Evidence`, `TopBand`. Evidence is one of `test`, `reflection`, `participation`, `skills`, `outcomes`, `none` (see the assessment table).
 - **Config** — `unit_name`, `stage_labels`, `stage_bands`, `score_max`, `participation_labels`, `outcome_labels`, `game_levels` / `game_level_scores`, `goal_template`, `reflection_prompt_early`, the two later prompts, `show_grades_to_students`, and `daily_register` (TRUE adds a per-lesson register tab if you want one; off by default).
