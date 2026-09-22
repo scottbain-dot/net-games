@@ -211,6 +211,33 @@ async function main() {
   const persOn = await page.locator(`[data-act="t-pers"][data-student="${name}"].on`).count();
   if (!persOn) errors.push('Personal-skills rating did not persist for ' + name);
 
+  // ── robustness: teacher taps made while writes fail are sent after a reload ──
+  await page.goto(preview + '?role=teacher&fail=1');
+  await page.waitForSelector('.ok-btn');
+  await page.click('[data-act="t-sport"][data-v="Ultimate"]');
+  await page.click('[data-act="t-cp"][data-v="Middle"]');
+  await page.waitForSelector('[data-act="t-pers"]');
+  const offStudent = await page.$eval('[data-act="t-pers"]', e => e.dataset.student);
+  await page.click(`[data-act="t-pers"][data-student="${offStudent}"][data-n="3"]`);
+  await page.waitForSelector('#banner.show, .savestate.failed', { timeout: 15000 });
+  await page.goto(preview + '?role=teacher');
+  await page.waitForSelector('.ok-btn');
+  await page.click('[data-act="t-sport"][data-v="Ultimate"]');
+  await page.click('[data-act="t-cp"][data-v="Middle"]');
+  await saved();
+  await page.waitForTimeout(300);
+  if (!(await page.$(`[data-act="t-pers"][data-student="${offStudent}"][data-n="3"].on`))) errors.push('Teacher tap made offline was not sent after reload');
+  // a tap killed before the 900 ms flush is restored from localStorage on the next open
+  await page.click(`[data-act="t-pers"][data-student="${offStudent}"][data-n="1"]`);
+  await page.evaluate(() => { window.onbeforeunload = null; });
+  await page.goto(preview + '?role=teacher', { waitUntil: 'commit' });
+  await page.waitForSelector('.ok-btn');
+  await page.click('[data-act="t-sport"][data-v="Ultimate"]');
+  await page.click('[data-act="t-cp"][data-v="Middle"]');
+  await saved();
+  await page.waitForTimeout(300);
+  if (!(await page.$(`[data-act="t-pers"][data-student="${offStudent}"][data-n="1"].on`))) errors.push('Tap made just before leaving the page was lost');
+
   // ── coach role: one sport, no Grades, today strip ──
   await page.goto(preview + '?role=coach');
   await page.waitForSelector('.ok-btn');
