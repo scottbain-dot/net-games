@@ -676,6 +676,7 @@ function getOverview(section, sport) {
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('PE Tracker')
     .addItem('1. Set up tabs (safe to re-run)', 'setupTabs')
+    .addItem('1b. Replace unit tabs with the draft (Skills, Drills, Lessons…)', 'resetUnitTabs')
     .addItem('2. Check roster & config', 'checkConfig')
     .addItem('3. Show app link', 'showAppLink')
     .addSeparator()
@@ -687,6 +688,40 @@ function onEdit(e) {
   try { var name = e && e.range && e.range.getSheet().getName(); if (name && CONFIG_TABS[name]) clearConfigCache(); } catch (err) {}
 }
 
+var UNIT_TABS = ['Lessons', 'Skills', 'Drills', 'Outcomes', 'Criteria'];
+// Seed a unit tab from the draft by header NAME, not position (a tab kept from
+// an older version may have extra or re-ordered columns). With replace=true
+// the tab's rows are cleared first; otherwise only an empty tab is seeded.
+function seedUnitTab_(n, replace) {
+  var t = tab_(n);
+  if (!EXAMPLE[n]) return;
+  if (t.getLastRow() >= 2) {
+    if (!replace) return;
+    t.getRange(2, 1, t.getLastRow() - 1, Math.max(1, t.getLastColumn())).clearContent();
+  }
+  var hdrs = t.getRange(1, 1, 1, Math.max(1, t.getLastColumn())).getValues()[0].map(String);
+  var names = CONFIG_TABS[n];
+  var rows = EXAMPLE[n].map(function(r) {
+    var line = hdrs.map(function() { return ''; });
+    names.forEach(function(h, i) { var c = hdrs.indexOf(h); if (c !== -1) line[c] = r[i]; });
+    return line;
+  });
+  t.getRange(2, 1, rows.length, hdrs.length).setValues(rows);
+}
+// Menu: replace the unit tabs (Lessons, Skills, Drills, Outcomes, Criteria) with
+// the current draft. Roster, Teachers, Config and every data tab are untouched.
+function resetUnitTabs() {
+  var ui = null; try { ui = SpreadsheetApp.getUi(); } catch (e) {}
+  if (ui) {
+    var ans = ui.alert('Replace unit tabs with the draft?',
+      'This overwrites the rows on: ' + UNIT_TABS.join(', ') + '.\n\nRoster, Teachers, Config and all student data are kept. Any tests or drills you have edited by hand on those five tabs will be replaced.',
+      ui.ButtonSet.OK_CANCEL);
+    if (ans !== ui.Button.OK) return;
+  }
+  UNIT_TABS.forEach(function(n) { ensureTab_(n, CONFIG_TABS[n]); seedUnitTab_(n, true); });
+  clearConfigCache();
+  if (ui) ui.alert('Done. ' + UNIT_TABS.join(', ') + ' now hold the draft. Reload the app to see it.');
+}
 function setupTabs() {
   var book = ss_();
   Object.keys(CONFIG_TABS).forEach(function(n) { ensureTab_(n, CONFIG_TABS[n]); });
@@ -699,18 +734,7 @@ function setupTabs() {
   }
   // Seed by header NAME, not position — a tab kept from an older version may
   // have extra or re-ordered columns.
-  ['Lessons', 'Skills', 'Drills', 'Outcomes', 'Criteria'].forEach(function(n) {
-    var t = tab_(n);
-    if (t.getLastRow() >= 2 || !EXAMPLE[n]) return;
-    var hdrs = t.getRange(1, 1, 1, Math.max(1, t.getLastColumn())).getValues()[0].map(String);
-    var names = CONFIG_TABS[n];
-    var rows = EXAMPLE[n].map(function(r) {
-      var line = hdrs.map(function() { return ''; });
-      names.forEach(function(h, i) { var c = hdrs.indexOf(h); if (c !== -1) line[c] = r[i]; });
-      return line;
-    });
-    t.getRange(2, 1, rows.length, hdrs.length).setValues(rows);
-  });
+  UNIT_TABS.forEach(function(n) { seedUnitTab_(n, false); });
   var teachers = tab_('Teachers');
   if (teachers.getLastRow() < 2) teachers.getRange(2, 1, 1, 4).setValues([[Session.getEffectiveUser().getEmail(), 'Sheet owner (automatic)', '', '']]);
   var roster = tab_('Roster');

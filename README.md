@@ -23,6 +23,7 @@ dev/
   build-preview.js   builds dev/preview.html from the real app files
   build-single.js    builds dist/Code.gs
   smoke.js           headless Chromium test of the main flows (Playwright)
+  reset-unit-test.js Node check that the 'Replace unit tabs with the draft' menu item works
 ```
 
 ## Developing
@@ -31,6 +32,7 @@ dev/
 node dev/build-preview.js                     # dev/preview.html — open ?role=teacher | student | student2 | unknown, &fail=1, &latency=1500, &reset=1 (also ?role=coach)
 NODE_PATH=$(npm root -g) node dev/smoke.js    # needs playwright + Chromium; screenshots in dev/shots/
 node dev/build-single.js                      # regenerate dist/Code.gs — commit it, it's what teachers paste
+node dev/reset-unit-test.js                   # server-side check of the unit-tab reset
 ```
 
 The preview runs the real `Code.gs` against a fake spreadsheet kept in `localStorage`, so server logic (upserts, identity, evidence scoring) is exercised too.
