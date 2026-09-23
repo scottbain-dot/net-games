@@ -88,17 +88,17 @@ var EXAMPLE = {
     ['Handball',     'Shooting',        '10 shots at the goal corners, a mix of standing and jump shots',     'Ball enters a corner zone (stretch test)', '']
   ],
   Drills: [
-    ['Net Games', 'Serve accuracy', 1, 'Stage 1 · over the net, close', '4 of 5 (see the back)'],
-    ['Net Games', 'Serve accuracy', 2, 'Stage 2 · full distance, called half or type', '4 of 5 (see the back)'],
-    ['Net Games', 'Serve accuracy', 3, 'Stage 3 · called zone', '3 of 5 (see the back)'],
+    ['Net Games', 'Serve accuracy', 1, 'Stage 1', 'Your teacher sets the drill and the target'],
+    ['Net Games', 'Serve accuracy', 2, 'Stage 2', 'Your teacher sets the drill and the target'],
+    ['Net Games', 'Serve accuracy', 3, 'Stage 3', 'Your teacher sets the drill and the target'],
     ['Net Games', 'Serve accuracy', 4, 'Stage 4 · your design', 'You can explain why your version is harder'],
-    ['Net Games', 'Rally control', 1, 'Stage 1 · close feed, catch then pass', '4 of 5 (see the back)'],
-    ['Net Games', 'Rally control', 2, 'Stage 2 · further, side to side', '4 of 5 (see the back)'],
-    ['Net Games', 'Rally control', 3, 'Stage 3 · across the net (the test)', '3 of 5 (see the back)'],
-    ['Net Games', 'Rally control', 4, 'Stage 4 · your design', 'You can explain the added difficulty'],
-    ['Net Games', 'Attacking shot', 1, 'Stage 1 · the swing (wall or low net)', '4 of 5 hit down (see the back)'],
-    ['Net Games', 'Attacking shot', 2, 'Stage 2 · move in and hit a feed', '4 of 5 down, over and in (see the back)'],
-    ['Net Games', 'Attacking shot', 3, 'Stage 3 · on the move from the centre cone (the test)', '3 of 5 in (see the back)'],
+    ['Net Games', 'Rally control', 1, 'Stage 1', 'Your teacher sets the drill and the target'],
+    ['Net Games', 'Rally control', 2, 'Stage 2', 'Your teacher sets the drill and the target'],
+    ['Net Games', 'Rally control', 3, 'Stage 3', 'Your teacher sets the drill and the target'],
+    ['Net Games', 'Rally control', 4, 'Stage 4 · your design', 'You can explain why your version is harder'],
+    ['Net Games', 'Attacking shot', 1, 'Stage 1', 'Your teacher sets the drill and the target'],
+    ['Net Games', 'Attacking shot', 2, 'Stage 2', 'Your teacher sets the drill and the target'],
+    ['Net Games', 'Attacking shot', 3, 'Stage 3', 'Your teacher sets the drill and the target'],
     ['Net Games', 'Attacking shot', 4, 'Stage 4 · your design', 'You can explain why your version is harder'],
     ['Ultimate', 'Backhand throw', 1, 'Stationary target hit', '7 of 10 through a 1 m gate from 10 m'],
     ['Ultimate', 'Backhand throw', 2, 'Pivot & lead throw', '6 of 10 catchable to a partner cutting across, after a pivot'],
@@ -137,29 +137,7 @@ var EXAMPLE = {
     ['Handball', 'Shooting', 3, 'Shooting off the approach / dribble (jump shot)', '7 of 10 jump shots on target'],
     ['Handball', 'Shooting', 4, 'Challenge: shooting vs a goalkeeper, or your own drill', 'Score against a live keeper, aiming for the corners: 5 of 10']
   ],
-  BackPage: [
-    ['Net Games', '# Net Games · the stages in detail'],
-    ['Net Games', 'Work the stages for your chosen skill in the game you play. A partner checks the "move on when" line; your teacher signs the front. Stage 4 is yours to design: record what you changed, attempts (at least 5) and successes.'],
-    ['Net Games', '## Serve accuracy'],
-    ['Net Games', '| Stage | Volleyball | Move on when… | Badminton | Move on when… |'],
-    ['Net Games', '| 1 · close | Underhand or overhand, from the attack line (~3 m). Low toss, hit the ball at full reach. No target. | 4/5 over the net and in | Low backhand serve from just behind the short service line, into the box. No zone. | 4/5 over the net legally and in the box |'],
-    ['Net Games', '| 2 · full distance | Full distance. Partner calls left half or right half before each serve. | 4/5 in bounds on the correct side | Full distance. Partner calls short or long; in bounds. | 4/5 legal and in, correct type |'],
-    ['Net Games', '| 3 · zones | Deep-left and deep-right zones marked. Partner calls the zone. | 3/5 in the called zone | Front corners short, back corners long. Partner calls the type. | 3/5 in the correct zone |'],
-    ['Net Games', '| 4 · your design | Smaller zone or a third zone, at least 5 attempts. Record target, attempts, successes. | You can explain why it is harder | Narrower zones or a set pattern (short-long-short-long), at least 5 attempts. | You can explain why it is harder |'],
-    ['Net Games', '## Rally control'],
-    ['Net Games', '| Stage | Volleyball | Move on when… | Badminton | Move on when… |'],
-    ['Net Games', '| 1 · close | Partner tosses underhand from ~2 m. Catch it on your platform first, then pass it back to their hands. | 4/5 caught by the feeder, arms straight | Partner tosses gently and straight. Return high and soft to their hands. | 4/5 clean returns to the hands |'],
-    ['Net Games', '| 2 · moving | ~4–5 m, toss varies left and right. Move so the ball is in front of you; pass catchable to the feeder. | 4/5 caught cleanly despite moving | Further away, some movement. Return clears the net into the other half. | 4/5 clear the net legally from a moved position |'],
-    ['Net Games', '| 3 · across the net (the test) | Feeder tosses from across the net. Your partner stands at the setter spot; forearm pass to them. (3 students) | 3/5 caught without your partner moving more than one step | Feeder clears or drops from across the net. Return it over the net. | 3/5 over and in |'],
-    ['Net Games', '| 4 · your design | Faster or further feeds, or a new angle. At least 5 reps. | You can explain the added difficulty | Varied pace or placement, or a target zone. At least 5 reps. | You can explain the added difficulty |'],
-    ['Net Games', '## Attacking shot · spike (volleyball) and smash (badminton)'],
-    ['Net Games', 'One centre cone on your side. Stage 3 is the test. The feeder waits until you touch the cone before the next feed, so your partner only counts whether the shot landed in. If a stage stops working, go back one.'],
-    ['Net Games', '| Stage | Volleyball | Move on when… | Badminton | Move on when… |'],
-    ['Net Games', '| 1 · the swing | No net. Stand 3 m from a wall, toss to yourself, reach high and hit the top of the ball so it bounces on the floor before the wall and comes back to you. Or use a net lowered to head height and hit over it into the court. No approach, no jump. | 4/5 floor-then-wall (or over the low net and in) | Throw a shuttle overhead first (5 throws). Then a hand-fed high shuttle from close: reach high, hit it down over the net. No movement. | 4/5 hit down, over and in |'],
-    ['Net Games', '| 2 · move in and hit | Step-close approach with no ball (5 reps, partner checks the rhythm). Then approach, jump and spike a partner\'s toss to the same spot, anywhere in. Standing overhead attack allowed. | 4/5 down, over and in | Racket-fed lift from across the net to the same spot. Step under it (chassé), smash down over the net, anywhere in. | 4/5 down, over and in |'],
-    ['Net Games', '| 3 · on the move (the test) | Start at the centre cone. Tosses to alternating sides. Move, spike, touch the cone before the next toss. | 3/5 down, over and in | Start at the centre cone. Lifts to alternating sides. Move, smash, touch the cone before the next lift. | 3/5 down, over and in |'],
-    ['Net Games', '| 4 · your design | Faster toss, a blocker at the net, or a target zone. At least 5 reps. Record what changed, attempts, successes. | You can explain why it is harder | Faster lift, a defender on the far side, or a target zone. At least 5 reps. Record what changed, attempts, successes. | You can explain why it is harder |']
-  ],
+  BackPage: [],
   Outcomes: [
     ['Self-management', 'Starts without being told, keeps the paper log up to date, moves on only after sign-off, asks for help at the right moment'],
     ['Perseverance',    'Keeps going when a step is hard and repeats it until the criteria are met'],
@@ -751,7 +729,7 @@ function seedUnitTab_(n, replace) {
     names.forEach(function(h, i) { var c = hdrs.indexOf(h); if (c !== -1) line[c] = r[i]; });
     return line;
   });
-  t.getRange(2, 1, rows.length, hdrs.length).setValues(rows);
+  if (rows.length) t.getRange(2, 1, rows.length, hdrs.length).setValues(rows);
 }
 // Menu: replace the unit tabs (Lessons, Skills, Drills, Outcomes, Criteria) with
 // the current draft. Roster, Teachers, Config and every data tab are untouched.
