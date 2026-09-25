@@ -198,7 +198,7 @@ function str_(v) { return (v === null || v === undefined) ? '' : String(v).trim(
 function num_(v) { if (v === '' || v === null || v === undefined) return null; var n = parseFloat(v); return isNaN(n) ? null : n; }
 function bool_(v) { return /^(true|yes|1)$/i.test(str_(v)); }
 function lower_(v) { return str_(v).toLowerCase(); }
-function keyOf_(fields, obj) { return fields.map(function(f) { return lower_(obj[f]); }).join(''); }
+function keyOf_(fields, obj) { return fields.map(function(f) { return lower_(obj[f]); }).join('\u0001'); }  // separator: '7'+'Ann' must never equal '7A'+'nn'
 function splitList_(s) { return str_(s).split('|').map(function(x) { return x.trim(); }).filter(Boolean); }
 
 // Insert-or-update rows keyed on DATA_KEYS[name]. Columns the caller does not
@@ -817,13 +817,16 @@ function checkConfig() {
   if (!cfg.sports.length) problems.push('Skills tab has no sports/skills.');
   cfg.sports.forEach(function(sp) { cfg.skills[sp].forEach(function(s) { if (!s.drills.length) problems.push(sp + ' / ' + s.skill + ' has no drill steps on the Drills tab.'); }); });
   if (!cfg.roster.length) problems.push('Roster tab is empty.');
-  var seen = {};
+  var seen = {}, seenName = {};
   cfg.roster.forEach(function(r) {
     if (!r.sport) problems.push('No sport for ' + r.student + ' (' + r.section + ').');
     else if (!cfg.skills[r.sport]) problems.push(r.student + ' is in sport "' + r.sport + '" which is not on the Skills tab.');
     if (!r.email) problems.push('No email for ' + r.student + ' (' + r.section + ') — they cannot sign in.');
     else if (seen[r.email]) problems.push('Duplicate email ' + r.email);
     seen[r.email] = true;
+    var nk = r.section + '|' + r.student.toLowerCase();
+    if (seenName[nk]) problems.push('Two students called "' + r.student + '" in section ' + r.section + ' — their records would merge. Add a surname or initial to one of them.');
+    seenName[nk] = true;
   });
   cfg.teachers.forEach(function(t) { if (t.role === 'coach' && !t.sport) problems.push('Coach ' + t.email + ' has no Sport on the Teachers tab.'); if (t.sport && !cfg.skills[t.sport]) problems.push('Teacher ' + t.email + ' has sport "' + t.sport + '" which is not on the Skills tab.'); });
   if (!cfg.criteria.length) problems.push('Criteria tab is empty.');
