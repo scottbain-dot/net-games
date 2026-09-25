@@ -24,6 +24,7 @@ dev/
   build-single.js    builds dist/Code.gs
   smoke.js           headless Chromium test of the main flows (Playwright)
   reset-unit-test.js Node check that the 'Replace unit tabs with the draft' menu item works
+  sections-test.js   Node check that numeric sections (7, 8) work end to end and duplicate names are flagged
 ```
 
 ## Privacy
