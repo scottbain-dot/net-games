@@ -223,7 +223,16 @@ function signInAgain() {
 }
 
 // ═══════════════════════ boot ═══════════════════════
+function renderPagesSetup() {
+  $('#app').innerHTML = `<div class="notice"><h2>Almost ready</h2>
+    <p>This page is live, but sign-in is not switched on yet. Two things still to do (once, by the teacher who owns the Sheet):</p>
+    <ol style="margin:10px 0 10px 20px;font-size:.92rem;line-height:1.5">
+      <li>Create a Google <b>OAuth client ID</b> (Web application, authorised origin <code>${esc(location.origin)}</code>).</li>
+      <li>Put that ID in <code>docs/config.js</code> as <code>clientId</code> and on the Sheet's Config tab as <code>oauth_client_id</code>.</li></ol>
+    <p class="tiny muted">Full steps: Teacher Guide, Part A2.</p></div>`;
+}
 async function boot() {
+  if (pagesMode() && !window.MFS_CONFIG.clientId) { renderPagesSetup(); return; }
   if (pagesMode() && !Auth.get()) { renderSignIn(); return; }
   try {
     const b = await call('bootstrap');
