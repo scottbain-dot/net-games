@@ -685,7 +685,7 @@ async function boot() {
   if (pagesMode() && !Auth.get()) { renderSignIn(); return; }
   try {
     const b = await call('bootstrap');
-    S.cfg = b.config; S.id = b.identity;
+    S.cfg = b.config; S.id = b.identity; S.switchUrl = b.switchUrl || '';
     Outbox.load();
     if (S.id.role === 'student') S.me = b.student;
     if (S.id.role === 'teacher') {
@@ -716,7 +716,8 @@ function renderUnknown() {
     <h2>${email ? 'You are not on the roster yet' : 'Please sign in with your school Google account'}</h2>
     ${email ? `<p>You are signed in as <code>${esc(email)}</code>, but that address is not on any class list for <b>${esc(S.cfg.unitName)}</b>.</p><p>Ask your teacher to add this exact email to the <b>Roster</b> tab, then reload this page.</p>`
             : `<p>This page could not see who you are. Open it in a browser where you are signed in to your school account (not a private window), or ask your teacher to check that the app is shared with "Anyone within the school".</p>`}
-    <p><button class="pill-btn primary" data-act="reload">Reload</button>${pagesMode() ? ' <button class="pill-btn" data-act="switch-account">Use a different account</button>' : ''}</p></div>`;
+    <p><button class="pill-btn primary" data-act="reload">Reload</button>${pagesMode() ? ' <button class="pill-btn" data-act="switch-account">Use a different account</button>' : (S.switchUrl ? ` <a class="pill-btn" href="${esc(S.switchUrl)}">Switch to my school account</a>` : '')}</p>
+    ${!pagesMode() && email ? '<p class="tiny muted">Signed in with a personal account by mistake? <b>Switch to my school account</b> lets you pick the right one without signing out of anything.</p>' : ''}</div>`;
 }
 
 // ═══════════════════════ student dashboard ═══════════════════════
