@@ -165,7 +165,7 @@ function ensureTab_(name, headers) {
     return s;
   }
   var lastCol = Math.max(1, s.getLastColumn());
-  var existing = s.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+  var existing = s.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) { return String(h).trim(); });
   while (existing.length && existing[existing.length - 1] === '') existing.pop();
   var missing = headers.filter(function(h) { return existing.indexOf(h) === -1; });
   if (existing.length === 0) s.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -208,7 +208,7 @@ function upsert_(name, rows) {
   var s = ensureTab_(name, DATA_TABS[name]);
   var keys = DATA_KEYS[name];
   var lastRow = s.getLastRow(), lastCol = s.getLastColumn();
-  var sheetHeaders = s.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+  var sheetHeaders = s.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) { return String(h).trim(); });
   var existing = lastRow > 1 ? s.getRange(2, 1, lastRow - 1, lastCol).getValues() : [];
   var index = {};
   existing.forEach(function(row, i) {
@@ -300,12 +300,14 @@ function buildConfig_() {
     return { code: str_(r.Code), name: str_(r.Name), evidence: EVIDENCE_TYPES.indexOf(ev) === -1 ? 'none' : ev, top: str_(r.TopBand) };
   }).filter(function(c) { return c.code; });
 
-  var roster = readTab_('Roster').map(function(r) { return { section: str_(r.Section), sport: str_(r.Sport), student: str_(r.Student), email: lower_(r.Email) }; })
+  var sportNames = Object.keys(skills);
+  var canonSport = function(v) { var x = str_(v); var hit = sportNames.filter(function(n) { return n.toLowerCase() === x.toLowerCase(); })[0]; return hit || x; };
+  var roster = readTab_('Roster').map(function(r) { return { section: str_(r.Section), sport: canonSport(r.Sport), student: str_(r.Student), email: lower_(r.Email) }; })
     .filter(function(r) { return r.section && r.student; });
   var sections = [];
   roster.forEach(function(r) { if (sections.indexOf(r.section) === -1) sections.push(r.section); });
   // Role: blank = teacher (everything). 'coach' = an outside instructor: their sport only, no Grades tab, plain wording.
-  var teachers = readTab_('Teachers').map(function(r) { return { email: lower_(r.Email), sport: str_(r.Sport), role: lower_(str_(r.Role)) }; }).filter(function(t) { return t.email; });
+  var teachers = readTab_('Teachers').map(function(r) { return { email: lower_(r.Email), sport: canonSport(r.Sport), role: lower_(str_(r.Role)) }; }).filter(function(t) { return t.email; });
 
   var stageLabels = splitList_(kv.stage_labels); while (stageLabels.length < 3) stageLabels.push('Stage ' + (stageLabels.length + 1));
   var bands = splitList_(kv.stage_bands).map(num_); if (bands.length < 2 || bands[0] === null || bands[1] === null) bands = [3, 7];
@@ -470,18 +472,22 @@ function saveCheckin(payload) {
     WentWell: str_(payload.wentWell).slice(0, 600), NextGoal: str_(payload.nextGoal).slice(0, 600) };
   // Scores the student typed from their paper log. Never overwrite a score
   // the teacher entered or corrected.
-  var testRows = [];
   var scores = payload.scores || {};
-  if (Object.keys(scores).length) {
+  // Which scores the teacher owns is decided INSIDE the lock, so a teacher
+  // correction that lands while this request queues is never overwritten.
+  var buildTestRows = function() {
+    var testRows = [];
+    if (!Object.keys(scores).length) return testRows;
     var teacherSet = {};
-    rowsFor_('SkillTests', who.section, who.student).forEach(function(t) { if (str_(t.Checkpoint) === cp && str_(t.By) === 'teacher') teacherSet[str_(t.Skill)] = true; });
+    rowsFor_('SkillTests', who.section, who.student).forEach(function(t) { if (str_(t.Checkpoint) === cp && str_(t.By) === 'teacher' && str_(t.Score) !== '') teacherSet[str_(t.Skill)] = true; });
     Object.keys(scores).forEach(function(k) {
       if (skills.indexOf(k) === -1 || teacherSet[k]) return;
       var v = scores[k];
       if (v === '' || v === null || v === undefined) return;
       testRows.push({ Section: who.section, Sport: who.sport, Student: who.student, Checkpoint: cp, Skill: k, Score: blankOr_(v, 0, cfg.scoreMax), By: 'student' });
     });
-  }
+    return testRows;
+  };
   // A student re-saving their check-in un-confirms it so the teacher looks again.
   if (!who.byTeacher) row.Confirmed = '';
   var outcomeRows = [];
@@ -491,6 +497,7 @@ function saveCheckin(payload) {
     outcomeRows.push({ Section: who.section, Sport: who.sport, Student: who.student, Checkpoint: cp, Outcome: k, Self: n });
   });
   return withLock_(function() {
+    var testRows = buildTestRows();
     upsert_('Checkins', [row]);
     if (testRows.length) upsert_('SkillTests', testRows);
     if (outcomeRows.length) upsert_('OutcomeRatings', outcomeRows);
@@ -517,7 +524,8 @@ function saveTeacherCheckin(payload) {
     if ('gameNote' in e) { c.GameNote = str_(e.gameNote).slice(0, 200); any = true; }
     if (any) checkRows.push(c);
     Object.keys(e.scores || {}).forEach(function(k) {
-      testRows.push({ Section: section, Sport: sport, Student: student, Checkpoint: cp, Skill: k, Score: blankOr_(e.scores[k], 0, cfg.scoreMax), By: 'teacher' });
+      var sc = blankOr_(e.scores[k], 0, cfg.scoreMax);
+      testRows.push({ Section: section, Sport: sport, Student: student, Checkpoint: cp, Skill: k, Score: sc, By: sc === '' ? '' : 'teacher' });
     });
   });
   return withLock_(function() {

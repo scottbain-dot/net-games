@@ -46,5 +46,23 @@ vm.runInContext(`
   clearConfigCache();
   const msg = checkConfig();
   if (!/Two students called/.test(msg)) throw new Error('duplicate name in a section not flagged: ' + msg);
+  // a teacher who blanks a score cell hands the skill back to the student
+  FakeSheets.user = FakeSheets.owner;
+  saveTeacherCheckin({ section: '7', checkpoint: 'Early', entries: [{ student: 'Ann Lee', scores: { 'Serve accuracy': 9 } }] });
+  FakeSheets.user = 'ann@example.edu';
+  saveCheckin({ checkpoint: 'Early', scores: { 'Serve accuracy': 1 }, focusSkill: 'Serve accuracy', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'w', nextGoal: '' });
+  let t = getStudent('7', 'Ann Lee').tests.find(x => x.skill === 'Serve accuracy');
+  if (t.score !== 9 || t.by !== 'teacher') throw new Error('student overwrote a teacher score: ' + JSON.stringify(t));
+  FakeSheets.user = FakeSheets.owner;
+  saveTeacherCheckin({ section: '7', checkpoint: 'Early', entries: [{ student: 'Ann Lee', scores: { 'Serve accuracy': '' } }] });
+  FakeSheets.user = 'ann@example.edu';
+  saveCheckin({ checkpoint: 'Early', scores: { 'Serve accuracy': 5 }, focusSkill: 'Serve accuracy', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'w', nextGoal: '' });
+  t = getStudent('7', 'Ann Lee').tests.find(x => x.skill === 'Serve accuracy');
+  if (t.score !== 5 || t.by !== 'student') throw new Error('blanked teacher cell still blocks the student: ' + JSON.stringify(t));
+  // roster sport typed in a different case still maps to the Skills tab
+  FakeSheets.user = FakeSheets.owner;
+  roster.getRange(9, 1, 1, 4).setValues([[8, 'net games', 'Fay Wu', 'fay@example.edu']]);
+  clearConfigCache();
+  if (buildConfig_().roster.find(r => r.student === 'Fay Wu').sport !== 'Net Games') throw new Error('sport case not normalised');
   console.log('SECTIONS OK');
 `, ctx);
