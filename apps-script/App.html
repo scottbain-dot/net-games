@@ -223,7 +223,7 @@ function renderStudentPage(me, asTeacher) {
       <div class="cp-name">${esc(cp.name)} check-in</div>
       <div class="small muted">lesson ${cp.lesson}</div>
       <div class="cp-status ${done ? 'done' : 'muted'}">${done ? (ci && ci.confirmed ? '✓ Done · teacher confirmed' : '✓ Done') : (isNext ? 'Up next' : 'Not yet')}</div>
-      <button class="pill-btn ${isNext && !done ? 'primary' : ''} small" data-act="open-cp" data-cp="${esc(cp.name)}">${done ? 'Edit' : 'Enter now'}</button></div>`; }).join('')}</div>`;
+      ${done || isNext || asTeacher ? `<button class="pill-btn ${isNext && !done ? 'primary' : ''} small" data-act="open-cp" data-cp="${esc(cp.name)}">${done ? 'Edit' : 'Enter now'}</button>` : `<button class="pill-btn small" disabled title="Opens after the ${esc(next ? next.name : '')} check-in">Later</button>`}</div>`; }).join('')}</div>`;
 
   let focusCard;
   if (focus.skill) {
@@ -356,7 +356,8 @@ function renderCpForm(me, cp, asTeacher) {
   let focusCard = '';
   if (mode === 'early') {
     focusCard = `<div class="card">${sec('My focus skill', 'amber')}<div class="card-body">
-      <div class="focus-grid">${skills.map(s => { const v = num(f.scores[s.skill]); const st = stageOf(v); return `<button type="button" class="focus-btn ${f.focusSkill === s.skill ? 'on' : ''}" data-act="focus-skill" data-v="${esc(s.skill)}">${esc(s.skill)}<span>${st ? esc(stageName(st)) + ' · ' + fmt(v, 0) + '/' + cfg.scoreMax : 'no score yet'}${st === 1 ? ' · recommended' : ''}</span></button>`; }).join('')}</div>
+      <div class="focus-grid">${(() => { const typed = skills.map(s => num(f.scores[s.skill])).filter(v => v !== null); const lowest = typed.length === skills.length ? Math.min(...typed) : null;  // recommend the lowest score once every test is in
+        return skills.map(s => { const v = num(f.scores[s.skill]); const st = stageOf(v); return `<button type="button" class="focus-btn ${f.focusSkill === s.skill ? 'on' : ''}" data-act="focus-skill" data-v="${esc(s.skill)}">${esc(s.skill)}<span>${st ? esc(stageName(st)) + ' · ' + fmt(v, 0) + '/' + cfg.scoreMax : 'no score yet'}${lowest !== null && v === lowest ? ' · recommended' : ''}</span></button>`; }).join(''); })()}</div>
       ${def ? `<div class="field" style="margin-top:14px"><label>My goal</label><textarea data-in="goal" maxlength="400" placeholder="${num(f.scores[f.focusSkill]) === null ? 'Type your ' + esc(f.focusSkill.toLowerCase()) + ' score above and a goal will be drafted for you' : ''}">${esc(f.goal)}</textarea><div class="hint">Drafted from your score — change it so it sounds like you. <a href="#" data-act="goal-redraft">Re-draft</a></div></div>` : '<div class="hint">Pick a skill above.</div>'}
     </div></div>`;
   } else if (def) {
@@ -391,6 +392,12 @@ async function saveCpForm() {
     scores[k] = Math.max(0, Math.min(S.cfg.scoreMax, Math.round(num(v))));
   });
   if (!Object.keys(scores).length && !f.focusSkill && !f.wentWell && !f.nextGoal && !Object.keys(f.selfStages).length) { toast('Type a score or pick a focus skill first'); return; }
+  if (f.mode === 'early') {
+    // The Early check-in is where the unit's data starts: every test score and a focus skill are required.
+    const missing = skillsOf(me.sport).filter(s => { const t = testRow(me, cp.name, s.skill); return !(s.skill in scores) && !(t && t.by === 'teacher'); }).map(s => s.skill);
+    if (missing.length) { toast('Type your ' + missing.join(', ').toLowerCase() + ' score' + (missing.length > 1 ? 's' : '') + ' from your paper log first'); return; }
+    if (!f.focusSkill) { toast('Pick the one skill you will focus on'); return; }
+  }
   const payload = { section: me.section, student: me.student, checkpoint: cp.name, scores, focusSkill: f.focusSkill, goal: f.goal, drillStep: f.drillStep, extensionSkill: f.extensionSkill, extensionDrill: f.extensionDrill, selfStages: f.selfStages, selfOutcomes: f.selfOutcomes, wentWell: f.wentWell, nextGoal: f.nextGoal };
   // optimistic local update
   let c = checkinOf(me, cp.name); if (!c) { c = { checkpoint: cp.name, engagement: null, personal: null, gamePlay: null, confirmed: false }; me.checkins.push(c); }

@@ -229,10 +229,22 @@ async function main() {
   await page.waitForSelector('.cp-strip');
   await page.click('[data-act="open-cp"][data-cp="Early"]');
   await page.waitForSelector('.focus-btn');
+  // the Early guard: saving without every score, or without a focus skill, must be refused
+  await page.click('[data-act="cp-save"]');
+  await page.waitForTimeout(300);
+  if (await page.$('.cp-card:nth-child(1).done')) errors.push('Early check-in saved with no scores');
+  const taInputs = (await page.$$('input[data-in="score"]')).length;
+  for (let i = 0; i < taInputs; i++) { const inp = page.locator('input[data-in="score"]').nth(i); await inp.fill(String(3 + i)); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
+  await page.click('[data-act="cp-save"]');
+  await page.waitForTimeout(300);
+  if (await page.$('.cp-card:nth-child(1).done')) errors.push('Early check-in saved with no focus skill');
   await page.click('.focus-grid >> nth=0 >> .focus-btn >> nth=0');
   await page.click('[data-act="cp-save"]');
   await page.waitForSelector('.cp-card:nth-child(1).done');
   await saved();
+  // later check-ins are locked for a student until the earlier one is done
+  const laterLocked = await page.$$eval('.cp-card button[disabled]', els => els.length);
+  if (laterLocked < 1) errors.push('Middle/End check-ins were openable before Early');
   await shot('14-teacher-test-as-student');
   await page.click('[data-act="test-as-off"]');
   await page.waitForSelector('.ok-btn');
