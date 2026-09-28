@@ -128,6 +128,7 @@ window.addEventListener('beforeunload', () => Pending.flush());
 window.addEventListener('pagehide', () => Pending.flush());
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') Pending.flush(); });
 window.addEventListener('online', () => Outbox.retry());
+window.addEventListener('beforeunload', e => { if (Outbox.mine().length || Pending.count()) { e.preventDefault(); e.returnValue = ''; } });
 function updateSaveState() {
   const el = $('#savestate'); if (!el) return;
   const n = Outbox.mine().length + Pending.count();
@@ -156,7 +157,7 @@ function testRow(me, cp, skill) { return me.tests.find(x => x.checkpoint === cp 
 function testScore(me, cp, skill) { const t = testRow(me, cp, skill); return t ? t.score : null; }
 function latestScore(me, skill, uptoCp) { let v = null; for (const c of CPS()) { const s = testScore(me, c.name, skill); if (s !== null) v = s; if (uptoCp && c.name === uptoCp) break; } return v; }
 function checkinOf(me, cp) { return me.checkins.find(c => c.checkpoint === cp) || null; }
-function cpDone(me, cp) { const c = checkinOf(me, cp.name); return !!(c && (c.focusSkill || c.wentWell || c.nextGoal || c.drillStep !== null)) || me.tests.some(t => t.checkpoint === cp.name && t.score !== null); }
+function cpDone(me, cp) { const c = checkinOf(me, cp.name); return !!(c && (c.focusSkill || c.wentWell || c.nextGoal || c.drillStep !== null || (c.selfStages && Object.keys(c.selfStages).length))); }
 function nextCheckpoint(me) { return CPS().find(cp => !cpDone(me, cp)) || null; }
 function currentFocus(me) { let f = '', step = null, goal = '', ext = '', extDrill = ''; CPS().forEach(c => { const x = checkinOf(me, c.name); if (!x) return; if (x.focusSkill) f = x.focusSkill; if (x.goal) goal = x.goal; if (x.drillStep !== null) step = x.drillStep; if (x.extensionSkill) { ext = x.extensionSkill; extDrill = x.extensionDrill || ''; } }); return { skill: f, step, goal, extension: ext, extensionDrill: extDrill }; }
 function gameLabel(n) { return n ? S.cfg.gameLevels[n - 1] : ''; }
@@ -186,6 +187,7 @@ async function boot() {
       S.T.section = (URL_SECTION && S.cfg.sections.indexOf(URL_SECTION) !== -1) ? URL_SECTION : (S.cfg.sections[0] || '');
       if (URL_VIEW) S.T.tab = URL_VIEW;
       S.T.sport = S.id.sport && S.cfg.sports.indexOf(S.id.sport) !== -1 ? S.id.sport : '';
+      if (!S.id.sport) { try { const last = localStorage.getItem('mfs_sport|' + S.id.email); if (last && S.cfg.sports.indexOf(last) !== -1) S.T.sport = last; } catch (e) {} }
     }
     render(); Pending.restore(); Outbox.drain();
     if (S.id.role === 'teacher' && S.T.section) loadSection(S.T.section);
@@ -193,13 +195,16 @@ async function boot() {
     $('#app').innerHTML = `<div class="notice"><h2>Could not load</h2><p>${esc(e.message)}</p><p><button class="pill-btn primary" data-act="reload">Try again</button></p></div>`;
   }
 }
-function render() {
-  const app = $('#app');
+// render() keeps the scroll position (a teacher tapping ✓ on row 60 stays on row 60);
+// renderTop() is for a change of page.
+function render(opts) {
+  const app = $('#app'); const y = window.scrollY;
   if (S.id.role === 'unknown') app.innerHTML = renderUnknown();
   else if (studentMode()) app.innerHTML = S.view === 'cpform' ? renderCpForm(S.me, S.cp, false) : renderStudentPage(S.me, false);
   else app.innerHTML = renderTeacher();
-  updateSaveState(); window.scrollTo(0, 0);
+  updateSaveState(); window.scrollTo(0, opts && opts.top ? 0 : y);
 }
+function renderTop() { render({ top: true }); }
 function renderUnknown() {
   const email = S.id.email;
   return `<div class="notice">
@@ -223,7 +228,7 @@ function renderStudentPage(me, asTeacher) {
       <div class="cp-name">${esc(cp.name)} check-in</div>
       <div class="small muted">lesson ${cp.lesson}</div>
       <div class="cp-status ${done ? 'done' : 'muted'}">${done ? (ci && ci.confirmed ? '✓ Done · teacher confirmed' : '✓ Done') : (isNext ? 'Up next' : 'Not yet')}</div>
-      <button class="pill-btn ${isNext && !done ? 'primary' : ''} small" data-act="open-cp" data-cp="${esc(cp.name)}">${done ? 'Edit' : 'Enter now'}</button></div>`; }).join('')}</div>`;
+      ${done || isNext || asTeacher ? `<button class="pill-btn ${isNext && !done ? 'primary' : ''} small" data-act="open-cp" data-cp="${esc(cp.name)}">${done ? 'Edit' : 'Enter now'}</button>` : `<button class="pill-btn small" disabled title="Opens after the ${esc(next ? next.name : '')} check-in">Later</button>`}</div>`; }).join('')}</div>`;
 
   let focusCard;
   if (focus.skill) {
@@ -314,7 +319,18 @@ function openCpForm(me, cpName) {
     else if (stale) S.form.goal = '';
   }
   if (studentMode()) S.view = 'cpform'; else S.T.tab = 'cpform';
-  render();
+  renderTop();
+}
+// The Early form's focus card. Rebuilt on its own when a score changes so the
+// score inputs (and the keyboard focus) are left alone.
+function earlyFocusCard(me, f, secNo) {
+  const cfg = S.cfg, skills = skillsOf(me.sport); const def = f.focusSkill ? skillDef(me.sport, f.focusSkill) : null;
+  if (secNo !== undefined) f._focusSec = secNo;
+  const typed = skills.map(s => num(f.scores[s.skill])).filter(v => v !== null); const lowest = typed.length === skills.length ? Math.min(...typed) : null;  // recommend the lowest score once every test is in
+  return `<div class="card" id="focus-card"><div class="card-head amber">${f._focusSec || 2} · My focus skill</div><div class="card-body">
+      <div class="focus-grid">${skills.map(s => { const v = num(f.scores[s.skill]); const st = stageOf(v); return `<button type="button" class="focus-btn ${f.focusSkill === s.skill ? 'on' : ''}" data-act="focus-skill" data-v="${esc(s.skill)}">${esc(s.skill)}<span>${st ? esc(stageName(st)) + ' · ' + fmt(v, 0) + '/' + cfg.scoreMax : 'no score yet'}${lowest !== null && v === lowest ? ' · recommended' : ''}</span></button>`; }).join('')}</div>
+      ${def ? `<div class="field" style="margin-top:14px"><label>My goal</label><textarea data-in="goal" maxlength="400" placeholder="${num(f.scores[f.focusSkill]) === null ? 'Type your ' + esc(f.focusSkill.toLowerCase()) + ' score above and a goal will be drafted for you' : ''}">${esc(f.goal)}</textarea><div class="hint">Drafted from your score — change it so it sounds like you. <a href="#" data-act="goal-redraft">Re-draft</a></div></div>` : '<div class="hint">Pick a skill above.</div>'}
+    </div></div>`;
 }
 function renderCpForm(me, cp, asTeacher) {
   const cfg = S.cfg, f = S.form, skills = skillsOf(me.sport), mode = f.mode;
@@ -355,10 +371,7 @@ function renderCpForm(me, cp, asTeacher) {
   // 2 · focus skill
   let focusCard = '';
   if (mode === 'early') {
-    focusCard = `<div class="card">${sec('My focus skill', 'amber')}<div class="card-body">
-      <div class="focus-grid">${skills.map(s => { const v = num(f.scores[s.skill]); const st = stageOf(v); return `<button type="button" class="focus-btn ${f.focusSkill === s.skill ? 'on' : ''}" data-act="focus-skill" data-v="${esc(s.skill)}">${esc(s.skill)}<span>${st ? esc(stageName(st)) + ' · ' + fmt(v, 0) + '/' + cfg.scoreMax : 'no score yet'}${st === 1 ? ' · recommended' : ''}</span></button>`; }).join('')}</div>
-      ${def ? `<div class="field" style="margin-top:14px"><label>My goal</label><textarea data-in="goal" maxlength="400" placeholder="${num(f.scores[f.focusSkill]) === null ? 'Type your ' + esc(f.focusSkill.toLowerCase()) + ' score above and a goal will be drafted for you' : ''}">${esc(f.goal)}</textarea><div class="hint">Drafted from your score — change it so it sounds like you. <a href="#" data-act="goal-redraft">Re-draft</a></div></div>` : '<div class="hint">Pick a skill above.</div>'}
-    </div></div>`;
+    focusCard = earlyFocusCard(me, f, n++);
   } else if (def) {
     focusCard = `<div class="card">${sec('Drill step reached · ' + esc(f.focusSkill), 'amber')}<div class="card-body">
       <div class="steps pick">${def.drills.map(d => `<button type="button" class="step ${f.drillStep >= d.step ? 'done' : ''}" data-act="drill-step" data-n="${d.step}"><span class="step-n">${d.step}</span><div><div class="step-name">${esc(d.drill)}</div><div class="step-crit">${esc(d.criteria)}</div></div><span class="step-mark">${f.drillStep >= d.step ? '✓' : ''}</span></button>`).join('')}</div>
@@ -388,9 +401,17 @@ async function saveCpForm() {
   Object.keys(f.scores).forEach(k => {
     const v = f.scores[k]; if (v === '' || v === null || v === undefined) return;
     const t = testRow(me, cp.name, k); if (t && t.by === 'teacher' && !asTeacher) return;
-    scores[k] = Math.max(0, Math.min(S.cfg.scoreMax, Math.round(num(v))));
+    scores[k] = Math.round(num(v));
   });
+  const bad = Object.keys(scores).filter(k => isNaN(scores[k]) || scores[k] < 0 || scores[k] > S.cfg.scoreMax);
+  if (bad.length) { toast(bad.join(', ') + ': a score is a whole number from 0 to ' + S.cfg.scoreMax); return; }
   if (!Object.keys(scores).length && !f.focusSkill && !f.wentWell && !f.nextGoal && !Object.keys(f.selfStages).length) { toast('Type a score or pick a focus skill first'); return; }
+  if (f.mode === 'early') {
+    // The Early check-in is where the unit's data starts: every test score and a focus skill are required.
+    const missing = skillsOf(me.sport).filter(s => { const t = testRow(me, cp.name, s.skill); return !(s.skill in scores) && !(t && t.by === 'teacher'); }).map(s => s.skill);
+    if (missing.length) { toast('Type your ' + missing.join(', ').toLowerCase() + ' score' + (missing.length > 1 ? 's' : '') + ' from your paper log first'); return; }
+    if (!f.focusSkill) { toast('Pick the one skill you will focus on'); return; }
+  }
   const payload = { section: me.section, student: me.student, checkpoint: cp.name, scores, focusSkill: f.focusSkill, goal: f.goal, drillStep: f.drillStep, extensionSkill: f.extensionSkill, extensionDrill: f.extensionDrill, selfStages: f.selfStages, selfOutcomes: f.selfOutcomes, wentWell: f.wentWell, nextGoal: f.nextGoal };
   // optimistic local update
   let c = checkinOf(me, cp.name); if (!c) { c = { checkpoint: cp.name, engagement: null, personal: null, gamePlay: null, confirmed: false }; me.checkins.push(c); }
@@ -399,7 +420,7 @@ async function saveCpForm() {
   me.outcomes = me.outcomes || [];
   Object.keys(f.selfOutcomes).forEach(k => { let r = outcomeRow(me, cp.name, k); if (!r) { r = { checkpoint: cp.name, outcome: k, self: null, teacher: null }; me.outcomes.push(r); } r.self = f.selfOutcomes[k]; });
   f.sending = true; render();
-  const goBack = () => { if (studentMode()) S.view = 'dash'; else { S.T.tab = 'student'; syncTeacherCache(me); } render(); };
+  const goBack = () => { if (studentMode()) S.view = 'dash'; else { S.T.tab = 'student'; syncTeacherCache(me); } renderTop(); };
   let settled = false;
   const started = Date.now();
   const watch = setInterval(() => { if (settled) { clearInterval(watch); return; } if (Outbox.failed || Date.now() - started > 6000) { clearInterval(watch); settled = true; f.sending = false; goBack(); toast(Outbox.failed ? 'Saved on this device — will send when the connection returns' : 'Saved — sending in the background'); } }, 400);
@@ -439,6 +460,13 @@ async function loadSection(section) {
     if (S.T.tab === 'overview') loadOverview();
   } catch (e) { banner('err', 'Could not load section: ' + esc(e.message) + ' <button data-act="reload">Reload</button>'); }
 }
+// Re-fetch the section without losing sport, sub-tab or scroll; skipped while taps are still being sent.
+let lastRefresh = 0;
+async function refreshSection() {
+  const T = S.T; if (!T.section || Outbox.mine().length || Pending.count()) return;
+  try { const d = await call('getSectionData', T.section); if (S.T.section !== T.section) return; S.T.data = d; lastRefresh = Date.now(); if (!studentMode() && ['checkins', 'students', 'register'].indexOf(S.T.tab) !== -1) render(); toast('Up to date'); } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.id && S.id.role === 'teacher' && !studentMode() && Date.now() - lastRefresh > 30000) refreshSection(); });
 async function loadOverview() {
   try { const o = await call('getOverview', S.T.section, S.T.sport); S.T.overview = o; if (S.T.tab === 'overview') render(); }
   catch (e) { toast('Overview failed: ' + e.message); }
@@ -498,7 +526,7 @@ function renderTeacherCheckin() {
                   middle: 'Students typed their focus-skill retest. For each row: check it, tap <b>✓</b>, rate their personal skills since the Early check-in.',
                   end: 'Your final assessment. For each row: type the final retest of their focus skill, check the <b>game-play level</b> (set on the Game play tab, editable here), tap <b>✓</b>, rate their personal skills.' }[mode];
   return `${cpSubtabs(cp.name)}
-    <div class="card"><div class="card-body small muted">${intro} <span class="faint">Dashed scores are the student's own entry; solid ones you have set.</span></div></div>
+    <div class="card"><div class="card-body small muted">${intro} <span class="faint">Dashed scores are the student's own entry; solid ones you have set.</span> <a href="#" data-act="t-refresh">Refresh</a> to pick up what students have saved since you opened this page.</div></div>
     ${sports.map(sp => { const skills = mode === 'early' ? skillsOf(sp) : []; const rows = roster.filter(r => r.sport === sp); if (!rows.length) return '';
       const cols = 2 + skills.length + (mode !== 'early' ? 2 : 0) + (mode === 'end' ? 1 : 0);
       return `<div class="card"><div class="card-head ${mode === 'end' ? 'purple' : 'coral'}">${esc(cp.name)}${mode === 'end' ? ' · final assessment' : ''} · ${esc(sp)} <span class="right">${rows.filter(r => isConfirmed(r.student)).length} of ${rows.length} confirmed</span></div><div class="card-body">
@@ -573,7 +601,7 @@ function renderStudents() {
 async function openStudentAsTeacher(name) {
   const T = S.T; T.viewing = name; S.me = null; T.tab = 'student';
   $('#app').innerHTML = `<div class="loading"><div class="spinner"></div> Loading ${esc(name)}…</div>`;
-  try { const d = await call('getStudent', T.section, name); if (T.viewing !== name) return; S.me = d; render(); }
+  try { const d = await call('getStudent', T.section, name); if (T.viewing !== name) return; S.me = d; renderTop(); }
   catch (e) { T.tab = 'students'; render(); toast('Could not load: ' + e.message); }
 }
 
@@ -768,12 +796,12 @@ const actions = {
   reload() { location.reload(); },
   retry() { Outbox.retry(); },
   'open-cp'(t) { openCpForm(S.me, t.dataset.cp); },
-  'cp-cancel'() { if (studentMode()) S.view = 'dash'; else S.T.tab = 'student'; render(); },
+  'cp-cancel'() { if (studentMode()) S.view = 'dash'; else S.T.tab = 'student'; renderTop(); },
   'cp-save'() { saveCpForm(); },
   async 'test-as-on'() {
     const a = S.id.alsoStudent; if (!a) return;
     $('#app').innerHTML = `<div class="loading"><div class="spinner"></div> Loading ${esc(a.name)}…</div>`;
-    try { S.me = await call('getStudent', a.section, a.name); S.testAs = true; S.view = 'dash'; render(); }
+    try { S.me = await call('getStudent', a.section, a.name); S.testAs = true; S.view = 'dash'; renderTop(); }
     catch (e) { render(); toast('Could not load: ' + e.message); }
   },
   'test-as-off'() { S.testAs = false; S.me = null; S.view = 'dash'; S.T.overview = null; loadSection(S.T.section); },
@@ -784,12 +812,13 @@ const actions = {
   'goal-redraft'() { if (S.form.focusSkill) { const sc = num(S.form.scores[S.form.focusSkill]); if (sc === null) { toast('Type your ' + S.form.focusSkill.toLowerCase() + ' score first'); return; } S.form.goal = draftGoal(S.me, S.form.focusSkill, S.cp.name, sc); S.form.goalTouched = false; render(); } },
   'drill-step'(t) { S.form.drillStep = parseInt(t.dataset.n, 10); render(); },
   't-section'(t) { S.T.lesson = null; S.T.cpName = ''; loadSection(t.dataset.v); },
-  't-sport'(t) { S.T.sport = t.dataset.v; S.T.overview = null; render(); if (S.T.tab === 'overview') loadOverview(); },
-  't-tab'(t) { S.T.tab = t.dataset.tab; S.T.viewing = null; render(); if (S.T.tab === 'overview' && !S.T.overview) loadOverview(); },
-  't-back'() { S.T.tab = 'students'; S.T.viewing = null; render(); },
+  't-sport'(t) { S.T.sport = t.dataset.v; try { localStorage.setItem('mfs_sport|' + S.id.email, S.T.sport); } catch (e) {} S.T.overview = null; renderTop(); if (S.T.tab === 'overview') loadOverview(); },
+  't-tab'(t) { S.T.tab = t.dataset.tab; S.T.viewing = null; renderTop(); if (S.T.tab === 'overview' && !S.T.overview) loadOverview(); },
+  't-back'() { S.T.tab = 'students'; S.T.viewing = null; renderTop(); },
   't-lesson'(t) { S.T.lesson = parseInt(t.dataset.n, 10); render(); },
-  't-cp'(t) { S.T.cpName = t.dataset.v; render(); },
-  't-goto'(t) { S.T.tab = t.dataset.tab; if (t.dataset.cp) S.T.cpName = t.dataset.cp; S.T.viewing = null; render(); },
+  't-cp'(t) { S.T.cpName = t.dataset.v; renderTop(); },
+  't-refresh'() { refreshSection(); },
+  't-goto'(t) { S.T.tab = t.dataset.tab; if (t.dataset.cp) S.T.cpName = t.dataset.cp; S.T.viewing = null; renderTop(); },
   't-open-student'(t) { openStudentAsTeacher(t.dataset.student); },
   't-confirm'(t) { const c = tCheckin(t.dataset.student); c.confirmed = !c.confirmed; putTeacherCheckin(t.dataset.student, { confirmed: c.confirmed }); render(); },
   't-game'(t) { const c = tCheckin(t.dataset.student), n = parseInt(t.dataset.n, 10); c.gamePlay = c.gamePlay === n ? null : n; putTeacherCheckin(t.dataset.student, { gamePlay: c.gamePlay }); render(); if (S.T.cpName === GAME_TAB) { const el = document.querySelector(`input[data-in="gnote"][data-student="${CSS.escape(t.dataset.student)}"]`); if (el && !el.value) el.focus(); } },
@@ -819,7 +848,7 @@ document.addEventListener('change', e => {
   if (k === 'reg-note') setRegister(t.dataset.student, S.T.lesson, { note: t.value.trim() });
   if (k === 'tscore') setTeacherScore(t.dataset.student, t.dataset.skill, t.value);
   if (k === 'gnote') { const c = tCheckin(t.dataset.student); c.gameNote = t.value.trim(); putTeacherCheckin(t.dataset.student, { gameNote: c.gameNote }); }
-  if (k === 'score' && S.form && S.form.mode === 'early') { const sc = num(S.form.scores[S.form.focusSkill]); if ((!S.form.goalTouched || /\(\?\//.test(S.form.goal)) && S.form.focusSkill && sc !== null) { S.form.goal = draftGoal(S.me, S.form.focusSkill, S.cp.name, sc); S.form.goalTouched = false; } render(); }
+  if (k === 'score' && S.form && S.form.mode === 'early') { const sc = num(S.form.scores[S.form.focusSkill]); if ((!S.form.goalTouched || /\(\?\//.test(S.form.goal)) && S.form.focusSkill && sc !== null) { S.form.goal = draftGoal(S.me, S.form.focusSkill, S.cp.name, sc); S.form.goalTouched = false; } const fc = $('#focus-card'); if (fc) fc.outerHTML = earlyFocusCard(S.me, S.form); }
 });
 
 boot();

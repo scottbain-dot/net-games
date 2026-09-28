@@ -54,6 +54,11 @@ async function main() {
   await page.waitForSelector('input[data-in="score"]');
   await page.click('.focus-grid >> .focus-btn >> nth=0');   // choose focus before any score exists
   if (/\(\?\//.test(await page.inputValue('textarea[data-in="goal"]'))) errors.push('Goal drafted with ? before a score existed');
+  // typing a score then Tab must land in the next box with the keystrokes intact
+  await page.locator('input[data-in="score"]').nth(0).click();
+  await page.keyboard.type('2'); await page.keyboard.press('Tab'); await page.keyboard.type('7');
+  const tabbed = await page.$$eval('input[data-in="score"]', els => els.map(e => e.value));
+  if (tabbed[0] !== '2' || tabbed[1] !== '7') errors.push('Score field lost keystrokes after Tab: ' + JSON.stringify(tabbed));
   const nIn = (await page.$$('input[data-in="score"]')).length;
   const vals = ['2', '7', '5'];
   for (let i = 0; i < nIn; i++) { const inp = page.locator('input[data-in="score"]').nth(i); await inp.fill(vals[i] || '4'); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
@@ -98,6 +103,14 @@ async function main() {
   // ── teacher check-in ──
   await page.goto(preview + '?role=teacher');
   await page.waitForSelector('.ok-btn');
+  await page.click('[data-act="t-sport"][data-v=""]');   // all sports: a long list
+  await page.waitForSelector('.ok-btn');
+  await page.click('[data-act="t-cp"][data-v="Early"]');
+  const okBtns = await page.$$('.ok-btn'); await okBtns[okBtns.length - 1].scrollIntoViewIfNeeded();
+  const yBefore = await page.evaluate(() => window.scrollY);
+  await okBtns[okBtns.length - 1].click(); await page.waitForTimeout(150);
+  const yAfter = await page.evaluate(() => window.scrollY);
+  if (yBefore > 200 && Math.abs(yAfter - yBefore) > 100) errors.push(`Tapping ✓ moved the page from ${yBefore} to ${yAfter}`);
   await page.click('[data-act="t-sport"][data-v="Net Games"]');
   await page.waitForSelector('.ok-btn');
   await page.click('[data-act="t-cp"][data-v="Early"]');
@@ -229,10 +242,22 @@ async function main() {
   await page.waitForSelector('.cp-strip');
   await page.click('[data-act="open-cp"][data-cp="Early"]');
   await page.waitForSelector('.focus-btn');
+  // the Early guard: saving without every score, or without a focus skill, must be refused
+  await page.click('[data-act="cp-save"]');
+  await page.waitForTimeout(300);
+  if (await page.$('.cp-card:nth-child(1).done')) errors.push('Early check-in saved with no scores');
+  const taInputs = (await page.$$('input[data-in="score"]')).length;
+  for (let i = 0; i < taInputs; i++) { const inp = page.locator('input[data-in="score"]').nth(i); await inp.fill(String(3 + i)); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
+  await page.click('[data-act="cp-save"]');
+  await page.waitForTimeout(300);
+  if (await page.$('.cp-card:nth-child(1).done')) errors.push('Early check-in saved with no focus skill');
   await page.click('.focus-grid >> nth=0 >> .focus-btn >> nth=0');
   await page.click('[data-act="cp-save"]');
   await page.waitForSelector('.cp-card:nth-child(1).done');
   await saved();
+  // later check-ins are locked for a student until the earlier one is done
+  const laterLocked = await page.$$eval('.cp-card button[disabled]', els => els.length);
+  if (laterLocked < 1) errors.push('Middle/End check-ins were openable before Early');
   await shot('14-teacher-test-as-student');
   await page.click('[data-act="test-as-off"]');
   await page.waitForSelector('.ok-btn');
