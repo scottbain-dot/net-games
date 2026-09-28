@@ -66,11 +66,11 @@ Add colleagues on the **Teachers** tab (Email, Name, Sport, Role). Sport makes t
 
 The `/exec` link opens the page from inside Google. If you would rather give students a plain web address, the same page can be served from GitHub Pages. The Sheet stays the database and Google still does the sign-in; GitHub only hosts the page. Both routes work at the same time, so you can switch whenever you like.
 
-1. **A Google OAuth client ID** (once per school, about ten minutes; IT may need to do it). Go to [console.cloud.google.com](https://console.cloud.google.com), create a project called *Move for Skills*. **APIs & Services → OAuth consent screen**: *Internal*, app name *Move for Skills*, your email, Save. **Credentials → Create credentials → OAuth client ID → Web application**; under *Authorised JavaScript origins* add `https://<your-github-user>.github.io`; Create. Copy the client ID (it ends in `apps.googleusercontent.com`).
+1. **A Google OAuth client ID.** If the school already has one for another page on the same `github.io` address (FIS does: the athlete portals' ID is in `config.js`), reuse it. Otherwise, once per school: [console.cloud.google.com](https://console.cloud.google.com) → new project → **APIs & Services → OAuth consent screen** (*Internal*) → **Credentials → Create credentials → OAuth client ID → Web application**, *Authorised JavaScript origins* `https://<your-github-user>.github.io`. Copy the client ID (ends in `apps.googleusercontent.com`).
 2. **Config tab:** paste it into `oauth_client_id`. Leave `allowed_domain` blank to allow the school domain the Sheet belongs to.
 3. **Deploy the API:** Extensions → Apps Script → Deploy → New deployment → Web app: Execute as **Me**, Who has access **Anyone**. (Anyone can reach the address, but every request must carry a valid sign-in from your school domain or it is refused.) Copy the URL ending in `/exec`. Then run **PE Tracker → 2. Check roster & config** once so Google can ask you to allow the script to verify sign-ins.
-4. **`docs/config.js` in the GitHub repository:** put the `/exec` URL in `api` and the client ID in `clientId`. Both are safe to publish. Commit.
-5. **Repository → Settings → Pages:** Source *Deploy from a branch*, branch `main`, folder `/docs`, Save. A minute later the page is at `https://<your-github-user>.github.io/<repo>/`.
+4. **`config.js` at the root of the GitHub repository:** put the `/exec` URL in `api` and the client ID in `clientId`. Both are safe to publish. Commit.
+5. **Repository → Settings → Pages:** Source *Deploy from a branch*, branch `main`, folder `/ (root)`, Save. A minute later the page is at `https://<your-github-user>.github.io/<repo>/`.
 
 Students open that address, click *Sign in with Google*, and see their page. Sign-in lasts an hour; after that the page asks them to sign in again and keeps any unsent work. There is a **Sign out** button for shared laptops.
 

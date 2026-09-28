@@ -2,7 +2,7 @@
 
 A Google-Sheets-backed web app for skill-focused PE units. Each student is in one sport. In the first two lessons three key skills (one a stretch test) are tested out of 10 on paper, and at lesson 3 the scores are typed in (peer-counted, student-typed, teacher-confirmed), which places the student at a stage (Understanding / Intermediate / Automatic). The student picks one focus skill, gets a drafted goal, and works a drill progression on paper with peer initials and teacher sign-off; once every step is signed they choose an extension skill. Three digital check-ins (Early / Middle / End): the student reflects and self-places; the teacher confirms scores, gives one personal-skills rating per check-in, records the final retest, and taps a four-level game-play assessment of the focus skill during the last two lessons. The paper log prints before lesson 1 with all three skills' progressions. Suggested grades come from that evidence; the teacher taps the final ones.
 
-Teachers paste **one file** (`dist/Code.gs`) into a Sheet's Apps Script and deploy. Full instructions: [docs/TEACHER-GUIDE.md](docs/TEACHER-GUIDE.md). Optionally the same page is served from GitHub Pages (`docs/index.html`, built by `node dev/build-pages.js`) and signs in with Google Identity Services, calling the Apps Script as a JSON API (`doPost`); set the API URL and OAuth client ID in `docs/config.js`.
+Teachers paste **one file** (`dist/Code.gs`) into a Sheet's Apps Script and deploy. Full instructions: [docs/TEACHER-GUIDE.md](docs/TEACHER-GUIDE.md). The same page is served from GitHub Pages (`index.html` at the repo root, built by `node dev/build-pages.js`) and signs in with Google Identity Services, calling the Apps Script as a JSON API (`doPost`); the API URL and OAuth client ID live in `config.js`.
 
 ## Layout
 
@@ -22,7 +22,7 @@ dev/
   mock-runtime.js    fake google.script.run + example sections seed (browser)
   build-preview.js   builds dev/preview.html from the real app files
   build-single.js    builds dist/Code.gs
-  build-pages.js     builds docs/index.html (GitHub Pages front end)
+  build-pages.js     builds index.html at the repo root (GitHub Pages front end)
   api-test.js        Node check of the JSON API: token gate, domain gate, whitelist, identity
   smoke.js           headless Chromium test of the main flows (Playwright)
   reset-unit-test.js Node check that the 'Replace unit tabs with the draft' menu item works
@@ -31,7 +31,7 @@ dev/
 
 ## Privacy
 
-No external services: no fetches, CDNs, fonts, analytics or AI calls. Data lives in the school's Google Sheet; the web app runs in the school Workspace and executes as the Sheet owner. A student's browser receives only their own roster row and data; emails and the Teachers tab never reach any browser. Browser storage holds a change only until the server confirms it. `PE Tracker → End of unit: clear all student data…` empties the data tabs. Details for teachers: [docs/TEACHER-GUIDE.md](docs/TEACHER-GUIDE.md#privacy-and-data-protection). Keep real rosters and screenshots out of this public repository.
+No external services: no fetches, CDNs, fonts, analytics or AI calls. Data lives in the school's Google Sheet; the web app runs in the school Workspace and executes as the Sheet owner. A student's browser receives only their own roster row and data; emails and the Teachers tab never reach any browser. Browser storage holds a change only until the server confirms it. `PE Tracker → End of unit: clear all student data…` empties the data tabs. Details for teachers: [docs/TEACHER-GUIDE.md](docs/TEACHER-GUIDE.md#privacy-and-data-protection). Keep real rosters and screenshots out of this public repository. `index.html` and `config.js` at the root are the GitHub Pages front end.
 
 ## Developing
 
@@ -39,7 +39,7 @@ No external services: no fetches, CDNs, fonts, analytics or AI calls. Data lives
 node dev/build-preview.js                     # dev/preview.html — open ?role=teacher | student | student2 | unknown, &fail=1, &latency=1500, &reset=1 (also ?role=coach)
 NODE_PATH=$(npm root -g) node dev/smoke.js    # needs playwright + Chromium; screenshots in dev/shots/
 node dev/build-single.js                      # regenerate dist/Code.gs — commit it, it's what teachers paste
-node dev/build-pages.js                       # regenerate docs/index.html for GitHub Pages; docs/config.js holds the school's values
+node dev/build-pages.js                       # regenerate index.html for GitHub Pages; config.js holds the school's values
 node dev/reset-unit-test.js                   # server-side check of the unit-tab reset
 ```
 
