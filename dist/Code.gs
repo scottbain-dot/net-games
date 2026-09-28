@@ -766,6 +766,7 @@ function onOpen() {
     .addItem('1. Set up tabs (safe to re-run)', 'setupTabs')
     .addItem('1b. Replace unit tabs with the draft (Skills, Drills, Lessons…)', 'resetUnitTabs')
     .addItem('2. Check roster & config', 'checkConfig')
+    .addItem('2b. Fix duplicate names (surname initial from email)', 'fixDuplicateNames')
     .addItem('3. Show app link', 'showAppLink')
     .addSeparator()
     .addItem('Build grade report tab', 'buildGradeReport')
@@ -909,16 +910,21 @@ function checkConfig() {
   if (!cfg.sports.length) problems.push('Skills tab has no sports/skills.');
   cfg.sports.forEach(function(sp) { cfg.skills[sp].forEach(function(s) { if (!s.drills.length) problems.push(sp + ' / ' + s.skill + ' has no drill steps on the Drills tab.'); }); });
   if (!cfg.roster.length) problems.push('Roster tab is empty.');
-  var seen = {}, seenName = {};
+  var emails = {};
   cfg.roster.forEach(function(r) {
     if (!r.sport) problems.push('No sport for ' + r.student + ' (' + r.section + ').');
     else if (!cfg.skills[r.sport]) problems.push(r.student + ' is in sport "' + r.sport + '" which is not on the Skills tab.');
     if (!r.email) problems.push('No email for ' + r.student + ' (' + r.section + ') — they cannot sign in.');
-    else if (seen[r.email]) problems.push('Duplicate email ' + r.email);
-    seen[r.email] = true;
-    var nk = r.section + '|' + r.student.toLowerCase();
-    if (seenName[nk]) problems.push('Two students called "' + r.student + '" in section ' + r.section + ' — their records would merge. Add a surname or initial to one of them.');
-    seenName[nk] = true;
+    else (emails[r.email] = emails[r.email] || []).push(r);
+  });
+  Object.keys(emails).forEach(function(e) {
+    if (emails[e].length > 1) problems.push(e + ' is on the Roster ' + emails[e].length + ' times (' + emails[e].map(function(r) { return r.student + ', ' + r.section; }).join(' / ') + ') — delete the extra row(s).');
+  });
+  nameClashes_(cfg.roster).forEach(function(g) {
+    var fix = g.rows.filter(function(r) { return r.suggested; }).map(function(r) { return r.student + ' → ' + r.suggested; });
+    var manual = g.rows.length - fix.length;   // rows whose email has no surname part
+    problems.push(g.rows.length + ' different students called "' + g.rows[0].student + '" in section ' + g.section + ' — their records would merge. ' +
+      (manual < 2 ? 'Rename: ' + fix.join(', ') + ' (PE Tracker → 2b. Fix duplicate names does this).' : 'Add a surname or initial to each.'));
   });
   cfg.teachers.forEach(function(t) { if (t.role === 'coach' && !t.sport) problems.push('Coach ' + t.email + ' has no Sport on the Teachers tab.'); if (t.sport && !cfg.skills[t.sport]) problems.push('Teacher ' + t.email + ' has sport "' + t.sport + '" which is not on the Skills tab.'); });
   if (!cfg.oauthClientId) problems.push('oauth_client_id on Config is blank — the GitHub Pages front end cannot sign anyone in until it is filled (see the guide, Part A2).');
@@ -932,6 +938,68 @@ function checkConfig() {
   var msg = problems.length ? problems.join('\n') : 'Looks good: ' + cfg.sections.length + ' sections, ' + cfg.roster.length + ' students, ' + cfg.sports.length + ' sports, ' + cfg.checkpoints.length + ' checkpoints.';
   Logger.log(problems.length ? problems.length + ' problem(s) found — see the dialog' : 'Config looks good');  // names and emails stay out of the script log
   try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
+  return msg;
+}
+
+// Students who share a display name in a section (records are keyed by
+// section + name). Same email twice is a duplicate row, not a clash.
+// Suggests "Name X" from a first_last@ / first.last@ email, or the full
+// surname when initials clash too.
+function nameClashes_(roster) {
+  var groups = {};
+  roster.forEach(function(r) { if (!r.student) return; var k = r.section + '|' + r.student.toLowerCase(); (groups[k] = groups[k] || []).push(r); });
+  var out = [];
+  Object.keys(groups).forEach(function(k) {
+    var seenE = {}, rows = groups[k].filter(function(r) { if (!r.email || seenE[r.email]) return false; seenE[r.email] = true; return true; });
+    if (rows.length < 2) return;
+    var surnames = rows.map(function(r) { return surnameFromEmail_(r.email); });
+    var initials = surnames.map(function(sn) { return sn ? sn.charAt(0).toUpperCase() : ''; });
+    var initialClash = initials.some(function(ini, i) { return ini && initials.indexOf(ini) !== i; });
+    out.push({ section: rows[0].section, rows: rows.map(function(r, i) {
+      var sn = surnames[i], cap = sn ? sn.charAt(0).toUpperCase() + sn.slice(1) : '';
+      return { student: r.student, email: r.email, suggested: sn ? r.student + ' ' + (initialClash ? cap : initials[i]) : '' };
+    }) });
+  });
+  return out;
+}
+function surnameFromEmail_(email) {
+  var local = str_(email).split('@')[0].toLowerCase();
+  var parts = local.split(/[._-]+/).filter(function(p) { return /^[a-z]+$/.test(p); });
+  return parts.length >= 2 ? parts[parts.length - 1] : '';
+}
+// Menu: rename clashing students on the Roster to the suggestion above.
+// Rows with the same email twice are left for the teacher to delete.
+function fixDuplicateNames() {
+  var ui = null; try { ui = SpreadsheetApp.getUi(); } catch (e) {}
+  var t = tab_('Roster');
+  if (!t || t.getLastRow() < 2) { if (ui) ui.alert('Roster tab is empty.'); return 'Roster tab is empty.'; }
+  var data = t.getDataRange().getValues();
+  var hdr = data[0].map(function(h) { return String(h).trim(); });
+  var cS = hdr.indexOf('Section'), cN = hdr.indexOf('Student'), cE = hdr.indexOf('Email');
+  if (cS < 0 || cN < 0 || cE < 0) throw new Error('Roster needs Section, Student and Email columns');
+  var roster = [];
+  for (var i = 1; i < data.length; i++) roster.push({ row: i + 1, section: str_(data[i][cS]), student: str_(data[i][cN]), email: lower_(data[i][cE]) });
+  var byEmail = {};
+  roster.forEach(function(r) { if (r.email && !byEmail[r.section + '|' + r.email]) byEmail[r.section + '|' + r.email] = r; });
+  var changes = [], skipped = [];
+  nameClashes_(roster).forEach(function(g) {
+    // renaming the rows that have a suggestion is enough unless two rows in
+    // the group have none — those still clash and need a hand-typed initial
+    var none = g.rows.filter(function(x) { return !x.suggested; });
+    if (none.length > 1) none.forEach(function(x) { skipped.push(x.student + ' (' + g.section + ')'); });
+    g.rows.forEach(function(x) {
+      var r = byEmail[g.section + '|' + x.email];
+      if (r && x.suggested) changes.push({ row: r.row, from: x.student, to: x.suggested });
+    });
+  });
+  if (changes.length && ui) {
+    var a = ui.alert('Rename ' + changes.length + ' student(s) on the Roster?', changes.map(function(c) { return c.from + ' → ' + c.to; }).join('\n') + '\n\nOnly the Roster changes. Do this before students start; records already saved under the old name would not follow.', ui.ButtonSet.OK_CANCEL);
+    if (a !== ui.Button.OK) return 'Cancelled.';
+  }
+  changes.forEach(function(c) { t.getRange(c.row, cN + 1).setValue(c.to); });
+  if (changes.length) clearConfigCache();
+  var msg = (changes.length ? 'Renamed ' + changes.length + ' student(s).' : 'No name clashes to fix.') + (skipped.length ? '\nCould not suggest a name (email has no surname part) for: ' + skipped.join(', ') + ' — add an initial by hand.' : '');
+  if (ui) ui.alert(msg);
   return msg;
 }
 

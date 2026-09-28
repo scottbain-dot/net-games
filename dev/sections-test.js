@@ -45,7 +45,7 @@ vm.runInContext(`
   roster.getRange(8, 1, 1, 4).setValues([[7, 'Ultimate', 'ann lee', 'ann3@example.edu']]);
   clearConfigCache();
   const msg = checkConfig();
-  if (!/Two students called/.test(msg)) throw new Error('duplicate name in a section not flagged: ' + msg);
+  if (!/2 different students called/.test(msg)) throw new Error('duplicate name in a section not flagged: ' + msg);
   // a teacher who blanks a score cell hands the skill back to the student
   FakeSheets.user = FakeSheets.owner;
   saveTeacherCheckin({ section: '7', checkpoint: 'Early', entries: [{ student: 'Ann Lee', scores: { 'Serve accuracy': 9 } }] });
