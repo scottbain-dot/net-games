@@ -123,7 +123,7 @@ async function main() {
   await shot('07-teacher-checkin-early');
   // confirm the first unconfirmed row, rate engagement + personal, fix a score
   const row = page.locator('table.tc tbody tr:not(.ok):not(.detail)').first();
-  const name = await row.locator('td b').first().textContent();
+  const name = await row.locator('.ok-btn').getAttribute('data-student');   // the student's opaque id
   await row.locator('.ok-btn').click();
   await page.locator(`[data-act="t-pers"][data-student="${name}"][data-n="2"]`).click();
   await page.locator(`input[data-in="tscore"][data-student="${name}"]`).first().fill('9');
@@ -143,7 +143,7 @@ async function main() {
   // game-play page (phone-sized rows), then End page picks the level up
   await page.click('[data-act="t-cp"][data-v="__game"]');
   await page.waitForSelector('.gp-row');
-  const gpName = await page.locator('.gp-row').nth(1).locator('b').first().textContent();
+  const gpName = await page.locator('.gp-row').nth(1).locator('[data-act="t-game"]').first().getAttribute('data-student');
   await page.locator('.gp-row').nth(1).locator('[data-act="t-game"][data-n="2"]').click();
   await page.locator(`input[data-in="gnote"][data-student="${gpName}"]`).fill('Good under pressure');
   await page.locator(`input[data-in="gnote"][data-student="${gpName}"]`).dispatchEvent('change');

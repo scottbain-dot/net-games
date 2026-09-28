@@ -112,6 +112,7 @@ Everything stays inside the school's Google Workspace. There is no server of our
 **Who sees what**
 
 - A student sees only their own page. Their browser receives their own roster row, not the class list. The server checks identity on every request; a student cannot request another student's data.
+- Records in the Sheet are filed by each student's school email (the `Email` column on every data tab), so two students with the same name never mix. Email addresses stay in the Sheet: browsers and the API identify students by a short code derived from the email, so a student's device never holds another student's address and a teacher's device holds none.
 - Teachers on the Teachers tab see their sections. A `coach` sees their sport only and no grades.
 - Anyone in the school domain can open the link, but sees "not on the roster" unless they are on it.
 - The Sheet should be shared only with the PE teachers who need to edit it, never "anyone in the organisation with the link".
@@ -137,7 +138,7 @@ Each check-in is one request, and Google runs them one after another, about half
 - **"You are not on the roster yet"** — the email shown is not on the Roster tab. Add or correct it; they reload.
 - **"Please sign in with your school Google account"** — private window, personal Gmail, or the deployment's *Who has access* is *Anyone* instead of *Anyone within [school]*.
 - **"Sorry, unable to open the file at this time"** — the browser has a personal Google account signed in as well as the school one, and Google picked the wrong one. Give students the **Link to share** from *PE Tracker → 3. Show app link*: it asks for the school account first, then opens the app. No signing out, no incognito. A Chrome profile that holds only the school account fixes it for good. Inside the app, a student who lands on "not on the roster" with the wrong account has a **Switch to my school account** button.
-- **"N different students called X in section 7 — their records would merge"** — records are filed by section + name, so two students with the same first name in a section need telling apart. **PE Tracker → 2b. Fix duplicate names** adds the surname initial from each email (`leo_kim@` → *Leo K*, or the full surname when initials clash too). Do it before students start. "**…is on the Roster 2 times**" is the same student pasted twice: delete the extra row.
+- **"Note: 2 different students called X in section 7"** — harmless. Records are filed by each student's email, so two students with the same name never mix. They do look identical in the app, so add the class or an initial to one name on the Roster if you want to tell them apart; renaming is safe at any time. "**…is on the Roster 2 times**" is the same student pasted twice: delete the extra row.
 - **Teacher sees the student view or "Teachers only"** — add their email to **Teachers**.
 - **A new Code.gs came with new draft tests or drills** — **PE Tracker → 1b. Replace unit tabs with the draft**. It overwrites Lessons, Skills, Drills, Outcomes and Criteria only; Roster, Teachers, Config and all student data stay. Skip it if you have written your own tests and drills.
 - **Changes to the unit tabs not showing** — PE Tracker → *Refresh app config now*, then reload the app.
