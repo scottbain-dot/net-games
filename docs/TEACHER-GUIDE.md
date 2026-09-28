@@ -62,6 +62,20 @@ Add colleagues on the **Teachers** tab (Email, Name, Sport, Role). Sport makes t
 
 ---
 
+## Part A2 — hosting the page on GitHub Pages (optional)
+
+The `/exec` link opens the page from inside Google. If you would rather give students a plain web address, the same page can be served from GitHub Pages. The Sheet stays the database and Google still does the sign-in; GitHub only hosts the page. Both routes work at the same time, so you can switch whenever you like.
+
+1. **A Google OAuth client ID** (once per school, about ten minutes; IT may need to do it). Go to [console.cloud.google.com](https://console.cloud.google.com), create a project called *Move for Skills*. **APIs & Services → OAuth consent screen**: *Internal*, app name *Move for Skills*, your email, Save. **Credentials → Create credentials → OAuth client ID → Web application**; under *Authorised JavaScript origins* add `https://<your-github-user>.github.io`; Create. Copy the client ID (it ends in `apps.googleusercontent.com`).
+2. **Config tab:** paste it into `oauth_client_id`. Leave `allowed_domain` blank to allow the school domain the Sheet belongs to.
+3. **Deploy the API:** Extensions → Apps Script → Deploy → New deployment → Web app: Execute as **Me**, Who has access **Anyone**. (Anyone can reach the address, but every request must carry a valid sign-in from your school domain or it is refused.) Copy the URL ending in `/exec`. Then run **PE Tracker → 2. Check roster & config** once so Google can ask you to allow the script to verify sign-ins.
+4. **`docs/config.js` in the GitHub repository:** put the `/exec` URL in `api` and the client ID in `clientId`. Both are safe to publish. Commit.
+5. **Repository → Settings → Pages:** Source *Deploy from a branch*, branch `main`, folder `/docs`, Save. A minute later the page is at `https://<your-github-user>.github.io/<repo>/`.
+
+Students open that address, click *Sign in with Google*, and see their page. Sign-in lasts an hour; after that the page asks them to sign in again and keeps any unsent work. There is a **Sign out** button for shared laptops.
+
+If a student sees "not on the roster" it is the same fix as before: their email on the Roster tab. If they see the sign-in button but nothing happens after clicking, the client ID's authorised origin does not match the page address exactly.
+
 ## Part B — a colleague starting from your Sheet
 
 1. **File → Make a copy** of the Sheet.
@@ -86,7 +100,7 @@ Everything is a tab. Edit cells; the app updates within a couple of minutes (or 
 
 ## Privacy and data protection
 
-Everything stays inside the school's Google Workspace. There is no server of ours, no third-party service, no analytics, no fonts or scripts loaded from outside Google, and nothing is sent to any AI service. Google is the only processor, under the school's existing Workspace for Education agreement.
+Everything stays inside the school's Google Workspace. There is no server of ours, no third-party service, no analytics, no fonts or scripts loaded from outside Google, and nothing is sent to any AI service. Google is the only processor, under the school's existing Workspace for Education agreement. With the optional GitHub Pages route, GitHub serves the page's code only: no student data passes through or is stored on GitHub, the page signs in with Google, and it talks directly to the school's Apps Script. The API address is reachable by anyone but refuses every request that does not carry a valid sign-in from the school domain.
 
 **What is stored, and where**
 

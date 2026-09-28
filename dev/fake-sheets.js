@@ -96,6 +96,17 @@
   g.Utilities = { formatDate: (d) => { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; } };
   g.Logger = { log: (...a) => { if (g.console) console.log('[Logger]', ...a); } };
   g.ScriptApp = { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/PREVIEW/exec' }) };
+  // Fake token verification: a token of the form "good-token:<email>" is valid for
+  // client id "test-client" and expires in an hour; anything else is rejected.
+  g.UrlFetchApp = { fetch: (url) => {
+    const m = /id_token=([^&]+)/.exec(url); const tok = m ? decodeURIComponent(m[1]) : '';
+    if (tok.startsWith('good-token:')) { const email = tok.slice(11); return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ email, email_verified: 'true', aud: 'test-client', exp: String(Math.floor(Date.now() / 1000) + 3600), hd: email.split('@')[1] }) }; }
+    if (tok.startsWith('other-client:')) { const email = tok.slice(13); return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ email, email_verified: 'true', aud: 'someone-else', exp: String(Math.floor(Date.now() / 1000) + 3600) }) }; }
+    return { getResponseCode: () => 400, getContentText: () => '{"error":"invalid_token"}' };
+  } };
+  g.ContentService = { MimeType: { JSON: 'application/json' }, createTextOutput: (t) => { const o = { _t: t, _m: '', setMimeType(m) { o._m = m; return o; }, getContent: () => o._t }; return o; } };
+  g.Utilities.computeDigest = (alg, str) => { let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0; return [h & 255, (h >> 8) & 255, (h >> 16) & 255, (h >> 24) & 255]; };
+  g.Utilities.DigestAlgorithm = { SHA_256: 'SHA_256' }; g.Utilities.Charset = { UTF_8: 'UTF_8' };
   g.HtmlService = {
     createHtmlOutput: () => { const o = { setWidth() { return o; }, setHeight() { return o; } }; return o; },
     createHtmlOutputFromFile: () => ({ getContent: () => '' }),
