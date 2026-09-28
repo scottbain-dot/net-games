@@ -448,7 +448,7 @@ function publicConfig_(cfg) {
 function bootstrap() {
   var cfg = getConfig_();
   var id = identity_(cfg);
-  var out = { config: publicConfig_(cfg), identity: id, appUrl: appUrl_() };
+  var out = { config: publicConfig_(cfg), identity: id, appUrl: appUrl_(), switchUrl: chooserUrl_(appUrl_() || ScriptApp.getService().getUrl() || '') };
   if (id.role === 'student') {
     // Data minimisation: a student's browser gets their own roster row only, never the class list.
     out.config.roster = out.config.roster.filter(function(r) { return r.section === id.section && r.student === id.name; });
@@ -859,15 +859,28 @@ function appUrl_() {
   var url = ScriptApp.getService().getUrl() || '';
   return url.replace(/^https:\/\/script\.google\.com\/a\/([^\/]+)\/macros\/s\//, 'https://script.google.com/a/macros/$1/s/');
 }
+// The school's Google Workspace domain (from the Sheet owner's address).
+function schoolDomain_() { return lower_(Session.getEffectiveUser().getEmail()).split('@')[1] || ''; }
+// A link that always asks "which account?" and offers only school accounts, then
+// opens the app. It sidesteps the "Sorry, unable to open the file" error that a
+// browser with a personal Gmail signed in alongside the school account produces.
+function chooserUrl_(target) {
+  var d = schoolDomain_();
+  return 'https://accounts.google.com/AccountChooser?' + (d ? 'hd=' + encodeURIComponent(d) + '&' : '') + 'continue=' + encodeURIComponent(target);
+}
 function showAppLink() {
   var url = appUrl_();
   var ui = SpreadsheetApp.getUi();
   if (!url) { ui.alert('Not deployed yet.\n\nExtensions → Apps Script → Deploy → New deployment → Web app.'); return; }
+  var safe = chooserUrl_(url);
   var html = HtmlService.createHtmlOutput(
-    '<div style="font:14px system-ui;padding:8px"><p><b>Student link</b> (share this):</p>' +
+    '<div style="font:14px system-ui;padding:8px">' +
+    '<p><b>Link to share</b> — asks for the school account first, so laptops with a personal Gmail signed in still get in:</p>' +
+    '<input style="width:100%;font-size:13px" value="' + safe + '" onclick="this.select()">' +
+    '<p style="margin-top:14px"><b>Direct link</b> (works when the school account is the only one signed in):</p>' +
     '<input style="width:100%;font-size:13px" value="' + url + '" onclick="this.select()">' +
-    '<p style="margin-top:14px"><b>Teacher view</b>: same link — teachers are recognised by their login.</p>' +
-    '<p><a target="_blank" href="' + url + '">Open the app</a></p></div>').setWidth(520).setHeight(200);
+    '<p style="margin-top:14px">Teachers use the same link; they are recognised by their login.</p>' +
+    '<p><a target="_blank" href="' + safe + '">Open the app</a></p></div>').setWidth(560).setHeight(290);
   ui.showModalDialog(html, 'App link');
 }
 

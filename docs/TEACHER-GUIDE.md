@@ -56,7 +56,7 @@ Two fairness notes built in:
 7. Check **Skills**, **Drills**, **Lessons**, **Outcomes**, **Criteria** — pre-filled with a draft for Net Games, Ultimate, Table Tennis and Handball (see Part C). If your Sheet is from an earlier version, delete the old **Focus** tab and the *Independence* row on Outcomes.
 8. **PE Tracker → 2. Check roster & config.** Fix anything it lists.
 9. **Deploy:** Extensions → Apps Script → **Deploy → New deployment** → gear ⚙ → **Web app**: Execute as **Me**; Who has access **Anyone within [your school]** (this is what lets the app know who each student is) → **Deploy**.
-10. **PE Tracker → 3. Show app link.** One link for students and teachers. If it ever says "unable to open the file", copy the URL from **Deploy → Manage deployments** instead.
+10. **PE Tracker → 3. Show app link.** Share the **Link to share**: it asks for the school account first, so laptops with a personal Gmail signed in still get in. One link for students and teachers.
 
 Add colleagues on the **Teachers** tab (Email, Name, Sport, Role). Sport makes the app open on their group. Put `coach` in **Role** for an outside instructor or anyone who only runs a group: they see their sport only, no Grades tab, no *Test as student*, and a one-line "today / next up" strip telling them what the app needs from them. Give them [docs/COACH-CARD.md](COACH-CARD.md) and the **Print → Unit plan** page for their sport. An outside coach still needs a school Google account to sign in. A teacher who is also on the Roster gets a **Test as student** button.
 
@@ -136,7 +136,7 @@ Each check-in is one request, and Google runs them one after another, about half
 
 - **"You are not on the roster yet"** — the email shown is not on the Roster tab. Add or correct it; they reload.
 - **"Please sign in with your school Google account"** — private window, personal Gmail, or the deployment's *Who has access* is *Anyone* instead of *Anyone within [school]*.
-- **"Sorry, unable to open the file at this time"** — use the URL from **Deploy → Manage deployments**; it should look like `script.google.com/a/macros/<school>/s/…/exec`.
+- **"Sorry, unable to open the file at this time"** — the browser has a personal Google account signed in as well as the school one, and Google picked the wrong one. Give students the **Link to share** from *PE Tracker → 3. Show app link*: it asks for the school account first, then opens the app. No signing out, no incognito. A Chrome profile that holds only the school account fixes it for good. Inside the app, a student who lands on "not on the roster" with the wrong account has a **Switch to my school account** button.
 - **Teacher sees the student view or "Teachers only"** — add their email to **Teachers**.
 - **A new Code.gs came with new draft tests or drills** — **PE Tracker → 1b. Replace unit tabs with the draft**. It overwrites Lessons, Skills, Drills, Outcomes and Criteria only; Roster, Teachers, Config and all student data stay. Skip it if you have written your own tests and drills.
 - **Changes to the unit tabs not showing** — PE Tracker → *Refresh app config now*, then reload the app.
