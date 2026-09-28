@@ -92,7 +92,28 @@
     });
     return r;
   }
-  window.google = { script: { run: makeRunner() } };
-  ['withSuccessHandler', 'withFailureHandler'].forEach(k => { window.google.script.run[k] = fn => makeRunner()[k](fn); });
+  if (q.get('pages')) {
+    // GitHub Pages mode: no google.script.run; a fake Google sign-in hands over a
+    // token for the chosen user and fetch() is routed to the real doPost.
+    const cfgTab = FakeSheets.book.getSheetByName('Config'); const vals = cfgTab.getDataRange().getValues();
+    const row = vals.findIndex(v => v[0] === 'oauth_client_id') + 1; if (row) cfgTab.getRange(row, 2).setValue('test-client'); clearConfigCache();
+    window.MFS_CONFIG = { api: 'mock://api', clientId: 'test-client', unitName: 'Move for Skills (preview)' };
+    const who = FakeSheets.user; let cb = null;
+    window.google = { accounts: { id: {
+      initialize(c) { cb = c.callback; },
+      renderButton(el) { el.innerHTML = '<button type="button" id="fake-gsi" class="pill-btn primary">Sign in with Google (fake)</button>'; el.firstChild.onclick = () => cb({ credential: 'good-token:' + who }); },
+      prompt() {}, disableAutoSelect() {}
+    } } };
+    window.fetch = async (url, opts) => {
+      if (url !== 'mock://api') throw new Error('unexpected fetch ' + url);
+      await new Promise(r => setTimeout(r, latency));
+      if (failWrites && isWrite((JSON.parse(opts.body) || {}).fn)) throw new Error('Simulated network failure');
+      const out = doPost({ postData: { contents: opts.body } }).getContent();
+      return { ok: true, json: async () => JSON.parse(out) };
+    };
+  } else {
+    window.google = { script: { run: makeRunner() } };
+    ['withSuccessHandler', 'withFailureHandler'].forEach(k => { window.google.script.run[k] = fn => makeRunner()[k](fn); });
+  }
   window.__preview = { role, user: FakeSheets.user, failWrites, latency, fastRetry: failWrites };
 })();

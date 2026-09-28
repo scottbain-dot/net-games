@@ -62,6 +62,11 @@ async function main() {
   const nIn = (await page.$$('input[data-in="score"]')).length;
   const vals = ['2', '7', '5'];
   for (let i = 0; i < nIn; i++) { const inp = page.locator('input[data-in="score"]').nth(i); await inp.fill(vals[i] || '4'); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
+  // type into the last box and go straight to a focus button: the native change fires on blur mid-click
+  await page.locator('input[data-in="score"]').nth(0).fill('2');
+  await page.click('.focus-grid >> .focus-btn >> nth=1');
+  if ((await page.evaluate(() => __S.form.focusSkill)) !== (await page.getAttribute('.focus-grid >> .focus-btn >> nth=1', 'data-v'))) errors.push('Focus button click swallowed after typing a score');
+  await page.click('.focus-grid >> .focus-btn >> nth=0');
   const recText = await page.textContent('.focus-grid >> .focus-btn >> nth=0');
   if (!/recommended/.test(recText)) errors.push('Lowest score not marked recommended: ' + recText);
   await page.click('.focus-grid >> .focus-btn >> nth=0');
@@ -296,6 +301,36 @@ async function main() {
   await saved();
   await page.waitForTimeout(300);
   if (!(await page.$(`[data-act="t-pers"][data-student="${offStudent}"][data-n="1"].on`))) errors.push('Tap made just before leaving the page was lost');
+
+  // ── GitHub Pages mode: sign-in gate, token transport, student and teacher round trip ──
+  await page.goto(preview + '?pages=1&role=student2');
+  await page.waitForSelector('#fake-gsi');
+  if (await page.$('.cp-strip')) errors.push('Pages mode showed the app before sign-in');
+  await page.click('#fake-gsi');
+  await page.waitForSelector('.cp-strip');
+  await page.click('[data-act="open-cp"][data-cp="Early"]');
+  await page.waitForSelector('input[data-in="score"]');
+  const pgIn = (await page.$$('input[data-in="score"]')).length;
+  for (let i = 0; i < pgIn; i++) { const inp = page.locator('input[data-in="score"]').nth(i); if (await inp.isDisabled()) continue; await inp.fill(String(1 + i)); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
+  await page.click('.focus-grid >> .focus-btn >> nth=0');
+  await page.fill('textarea[data-in="wentWell"]', 'Saved through the Pages API.');
+  await page.click('[data-act="cp-save"]');
+  await page.waitForSelector('.cp-card:nth-child(1).done');
+  await saved();
+  // shared laptop: Sign out clears the token and shows the sign-in gate; the next person signs in as themselves
+  await page.click('[data-act="switch-account"]');
+  await page.waitForSelector('#fake-gsi');
+  if (await page.evaluate(() => sessionStorage.getItem('mfs_id_token'))) errors.push('Sign out left the token in the tab');
+  await page.goto(preview + '?pages=1&role=teacher');
+  await page.waitForSelector('#fake-gsi'); await page.click('#fake-gsi');
+  await page.waitForSelector('.ok-btn');
+  if (!/Saved through the Pages API/.test(await page.evaluate(() => JSON.stringify(__S.T.data.checkins)))) errors.push('Pages-mode save did not reach the Sheet');
+  await shot('17-pages-mode-teacher');
+  // a token the server rejects sends the user back to sign in without losing queued work
+  await page.evaluate(() => { sessionStorage.setItem('mfs_id_token', 'nonsense'); });
+  const okBtn2 = await page.$('.ok-btn'); await okBtn2.click();
+  await page.waitForSelector('#banner.show', { timeout: 15000 });
+  if (!/sign in again/i.test(await page.textContent('#banner'))) errors.push('Rejected token did not ask to sign in again: ' + await page.textContent('#banner'));
 
   // ── coach role: one sport, no Grades, today strip ──
   await page.goto(preview + '?role=coach');

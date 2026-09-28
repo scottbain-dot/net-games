@@ -61,6 +61,8 @@ var CONFIG_DEFAULTS = {
   reflection_prompt_1:  ['What went well and what has improved?', 'First reflection question at each check-in'],
   reflection_prompt_2:  ['What will I do differently in the next lessons?', 'Second reflection question at each check-in'],
   show_grades_to_students: ['FALSE', 'TRUE to show final grades and comments on the student dashboard'],
+  oauth_client_id:      ['', 'GitHub Pages front end only: the Google OAuth client ID the page signs in with (see the guide)'],
+  allowed_domain:       ['', 'GitHub Pages front end only: Google Workspace domain allowed to sign in (blank = the Sheet owner\'s domain)'],
   daily_register:       ['FALSE', 'TRUE to add a per-lesson participation register for teachers (otherwise engagement is rated at each check-in)']
 };
 var CACHE_KEY_CONFIG = 'mfs_config_v2';
@@ -323,6 +325,7 @@ function buildConfig_() {
     goalTemplate: kv.goal_template,
     reflectionPrompts: [kv.reflection_prompt_1, kv.reflection_prompt_2], earlyPrompt: kv.reflection_prompt_early,
     showGradesToStudents: bool_(kv.show_grades_to_students), dailyRegister: bool_(kv.daily_register),
+    oauthClientId: str_(kv.oauth_client_id), allowedDomain: lower_(kv.allowed_domain),
     lessons: lessons, sports: sports, skills: skills, checkpoints: checkpoints,
     outcomes: outcomes, criteria: criteria, sections: sections, roster: roster, teachers: teachers, backPages: backPages
   };
@@ -335,8 +338,9 @@ function stageOf_(cfg, score) {
 }
 
 // ---------- Identity ----------
+var REQUEST_EMAIL_ = null;  // set by doPost after verifying a Google ID token (GitHub Pages front end)
 function identity_(cfg) {
-  var email = lower_(Session.getActiveUser().getEmail());
+  var email = REQUEST_EMAIL_ !== null ? REQUEST_EMAIL_ : lower_(Session.getActiveUser().getEmail());
   var owner = lower_(Session.getEffectiveUser().getEmail());
   var out = { email: email, role: 'unknown', name: '', section: '', sport: '' };
   var t = cfg.teachers.filter(function(x) { return x.email === email; })[0];
@@ -382,12 +386,62 @@ function doGet(e) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+// ---------- JSON API (GitHub Pages front end) ----------
+// The page on GitHub Pages signs the user in with Google Identity Services and
+// POSTs {token, fn, args} here. The ID token is verified with Google, the email
+// becomes the request identity, and the same functions the /exec page uses run
+// unchanged. Deploy as "Execute as Me" + "Anyone"; the token check is the gate.
+var API_FUNCTIONS = ['bootstrap', 'getStudent', 'getSectionData', 'getOverview', 'saveCheckin', 'saveTeacherCheckin', 'saveRegister', 'saveSkillTests', 'saveGrades', 'saveOutcomes'];
+function doPost(e) {
+  var out;
+  try {
+    var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    var cfg = getConfig_();
+    var email = verifyIdToken_(str_(body.token), cfg);
+    if (!email) { out = { ok: false, code: 'auth', error: 'Please sign in again with your school Google account' }; }
+    else {
+      var fn = str_(body.fn);
+      if (API_FUNCTIONS.indexOf(fn) === -1) throw new Error('Unknown function');
+      REQUEST_EMAIL_ = email;
+      try { var result = this[fn].apply(null, Array.isArray(body.args) ? body.args : []); out = { ok: true, result: result === undefined ? null : result }; }
+      finally { REQUEST_EMAIL_ = null; }
+    }
+  } catch (err) { out = { ok: false, error: String(err && err.message || err) }; }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+// Returns the lower-cased email for a valid Google ID token issued to our client
+// ID and an allowed domain, or '' if it is not acceptable. Verified tokens are
+// cached for a few minutes so a class saving at once does not re-verify each call.
+function verifyIdToken_(token, cfg) {
+  if (!token || !cfg.oauthClientId) return '';
+  var cache = CacheService.getScriptCache(), key = 'tok|' + hashOf_(token);
+  var hit = cache.get(key); if (hit) return hit;
+  var res;
+  try { res = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token), { muteHttpExceptions: true }); }
+  catch (err) { return ''; }
+  if (res.getResponseCode() !== 200) return '';
+  var info; try { info = JSON.parse(res.getContentText()); } catch (err) { return ''; }
+  var email = lower_(info.email);
+  if (!email || String(info.email_verified) !== 'true') return '';
+  if (str_(info.aud) !== cfg.oauthClientId) return '';
+  var exp = parseInt(info.exp, 10) || 0, now = Math.floor(Date.now() / 1000);
+  if (exp <= now) return '';
+  var domain = cfg.allowedDomain || lower_(Session.getEffectiveUser().getEmail()).split('@')[1] || '';
+  if (domain && email.split('@')[1] !== domain) return '';
+  try { cache.put(key, email, Math.min(300, Math.max(30, exp - now))); } catch (err) {}
+  return email;
+}
+function hashOf_(str) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str, Utilities.Charset.UTF_8);
+  return bytes.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+}
+
 function include(name) { return EMBEDDED_HTML[name] !== undefined ? EMBEDDED_HTML[name] : HtmlService.createHtmlOutputFromFile(name).getContent(); }
 
 function publicConfig_(cfg) {
   var c = JSON.parse(JSON.stringify(cfg));
   c.roster = c.roster.map(function(r) { return { section: r.section, sport: r.sport, student: r.student }; });
-  delete c.teachers;
+  delete c.teachers; delete c.allowedDomain;
   return c;
 }
 
@@ -837,6 +891,7 @@ function checkConfig() {
     seenName[nk] = true;
   });
   cfg.teachers.forEach(function(t) { if (t.role === 'coach' && !t.sport) problems.push('Coach ' + t.email + ' has no Sport on the Teachers tab.'); if (t.sport && !cfg.skills[t.sport]) problems.push('Teacher ' + t.email + ' has sport "' + t.sport + '" which is not on the Skills tab.'); });
+  if (cfg.oauthClientId && !/\.apps\.googleusercontent\.com$/.test(cfg.oauthClientId)) problems.push('oauth_client_id on Config does not look like a Google OAuth client ID (…apps.googleusercontent.com).');
   if (!cfg.criteria.length) problems.push('Criteria tab is empty.');
   cfg.criteria.forEach(function(c) { if (c.evidence === 'none') problems.push('Criterion ' + c.code + ' has no Evidence type (test / reflection / participation / skills / outcomes).'); });
   var msg = problems.length ? problems.join('\n') : 'Looks good: ' + cfg.sections.length + ' sections, ' + cfg.roster.length + ' students, ' + cfg.sports.length + ' sports, ' + cfg.checkpoints.length + ' checkpoints.';
