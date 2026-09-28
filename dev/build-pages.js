@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Builds the GitHub Pages front end: docs/index.html (the same Styles + App as
-// the Apps Script page, plus Google sign-in and a JSON transport) and, if it
-// does not exist yet, docs/config.js where the school's API URL and OAuth client
-// ID go. GitHub Pages is pointed at the docs/ folder of the main branch.
+// Builds the GitHub Pages front end at the repository root: index.html (the same
+// Styles + App as the Apps Script page, plus Google sign-in and a JSON transport)
+// and, if it does not exist yet, config.js where the school's API URL and OAuth
+// client ID go. GitHub Pages is pointed at the root of the main branch, like the
+// other FIS portals.
 const fs = require('fs');
 const path = require('path');
 const root = path.join(__dirname, '..');
@@ -32,10 +33,9 @@ ${app}
 </body>
 </html>
 `;
-fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
-fs.writeFileSync(path.join(root, 'docs/index.html'), html);
-fs.writeFileSync(path.join(root, 'docs/.nojekyll'), '');
-const cfgPath = path.join(root, 'docs/config.js');
+fs.writeFileSync(path.join(root, 'index.html'), html);
+fs.writeFileSync(path.join(root, '.nojekyll'), '');
+const cfgPath = path.join(root, 'config.js');
 if (!fs.existsSync(cfgPath)) fs.writeFileSync(cfgPath, `// Filled in once per school. Both values are safe to publish.
 window.MFS_CONFIG = {
   // Extensions → Apps Script → Deploy → Manage deployments → Web app URL (ends in /exec)
@@ -45,4 +45,4 @@ window.MFS_CONFIG = {
   unitName: 'Move for Skills'
 };
 `);
-console.log('Wrote docs/index.html', `(${(html.length / 1024).toFixed(0)} KB)`);
+console.log('Wrote index.html', `(${(html.length / 1024).toFixed(0)} KB)`);
