@@ -32,21 +32,23 @@ var CONFIG_TABS = {
   Roster:   ['Section', 'Sport', 'Student', 'Email'],
   Teachers: ['Email', 'Name', 'Sport', 'Role']
 };
+// Records are keyed by Section + Email (the sign-in address, unique per
+// student). Student is the display name and may repeat within a section.
 var DATA_TABS = {
-  Register:   ['Section', 'Sport', 'Student', 'Lesson', 'Participation', 'Note', 'Updated'],
-  SkillTests: ['Section', 'Sport', 'Student', 'Checkpoint', 'Skill', 'Score', 'By', 'Updated'],
-  Checkins:   ['Section', 'Sport', 'Student', 'Checkpoint', 'FocusSkill', 'Goal', 'DrillStep', 'ExtensionSkill', 'ExtensionDrill', 'SelfStages', 'WentWell', 'NextGoal', 'GamePlay', 'GameNote', 'Engagement', 'Personal', 'Confirmed', 'Updated'],
-  OutcomeRatings: ['Section', 'Sport', 'Student', 'Checkpoint', 'Outcome', 'Self', 'Teacher', 'Updated'],
-  Grades:     ['Section', 'Sport', 'Student', 'Criterion', 'Score', 'Comment', 'Updated']
+  Register:   ['Section', 'Sport', 'Student', 'Email', 'Lesson', 'Participation', 'Note', 'Updated'],
+  SkillTests: ['Section', 'Sport', 'Student', 'Email', 'Checkpoint', 'Skill', 'Score', 'By', 'Updated'],
+  Checkins:   ['Section', 'Sport', 'Student', 'Email', 'Checkpoint', 'FocusSkill', 'Goal', 'DrillStep', 'ExtensionSkill', 'ExtensionDrill', 'SelfStages', 'WentWell', 'NextGoal', 'GamePlay', 'GameNote', 'Engagement', 'Personal', 'Confirmed', 'Updated'],
+  OutcomeRatings: ['Section', 'Sport', 'Student', 'Email', 'Checkpoint', 'Outcome', 'Self', 'Teacher', 'Updated'],
+  Grades:     ['Section', 'Sport', 'Student', 'Email', 'Criterion', 'Score', 'Comment', 'Updated']
 };
 // Data tabs of the first version (v1) that this version does not read.
 var OBSOLETE_TABS = ['Checkpoints', 'Reflections', 'Tests'];
 var DATA_KEYS = {
-  Register:   ['Section', 'Student', 'Lesson'],
-  SkillTests: ['Section', 'Student', 'Checkpoint', 'Skill'],
-  Checkins:   ['Section', 'Student', 'Checkpoint'],
-  OutcomeRatings: ['Section', 'Student', 'Checkpoint', 'Outcome'],
-  Grades:     ['Section', 'Student', 'Criterion']
+  Register:   ['Section', 'Email', 'Lesson'],
+  SkillTests: ['Section', 'Email', 'Checkpoint', 'Skill'],
+  Checkins:   ['Section', 'Email', 'Checkpoint'],
+  OutcomeRatings: ['Section', 'Email', 'Checkpoint', 'Outcome'],
+  Grades:     ['Section', 'Email', 'Criterion']
 };
 
 var CONFIG_DEFAULTS = {
@@ -309,7 +311,7 @@ function buildConfig_() {
 
   var sportNames = Object.keys(skills);
   var canonSport = function(v) { var x = str_(v); var hit = sportNames.filter(function(n) { return n.toLowerCase() === x.toLowerCase(); })[0]; return hit || x; };
-  var roster = readTab_('Roster').map(function(r) { return { section: str_(r.Section), sport: canonSport(r.Sport), student: str_(r.Student), email: lower_(r.Email) }; })
+  var roster = readTab_('Roster').map(function(r) { var em = lower_(r.Email); return { section: str_(r.Section), sport: canonSport(r.Sport), student: str_(r.Student), email: em, id: studentId_(em) }; })
     .filter(function(r) { return r.section && r.student; });
   var sections = [];
   roster.forEach(function(r) { if (sections.indexOf(r.section) === -1) sections.push(r.section); });
@@ -347,16 +349,16 @@ var REQUEST_EMAIL_ = null;  // set by doPost after verifying a Google ID token (
 function identity_(cfg) {
   var email = REQUEST_EMAIL_ !== null ? REQUEST_EMAIL_ : lower_(Session.getActiveUser().getEmail());
   var owner = lower_(Session.getEffectiveUser().getEmail());
-  var out = { email: email, role: 'unknown', name: '', section: '', sport: '' };
+  var out = { email: email, role: 'unknown', name: '', id: '', section: '', sport: '' };
   var t = cfg.teachers.filter(function(x) { return x.email === email; })[0];
   var me = email ? cfg.roster.filter(function(r) { return r.email === email; })[0] : null;
   if (email && (email === owner || t)) {
     out.role = 'teacher'; out.sport = t ? t.sport : ''; out.coach = !!(t && t.role === 'coach');
     // A teacher who is also on the Roster can "Test as student" in the app.
-    if (me) out.alsoStudent = { name: me.student, section: me.section, sport: me.sport };
+    if (me) out.alsoStudent = { name: me.student, id: me.id, section: me.section, sport: me.sport };
     return out;
   }
-  if (me) { out.role = 'student'; out.name = me.student; out.section = me.section; out.sport = me.sport; }
+  if (me) { out.role = 'student'; out.name = me.student; out.id = me.id; out.section = me.section; out.sport = me.sport; }
   return out;
 }
 function requireTeacher_(cfg) {
@@ -364,17 +366,26 @@ function requireTeacher_(cfg) {
   if (id.role !== 'teacher') throw new Error('Teachers only');
   return id;
 }
-function rosterEntry_(cfg, section, student) {
-  return cfg.roster.filter(function(r) { return r.section === section && r.student === student; })[0] || null;
+// Opaque per-student id sent to browsers instead of the email: a student's
+// device never holds another student's address, and a teacher's holds none.
+function studentId_(email) { return email ? hashOf_('mfs-student|' + lower_(email)).slice(0, 12) : ''; }
+// A roster row by id, email or (when it is unique in the section) name.
+function rosterEntry_(cfg, section, ref) {
+  ref = str_(ref); if (!ref) return null;
+  var inSec = cfg.roster.filter(function(r) { return r.section === section; });
+  var hit = inSec.filter(function(r) { return r.id === ref || r.email === ref.toLowerCase(); });
+  if (!hit.length) hit = inSec.filter(function(r) { return r.student === ref; });
+  if (hit.length > 1) throw new Error('More than one student called ' + ref + ' in ' + section);
+  return hit[0] || null;
 }
-function resolveStudent_(cfg, section, student) {
+function resolveStudent_(cfg, section, ref) {
   var id = identity_(cfg);
   if (id.role === 'teacher') {
-    var r = rosterEntry_(cfg, section, student);
-    if (!r) throw new Error('Student not on roster: ' + student + ' (' + section + ')');
-    return { section: r.section, sport: r.sport, student: r.student, byTeacher: true };
+    var r = rosterEntry_(cfg, section, ref);
+    if (!r) throw new Error('Student not on roster: ' + ref + ' (' + section + ')');
+    return { section: r.section, sport: r.sport, student: r.student, email: r.email, id: r.id, byTeacher: true };
   }
-  if (id.role === 'student') return { section: id.section, sport: id.sport, student: id.name, byTeacher: false };
+  if (id.role === 'student') return { section: id.section, sport: id.sport, student: id.name, email: id.email, id: id.id, byTeacher: false };
   throw new Error('Not signed in with a school account that is on the roster');
 }
 
@@ -445,7 +456,7 @@ function include(name) { return EMBEDDED_HTML[name] !== undefined ? EMBEDDED_HTM
 
 function publicConfig_(cfg) {
   var c = JSON.parse(JSON.stringify(cfg));
-  c.roster = c.roster.map(function(r) { return { section: r.section, sport: r.sport, student: r.student }; });
+  c.roster = c.roster.map(function(r) { return { section: r.section, sport: r.sport, student: r.student, id: r.id }; });
   delete c.teachers; delete c.allowedDomain;
   return c;
 }
@@ -456,43 +467,43 @@ function bootstrap() {
   var out = { config: publicConfig_(cfg), identity: id, appUrl: appUrl_(), switchUrl: chooserUrl_(appUrl_() || ScriptApp.getService().getUrl() || '') };
   if (id.role === 'student') {
     // Data minimisation: a student's browser gets their own roster row only, never the class list.
-    out.config.roster = out.config.roster.filter(function(r) { return r.section === id.section && r.student === id.name; });
+    out.config.roster = out.config.roster.filter(function(r) { return r.id === id.id; });
     out.config.sections = [id.section];
-    out.student = studentData_(cfg, id.section, id.name);
+    out.student = studentData_(cfg, id.section, id.id);
   }
   return out;
 }
 
 // ---------- Reads ----------
-function rowsFor_(name, section, student) {
-  return readTab_(name).filter(function(r) { return str_(r.Section) === section && (!student || str_(r.Student) === student); });
+function rowsFor_(name, section, email) {
+  return readTab_(name).filter(function(r) { return str_(r.Section) === section && (!email || lower_(r.Email) === email); });
 }
 function parseSelf_(s) { try { var o = JSON.parse(s || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; } }
-function mapRegister_(r) { return { student: str_(r.Student), lesson: num_(r.Lesson), participation: num_(r.Participation), note: str_(r.Note) }; }
-function mapTest_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), skill: str_(r.Skill), score: num_(r.Score), by: str_(r.By) || 'teacher' }; }
-function mapCheckin_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), extensionSkill: str_(r.ExtensionSkill), extensionDrill: str_(r.ExtensionDrill), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal), gamePlay: num_(r.GamePlay), gameNote: str_(r.GameNote), engagement: num_(r.Engagement), personal: num_(r.Personal), confirmed: bool_(r.Confirmed) }; }
-function mapOutcome_(r) { return { student: str_(r.Student), checkpoint: str_(r.Checkpoint), outcome: str_(r.Outcome), self: num_(r.Self), teacher: num_(r.Teacher) }; }
-function mapGrade_(r) { return { student: str_(r.Student), criterion: str_(r.Criterion), score: num_(r.Score), comment: str_(r.Comment) }; }
+function mapRegister_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), lesson: num_(r.Lesson), participation: num_(r.Participation), note: str_(r.Note) }; }
+function mapTest_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), checkpoint: str_(r.Checkpoint), skill: str_(r.Skill), score: num_(r.Score), by: str_(r.By) || 'teacher' }; }
+function mapCheckin_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), extensionSkill: str_(r.ExtensionSkill), extensionDrill: str_(r.ExtensionDrill), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal), gamePlay: num_(r.GamePlay), gameNote: str_(r.GameNote), engagement: num_(r.Engagement), personal: num_(r.Personal), confirmed: bool_(r.Confirmed) }; }
+function mapOutcome_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), checkpoint: str_(r.Checkpoint), outcome: str_(r.Outcome), self: num_(r.Self), teacher: num_(r.Teacher) }; }
+function mapGrade_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), criterion: str_(r.Criterion), score: num_(r.Score), comment: str_(r.Comment) }; }
 
-function studentData_(cfg, section, student) {
-  var r = rosterEntry_(cfg, section, student) || { sport: '' };
+function studentData_(cfg, section, ref) {
+  var r = rosterEntry_(cfg, section, ref) || { sport: '', student: '', email: '', id: '' };
   var classRegister = rowsFor_('Register', section);
   var lessonsRun = {};
   classRegister.forEach(function(x) { if (num_(x.Participation) && str_(x.Sport) === r.sport) lessonsRun[num_(x.Lesson)] = true; });
   return {
-    section: section, sport: r.sport, student: student,
+    section: section, sport: r.sport, student: r.student, id: r.id,
     lessonsRun: Object.keys(lessonsRun).length,
-    register: classRegister.filter(function(x) { return str_(x.Student) === student; }).map(mapRegister_),
-    tests: rowsFor_('SkillTests', section, student).map(mapTest_),
-    checkins: rowsFor_('Checkins', section, student).map(mapCheckin_),
-    outcomes: rowsFor_('OutcomeRatings', section, student).map(mapOutcome_),
-    grades: rowsFor_('Grades', section, student).map(mapGrade_)
+    register: classRegister.filter(function(x) { return lower_(x.Email) === r.email; }).map(mapRegister_),
+    tests: rowsFor_('SkillTests', section, r.email).map(mapTest_),
+    checkins: rowsFor_('Checkins', section, r.email).map(mapCheckin_),
+    outcomes: rowsFor_('OutcomeRatings', section, r.email).map(mapOutcome_),
+    grades: rowsFor_('Grades', section, r.email).map(mapGrade_)
   };
 }
-function getStudent(section, student) {
+function getStudent(section, ref) {
   var cfg = getConfig_();
-  var who = resolveStudent_(cfg, section, student);
-  return studentData_(cfg, who.section, who.student);
+  var who = resolveStudent_(cfg, section, ref);
+  return studentData_(cfg, who.section, who.id);
 }
 // Teacher: everything for one section (all sport groups) in one call.
 function getSectionData(section) {
@@ -516,7 +527,7 @@ function blankOr_(v, lo, hi) { if (v === null || v === undefined || v === '') re
 // payload: { section, student, checkpoint, scores:{skill:n}, focusSkill, goal, drillStep, extensionSkill, extensionDrill, selfStages:{skill:1-3}, selfOutcomes:{outcome:1-3}, wentWell, nextGoal }
 function saveCheckin(payload) {
   var cfg = getConfig_();
-  var who = resolveStudent_(cfg, payload.section, payload.student);
+  var who = resolveStudent_(cfg, payload.section, payload.id || payload.student);
   var cp = str_(payload.checkpoint);
   if (!cfg.checkpoints.some(function(c) { return c.name === cp; })) throw new Error('Unknown checkpoint: ' + cp);
   var skills = (cfg.skills[who.sport] || []).map(function(s) { return s.skill; });
@@ -524,7 +535,7 @@ function saveCheckin(payload) {
   if (focus && skills.indexOf(focus) === -1) focus = '';
   var self = {};
   Object.keys(payload.selfStages || {}).forEach(function(k) { if (skills.indexOf(k) !== -1) { var n = clampInt_(payload.selfStages[k], 1, 3); if (n) self[k] = n; } });
-  var row = { Section: who.section, Sport: who.sport, Student: who.student, Checkpoint: cp,
+  var row = { Section: who.section, Sport: who.sport, Student: who.student, Email: who.email, Checkpoint: cp,
     FocusSkill: focus, Goal: str_(payload.goal).slice(0, 400), DrillStep: blankOr_(payload.drillStep, 0, 20),
     ExtensionSkill: str_(payload.extensionSkill).slice(0, 80), ExtensionDrill: str_(payload.extensionDrill).slice(0, 300),
     SelfStages: JSON.stringify(self),
@@ -538,12 +549,12 @@ function saveCheckin(payload) {
     var testRows = [];
     if (!Object.keys(scores).length) return testRows;
     var teacherSet = {};
-    rowsFor_('SkillTests', who.section, who.student).forEach(function(t) { if (str_(t.Checkpoint) === cp && str_(t.By) === 'teacher' && str_(t.Score) !== '') teacherSet[str_(t.Skill)] = true; });
+    rowsFor_('SkillTests', who.section, who.email).forEach(function(t) { if (str_(t.Checkpoint) === cp && str_(t.By) === 'teacher' && str_(t.Score) !== '') teacherSet[str_(t.Skill)] = true; });
     Object.keys(scores).forEach(function(k) {
       if (skills.indexOf(k) === -1 || teacherSet[k]) return;
       var v = scores[k];
       if (v === '' || v === null || v === undefined) return;
-      testRows.push({ Section: who.section, Sport: who.sport, Student: who.student, Checkpoint: cp, Skill: k, Score: blankOr_(v, 0, cfg.scoreMax), By: 'student' });
+      testRows.push({ Section: who.section, Sport: who.sport, Student: who.student, Email: who.email, Checkpoint: cp, Skill: k, Score: blankOr_(v, 0, cfg.scoreMax), By: 'student' });
     });
     return testRows;
   };
@@ -553,7 +564,7 @@ function saveCheckin(payload) {
   Object.keys(payload.selfOutcomes || {}).forEach(function(k) {
     if (!cfg.outcomes.some(function(o) { return o.outcome === k; })) return;
     var n = clampInt_(payload.selfOutcomes[k], 1, 3); if (!n) return;
-    outcomeRows.push({ Section: who.section, Sport: who.sport, Student: who.student, Checkpoint: cp, Outcome: k, Self: n });
+    outcomeRows.push({ Section: who.section, Sport: who.sport, Student: who.student, Email: who.email, Checkpoint: cp, Outcome: k, Self: n });
   });
   return withLock_(function() {
     var testRows = buildTestRows();
@@ -572,9 +583,8 @@ function saveTeacherCheckin(payload) {
   if (!section || !cfg.checkpoints.some(function(c) { return c.name === cp; })) throw new Error('Missing section or checkpoint');
   var checkRows = [], testRows = [];
   (payload.entries || []).forEach(function(e) {
-    var student = str_(e.student); if (!student) return;
-    var sport = sportOf_(cfg, section, student);
-    var c = { Section: section, Sport: sport, Student: student, Checkpoint: cp };
+    var r = rosterEntry_(cfg, section, e.id || e.student); if (!r) return;
+    var c = base_(r, { Checkpoint: cp });
     var any = false;
     if ('confirmed' in e) { c.Confirmed = e.confirmed ? 'yes' : ''; any = true; }
     if ('engagement' in e) { c.Engagement = blankOr_(e.engagement, 1, 3); any = true; }
@@ -584,7 +594,7 @@ function saveTeacherCheckin(payload) {
     if (any) checkRows.push(c);
     Object.keys(e.scores || {}).forEach(function(k) {
       var sc = blankOr_(e.scores[k], 0, cfg.scoreMax);
-      testRows.push({ Section: section, Sport: sport, Student: student, Checkpoint: cp, Skill: k, Score: sc, By: sc === '' ? '' : 'teacher' });
+      testRows.push(base_(r, { Checkpoint: cp, Skill: k, Score: sc, By: sc === '' ? '' : 'teacher' }));
     });
   });
   return withLock_(function() {
@@ -599,12 +609,14 @@ function saveOutcomes(payload) {
   requireTeacher_(cfg);
   var section = str_(payload.section), cp = str_(payload.checkpoint);
   var rows = (payload.entries || []).map(function(e) {
-    return { Section: section, Sport: sportOf_(cfg, section, str_(e.student)), Student: str_(e.student), Checkpoint: cp, Outcome: str_(e.outcome), Teacher: blankOr_(e.teacher, 1, 3) };
-  }).filter(function(r) { return r.Student && r.Outcome; });
+    var r = rosterEntry_(cfg, section, e.id || e.student);
+    return r ? base_(r, { Checkpoint: cp, Outcome: str_(e.outcome), Teacher: blankOr_(e.teacher, 1, 3) }) : null;
+  }).filter(function(r) { return r && r.Outcome; });
   return withLock_(function() { return { ok: true, saved: upsert_('OutcomeRatings', rows) }; });
 }
 
-function sportOf_(cfg, section, student) { var r = rosterEntry_(cfg, section, student); return r ? r.sport : ''; }
+// The identifying columns of a data row, from the roster entry.
+function base_(r, rest) { var o = { Section: r.section, Sport: r.sport, Student: r.student, Email: r.email }; Object.keys(rest).forEach(function(k) { o[k] = rest[k]; }); return o; }
 
 // entries: [{student, participation, note}]
 function saveRegister(payload) {
@@ -613,11 +625,12 @@ function saveRegister(payload) {
   var section = str_(payload.section), lesson = num_(payload.lesson);
   if (!section || lesson === null) throw new Error('Missing section or lesson');
   var rows = (payload.entries || []).map(function(e) {
-    var r = { Section: section, Sport: sportOf_(cfg, section, str_(e.student)), Student: str_(e.student), Lesson: lesson };
+    var who = rosterEntry_(cfg, section, e.id || e.student); if (!who) return null;
+    var r = base_(who, { Lesson: lesson });
     if ('participation' in e) r.Participation = blankOr_(e.participation, 1, 3);
     if ('note' in e) r.Note = str_(e.note).slice(0, 200);
     return r;
-  }).filter(function(r) { return r.Student; });
+  }).filter(Boolean);
   return withLock_(function() { return { ok: true, saved: upsert_('Register', rows) }; });
 }
 // entries: [{student, skill, score}]
@@ -626,9 +639,9 @@ function saveSkillTests(payload) {
   requireTeacher_(cfg);
   var section = str_(payload.section), cp = str_(payload.checkpoint);
   var rows = (payload.entries || []).map(function(e) {
-    return { Section: section, Sport: sportOf_(cfg, section, str_(e.student)), Student: str_(e.student), Checkpoint: cp, Skill: str_(e.skill),
-      Score: blankOr_(e.score, 0, cfg.scoreMax) };
-  }).filter(function(r) { return r.Student && r.Skill; });
+    var r = rosterEntry_(cfg, section, e.id || e.student);
+    return r ? base_(r, { Checkpoint: cp, Skill: str_(e.skill), Score: blankOr_(e.score, 0, cfg.scoreMax) }) : null;
+  }).filter(function(r) { return r && r.Skill; });
   return withLock_(function() { return { ok: true, saved: upsert_('SkillTests', rows) }; });
 }
 // entries: [{student, criterion, score, comment}]
@@ -637,11 +650,12 @@ function saveGrades(payload) {
   requireTeacher_(cfg);
   var section = str_(payload.section);
   var rows = (payload.entries || []).map(function(e) {
-    var r = { Section: section, Sport: sportOf_(cfg, section, str_(e.student)), Student: str_(e.student), Criterion: str_(e.criterion) };
+    var who = rosterEntry_(cfg, section, e.id || e.student); if (!who) return null;
+    var r = base_(who, { Criterion: str_(e.criterion) });
     if ('score' in e) r.Score = blankOr_(e.score, 1, 7);
     if ('comment' in e) r.Comment = str_(e.comment).slice(0, 500);
     return r;
-  }).filter(function(r) { return r.Student && r.Criterion; });
+  }).filter(function(r) { return r && r.Criterion; });
   return withLock_(function() { return { ok: true, saved: upsert_('Grades', rows) }; });
 }
 
@@ -660,17 +674,18 @@ function computeOverview_(cfg, section, sport, data) {
     return Math.min(7, b);
   };
   var lessonsRunBySport = {};
-  data.register.forEach(function(r) { if (r.participation) { var sp = sportOf_(cfg, section, r.student); (lessonsRunBySport[sp] = lessonsRunBySport[sp] || {})[r.lesson] = true; } });
+  var sportById = {}; cfg.roster.forEach(function(r) { sportById[r.id] = r.sport; });
+  data.register.forEach(function(r) { if (r.participation) { var sp = sportById[r.id] || ''; (lessonsRunBySport[sp] = lessonsRunBySport[sp] || {})[r.lesson] = true; } });
 
   return roster.map(function(r) {
-    var name = r.student, sp = r.sport;
+    var name = r.student, sid = r.id, sp = r.sport;
     var skills = (cfg.skills[sp] || []);
     var nLessons = Object.keys(lessonsRunBySport[sp] || {}).length || cfg.lessons.length || 1;
-    var reg = data.register.filter(function(x) { return x.student === name && x.participation; });
+    var reg = data.register.filter(function(x) { return x.id === sid && x.participation; });
     var partAvg = reg.length ? reg.reduce(function(a, x) { return a + x.participation; }, 0) / reg.length : null;
-    var tests = data.tests.filter(function(x) { return x.student === name; });
+    var tests = data.tests.filter(function(x) { return x.id === sid; });
     var score = function(cp, sk) { var t = tests.filter(function(x) { return x.checkpoint === cp && x.skill === sk && x.score !== null; })[0]; return t ? t.score : null; };
-    var checkins = data.checkins.filter(function(x) { return x.student === name; });
+    var checkins = data.checkins.filter(function(x) { return x.id === sid; });
     var byCp = {}; checkins.forEach(function(c) { byCp[c.checkpoint] = c; });
     var ordered = cps.map(function(c) { return byCp[c.name]; }).filter(Boolean);
     var latest = ordered[ordered.length - 1] || null;
@@ -707,7 +722,7 @@ function computeOverview_(cfg, section, sport, data) {
     var chosenAtUnderstanding = focus && fStart !== null ? stageOf_(cfg, fStart) === 1 : null;
 
     // personal-skill outcomes: latest teacher rating per outcome, and self
-    var oRows = data.outcomes.filter(function(x) { return x.student === name; });
+    var oRows = data.outcomes.filter(function(x) { return x.id === sid; });
     var tLatest = {}, sLatest = {};
     cps.forEach(function(c) { oRows.filter(function(x) { return x.checkpoint === c.name; }).forEach(function(x) { if (x.teacher) tLatest[x.outcome] = x.teacher; if (x.self) sLatest[x.outcome] = x.self; }); });
     var tVals = Object.keys(tLatest).map(function(k) { return tLatest[k]; }), sVals = Object.keys(sLatest).map(function(k) { return sLatest[k]; });
@@ -740,10 +755,10 @@ function computeOverview_(cfg, section, sport, data) {
       suggested[c.code] = s;
     });
     var final = {};
-    data.grades.filter(function(g) { return g.student === name; }).forEach(function(g) { final[g.criterion] = { score: g.score, comment: g.comment }; });
+    data.grades.filter(function(g) { return g.id === sid; }).forEach(function(g) { final[g.criterion] = { score: g.score, comment: g.comment }; });
 
     return {
-      student: name, sport: sp,
+      student: name, id: sid, sport: sp,
       lessonsAttended: reg.length, lessonsRun: nLessons, participationAvg: partAvg,
       checkins: nCheckins, reflections: nReflected, selfAccuracy: selfAcc, confirmed: nConfirmed, engagementAvg: engAvg, personalAvg: persAvg,
       focus: focus, goal: goal, drillStep: drillStep, maxSteps: maxSteps, chosenAtUnderstanding: chosenAtUnderstanding, extension: extension, gamePlay: gamePlay, gameNote: gameNote, byCheckpoint: byCheckpoint,
@@ -766,7 +781,6 @@ function onOpen() {
     .addItem('1. Set up tabs (safe to re-run)', 'setupTabs')
     .addItem('1b. Replace unit tabs with the draft (Skills, Drills, Lessons…)', 'resetUnitTabs')
     .addItem('2. Check roster & config', 'checkConfig')
-    .addItem('2b. Fix duplicate names (surname initial from email)', 'fixDuplicateNames')
     .addItem('3. Show app link', 'showAppLink')
     .addSeparator()
     .addItem('Build grade report tab', 'buildGradeReport')
@@ -828,6 +842,35 @@ function clearStudentData() {
   var gr = tab_('GradeReport'); if (gr) ss_().deleteSheet(gr);
   if (ui) ui.alert('Student data cleared.');
 }
+// Rows saved before records were filed by email: fill Email from the Roster
+// where the section + name matches exactly one student. Returns the count filled.
+function fillEmails_(cfg) {
+  var byName = {};
+  cfg.roster.forEach(function(r) { var k = r.section + '|' + r.student.toLowerCase(); (byName[k] = byName[k] || []).push(r.email); });
+  var filled = 0;
+  Object.keys(DATA_TABS).forEach(function(n) {
+    var t = tab_(n); if (!t || t.getLastRow() < 2) return;
+    var data = t.getDataRange().getValues();
+    var hdr = data[0].map(function(h) { return String(h).trim(); });
+    var cS = hdr.indexOf('Section'), cN = hdr.indexOf('Student'), cE = hdr.indexOf('Email');
+    if (cS < 0 || cN < 0 || cE < 0) return;
+    for (var i = 1; i < data.length; i++) {
+      if (str_(data[i][cE]) || !str_(data[i][cN])) continue;
+      var hit = byName[str_(data[i][cS]) + '|' + str_(data[i][cN]).toLowerCase()] || [];
+      if (hit.length === 1) { t.getRange(i + 1, cE + 1).setValue(hit[0]); filled++; }
+    }
+  });
+  return filled;
+}
+function unmatchedDataRows_(cfg) {
+  var byName = {};
+  cfg.roster.forEach(function(r) { var k = r.section + '|' + r.student.toLowerCase(); (byName[k] = byName[k] || []).push(r.email); });
+  var n = 0;
+  Object.keys(DATA_TABS).forEach(function(tab) {
+    readTab_(tab).forEach(function(r) { if (!str_(r.Email) && str_(r.Student) && (byName[str_(r.Section) + '|' + str_(r.Student).toLowerCase()] || []).length !== 1) n++; });
+  });
+  return n;
+}
 function setupTabs() {
   var book = ss_();
   Object.keys(CONFIG_TABS).forEach(function(n) { ensureTab_(n, CONFIG_TABS[n]); });
@@ -859,6 +902,7 @@ function setupTabs() {
       t.getRange(2, i + 1, rowsN, 1).setNumberFormat(h === 'Updated' ? 'yyyy-mm-dd hh:mm' : 'General');
     });
   });
+  fillEmails_(buildConfig_());
   // Tabs from the first version of the tracker that nothing reads any more:
   // removed only while they hold no data rows.
   OBSOLETE_TABS.forEach(function(n) { var t = tab_(n); if (t && t.getLastRow() < 2 && book.getSheets().length > 1) book.deleteSheet(t); });
@@ -920,12 +964,14 @@ function checkConfig() {
   Object.keys(emails).forEach(function(e) {
     if (emails[e].length > 1) problems.push(e + ' is on the Roster ' + emails[e].length + ' times (' + emails[e].map(function(r) { return r.student + ', ' + r.section; }).join(' / ') + ') — delete the extra row(s).');
   });
-  nameClashes_(cfg.roster).forEach(function(g) {
-    var fix = g.rows.filter(function(r) { return r.suggested; }).map(function(r) { return r.student + ' → ' + r.suggested; });
-    var manual = g.rows.length - fix.length;   // rows whose email has no surname part
-    problems.push(g.rows.length + ' different students called "' + g.rows[0].student + '" in section ' + g.section + ' — their records would merge. ' +
-      (manual < 2 ? 'Rename: ' + fix.join(', ') + ' (PE Tracker → 2b. Fix duplicate names does this).' : 'Add a surname or initial to each.'));
+  var names = {};
+  cfg.roster.forEach(function(r) { if (r.email) { var k = r.section + '|' + r.student.toLowerCase(); names[k] = names[k] || { shown: r.student, section: r.section, emails: {} }; names[k].emails[r.email] = true; } });
+  Object.keys(names).forEach(function(k) {
+    var g = names[k], n = Object.keys(g.emails).length;
+    if (n > 1) problems.push('Note: ' + n + ' different students called "' + g.shown + '" in section ' + g.section + '. Their records stay separate (filed by email) but they look the same in the app — add the class or an initial to one name on the Roster if you want to tell them apart.');
   });
+  var orphans = unmatchedDataRows_(cfg);
+  if (orphans) problems.push(orphans + ' saved record(s) have no Email and no single matching Roster name, so nobody can see them. Run "1. Set up tabs" after fixing the Roster; rows that still do not match can be deleted from the data tabs.');
   cfg.teachers.forEach(function(t) { if (t.role === 'coach' && !t.sport) problems.push('Coach ' + t.email + ' has no Sport on the Teachers tab.'); if (t.sport && !cfg.skills[t.sport]) problems.push('Teacher ' + t.email + ' has sport "' + t.sport + '" which is not on the Skills tab.'); });
   if (!cfg.oauthClientId) problems.push('oauth_client_id on Config is blank — the GitHub Pages front end cannot sign anyone in until it is filled (see the guide, Part A2).');
   else if (!/\.apps\.googleusercontent\.com$/.test(cfg.oauthClientId)) problems.push('oauth_client_id on Config does not look like a Google OAuth client ID (…apps.googleusercontent.com).');
@@ -938,68 +984,6 @@ function checkConfig() {
   var msg = problems.length ? problems.join('\n') : 'Looks good: ' + cfg.sections.length + ' sections, ' + cfg.roster.length + ' students, ' + cfg.sports.length + ' sports, ' + cfg.checkpoints.length + ' checkpoints.';
   Logger.log(problems.length ? problems.length + ' problem(s) found — see the dialog' : 'Config looks good');  // names and emails stay out of the script log
   try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
-  return msg;
-}
-
-// Students who share a display name in a section (records are keyed by
-// section + name). Same email twice is a duplicate row, not a clash.
-// Suggests "Name X" from a first_last@ / first.last@ email, or the full
-// surname when initials clash too.
-function nameClashes_(roster) {
-  var groups = {};
-  roster.forEach(function(r) { if (!r.student) return; var k = r.section + '|' + r.student.toLowerCase(); (groups[k] = groups[k] || []).push(r); });
-  var out = [];
-  Object.keys(groups).forEach(function(k) {
-    var seenE = {}, rows = groups[k].filter(function(r) { if (!r.email || seenE[r.email]) return false; seenE[r.email] = true; return true; });
-    if (rows.length < 2) return;
-    var surnames = rows.map(function(r) { return surnameFromEmail_(r.email); });
-    var initials = surnames.map(function(sn) { return sn ? sn.charAt(0).toUpperCase() : ''; });
-    var initialClash = initials.some(function(ini, i) { return ini && initials.indexOf(ini) !== i; });
-    out.push({ section: rows[0].section, rows: rows.map(function(r, i) {
-      var sn = surnames[i], cap = sn ? sn.charAt(0).toUpperCase() + sn.slice(1) : '';
-      return { student: r.student, email: r.email, suggested: sn ? r.student + ' ' + (initialClash ? cap : initials[i]) : '' };
-    }) });
-  });
-  return out;
-}
-function surnameFromEmail_(email) {
-  var local = str_(email).split('@')[0].toLowerCase();
-  var parts = local.split(/[._-]+/).filter(function(p) { return /^[a-z]+$/.test(p); });
-  return parts.length >= 2 ? parts[parts.length - 1] : '';
-}
-// Menu: rename clashing students on the Roster to the suggestion above.
-// Rows with the same email twice are left for the teacher to delete.
-function fixDuplicateNames() {
-  var ui = null; try { ui = SpreadsheetApp.getUi(); } catch (e) {}
-  var t = tab_('Roster');
-  if (!t || t.getLastRow() < 2) { if (ui) ui.alert('Roster tab is empty.'); return 'Roster tab is empty.'; }
-  var data = t.getDataRange().getValues();
-  var hdr = data[0].map(function(h) { return String(h).trim(); });
-  var cS = hdr.indexOf('Section'), cN = hdr.indexOf('Student'), cE = hdr.indexOf('Email');
-  if (cS < 0 || cN < 0 || cE < 0) throw new Error('Roster needs Section, Student and Email columns');
-  var roster = [];
-  for (var i = 1; i < data.length; i++) roster.push({ row: i + 1, section: str_(data[i][cS]), student: str_(data[i][cN]), email: lower_(data[i][cE]) });
-  var byEmail = {};
-  roster.forEach(function(r) { if (r.email && !byEmail[r.section + '|' + r.email]) byEmail[r.section + '|' + r.email] = r; });
-  var changes = [], skipped = [];
-  nameClashes_(roster).forEach(function(g) {
-    // renaming the rows that have a suggestion is enough unless two rows in
-    // the group have none — those still clash and need a hand-typed initial
-    var none = g.rows.filter(function(x) { return !x.suggested; });
-    if (none.length > 1) none.forEach(function(x) { skipped.push(x.student + ' (' + g.section + ')'); });
-    g.rows.forEach(function(x) {
-      var r = byEmail[g.section + '|' + x.email];
-      if (r && x.suggested) changes.push({ row: r.row, from: x.student, to: x.suggested });
-    });
-  });
-  if (changes.length && ui) {
-    var a = ui.alert('Rename ' + changes.length + ' student(s) on the Roster?', changes.map(function(c) { return c.from + ' → ' + c.to; }).join('\n') + '\n\nOnly the Roster changes. Do this before students start; records already saved under the old name would not follow.', ui.ButtonSet.OK_CANCEL);
-    if (a !== ui.Button.OK) return 'Cancelled.';
-  }
-  changes.forEach(function(c) { t.getRange(c.row, cN + 1).setValue(c.to); });
-  if (changes.length) clearConfigCache();
-  var msg = (changes.length ? 'Renamed ' + changes.length + ' student(s).' : 'No name clashes to fix.') + (skipped.length ? '\nCould not suggest a name (email has no surname part) for: ' + skipped.join(', ') + ' — add an initial by hand.' : '');
-  if (ui) ui.alert(msg);
   return msg;
 }
 
