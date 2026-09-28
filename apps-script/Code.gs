@@ -39,6 +39,8 @@ var DATA_TABS = {
   OutcomeRatings: ['Section', 'Sport', 'Student', 'Checkpoint', 'Outcome', 'Self', 'Teacher', 'Updated'],
   Grades:     ['Section', 'Sport', 'Student', 'Criterion', 'Score', 'Comment', 'Updated']
 };
+// Data tabs of the first version (v1) that this version does not read.
+var OBSOLETE_TABS = ['Checkpoints', 'Reflections', 'Tests'];
 var DATA_KEYS = {
   Register:   ['Section', 'Student', 'Lesson'],
   SkillTests: ['Section', 'Student', 'Checkpoint', 'Skill'],
@@ -187,7 +189,7 @@ function readTab_(name) {
     for (var c = 0; c < headers.length; c++) {
       if (!headers[c]) continue;
       var v = row[c];
-      if (v instanceof Date) v = Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      if (v instanceof Date) v = v.getFullYear() < 1905 ? serialOf_(v) : Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
       obj[headers[c]] = v;
       if (v !== '' && v !== null && v !== undefined) empty = false;
     }
@@ -196,6 +198,9 @@ function readTab_(name) {
   return out;
 }
 
+// A small number in a cell that was date-formatted reads back as a Date near
+// 1900 (Sheets counts days from 1899-12-30). Turn it back into the number.
+function serialOf_(d) { return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000); }
 function str_(v) { return (v === null || v === undefined) ? '' : String(v).trim(); }
 function num_(v) { if (v === '' || v === null || v === undefined) return null; var n = parseFloat(v); return isNaN(n) ? null : n; }
 function bool_(v) { return /^(true|yes|1)$/i.test(str_(v)); }
@@ -827,11 +832,13 @@ function setupTabs() {
   Object.keys(CONFIG_TABS).forEach(function(n) { ensureTab_(n, CONFIG_TABS[n]); });
   Object.keys(DATA_TABS).forEach(function(n) { ensureTab_(n, DATA_TABS[n]); });
 
+  // Config: add any key this version needs that the tab does not have yet
+  // (a tab kept from an older version keeps its values; extra keys are ignored).
   var cfgTab = tab_('Config');
-  if (cfgTab.getLastRow() < 2) {
-    var rows = Object.keys(CONFIG_DEFAULTS).map(function(k) { return [k, CONFIG_DEFAULTS[k][0], CONFIG_DEFAULTS[k][1]]; });
-    cfgTab.getRange(2, 1, rows.length, 3).setValues(rows);
-  }
+  var have = {};
+  readTab_('Config').forEach(function(r) { if (str_(r.Key)) have[str_(r.Key)] = true; });
+  var rows = Object.keys(CONFIG_DEFAULTS).filter(function(k) { return !have[k]; }).map(function(k) { return [k, CONFIG_DEFAULTS[k][0], CONFIG_DEFAULTS[k][1]]; });
+  if (rows.length) cfgTab.getRange(cfgTab.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
   // Seed by header NAME, not position — a tab kept from an older version may
   // have extra or re-ordered columns.
   UNIT_TABS.forEach(function(n) { seedUnitTab_(n, false); });
@@ -840,10 +847,20 @@ function setupTabs() {
   var roster = tab_('Roster');
   if (roster.getLastRow() < 2) roster.getRange(2, 1, 2, 4).setValues([['Section A', 'Net Games', 'Example Student', 'example@school.edu'], ['Section A', 'Handball', 'Another Student', 'another@school.edu']]);
 
+  // Date format on the Updated column, found by header NAME: a tab kept from
+  // an older version can have it in a different position, and a score column
+  // sitting where Updated used to be would otherwise show as a 1900 date.
   Object.keys(DATA_TABS).forEach(function(n) {
-    var t = tab_(n), col = DATA_TABS[n].indexOf('Updated') + 1;
-    if (col > 0) t.getRange(2, col, Math.max(1, t.getMaxRows() - 1), 1).setNumberFormat('yyyy-mm-dd hh:mm');
+    var t = tab_(n), lastCol = Math.max(1, t.getLastColumn()), rowsN = Math.max(1, t.getMaxRows() - 1);
+    var hdrs = t.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) { return String(h).trim(); });
+    hdrs.forEach(function(h, i) {
+      if (!h) return;
+      t.getRange(2, i + 1, rowsN, 1).setNumberFormat(h === 'Updated' ? 'yyyy-mm-dd hh:mm' : 'General');
+    });
   });
+  // Tabs from the first version of the tracker that nothing reads any more:
+  // removed only while they hold no data rows.
+  OBSOLETE_TABS.forEach(function(n) { var t = tab_(n); if (t && t.getLastRow() < 2 && book.getSheets().length > 1) book.deleteSheet(t); });
   var order = Object.keys(CONFIG_TABS).concat(Object.keys(DATA_TABS));
   order.forEach(function(n, i) { var t = tab_(n); if (t) { book.setActiveSheet(t); book.moveActiveSheet(i + 1); } });
   var first = book.getSheets()[0];
@@ -904,7 +921,12 @@ function checkConfig() {
     seenName[nk] = true;
   });
   cfg.teachers.forEach(function(t) { if (t.role === 'coach' && !t.sport) problems.push('Coach ' + t.email + ' has no Sport on the Teachers tab.'); if (t.sport && !cfg.skills[t.sport]) problems.push('Teacher ' + t.email + ' has sport "' + t.sport + '" which is not on the Skills tab.'); });
-  if (cfg.oauthClientId && !/\.apps\.googleusercontent\.com$/.test(cfg.oauthClientId)) problems.push('oauth_client_id on Config does not look like a Google OAuth client ID (…apps.googleusercontent.com).');
+  if (!cfg.oauthClientId) problems.push('oauth_client_id on Config is blank — the GitHub Pages front end cannot sign anyone in until it is filled (see the guide, Part A2).');
+  else if (!/\.apps\.googleusercontent\.com$/.test(cfg.oauthClientId)) problems.push('oauth_client_id on Config does not look like a Google OAuth client ID (…apps.googleusercontent.com).');
+  var cfgKeys = {}; readTab_('Config').forEach(function(r) { if (str_(r.Key)) cfgKeys[str_(r.Key)] = true; });
+  var missingKeys = Object.keys(CONFIG_DEFAULTS).filter(function(k) { return !cfgKeys[k]; });
+  if (missingKeys.length) problems.push('Config tab is missing ' + missingKeys.length + ' key(s) from this version (' + missingKeys.slice(0, 3).join(', ') + (missingKeys.length > 3 ? '…' : '') + ') — run "1. Set up tabs" to add them; defaults are used until then.');
+  OBSOLETE_TABS.forEach(function(n) { var t = tab_(n); if (t && t.getLastRow() >= 2) problems.push('Tab "' + n + '" is from the first version and is not read any more — delete it once you no longer need its rows.'); });
   if (!cfg.criteria.length) problems.push('Criteria tab is empty.');
   cfg.criteria.forEach(function(c) { if (c.evidence === 'none') problems.push('Criterion ' + c.code + ' has no Evidence type (test / reflection / participation / skills / outcomes).'); });
   var msg = problems.length ? problems.join('\n') : 'Looks good: ' + cfg.sections.length + ' sections, ' + cfg.roster.length + ' students, ' + cfg.sports.length + ' sports, ' + cfg.checkpoints.length + ' checkpoints.';

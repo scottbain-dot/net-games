@@ -32,10 +32,10 @@
     }
     setValue(v) { return this.setValues([[v]]); }
     setFontWeight() { return this; }
-    setNumberFormat() { return this; }
+    setNumberFormat(f) { for (let j = 0; j < this.nc; j++) this.sheet.formats[this.c + j] = f; return this; }
   }
   class Sheet {
-    constructor(book, name) { this.book = book; this.name = name; this.rows = []; }
+    constructor(book, name) { this.book = book; this.name = name; this.rows = []; this.formats = {}; }
     getName() { return this.name; }
     setName(n) { this.name = n; return this; }
     getLastRow() { let last = 0; this.rows.forEach((row, i) => { if (row.some(v => !isEmpty(v))) last = i + 1; }); return last; }
