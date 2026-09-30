@@ -357,7 +357,7 @@ async function main() {
   await page.evaluate(() => { sessionStorage.setItem('mfs_id_token', 'nonsense'); });
   const okBtn2 = await page.$('.ok-btn'); await okBtn2.click();
   await page.waitForSelector('#banner.show', { timeout: 15000 });
-  if (!/sign in again/i.test(await page.textContent('#banner'))) errors.push('Rejected token did not ask to sign in again: ' + await page.textContent('#banner'));
+  if (!/sign in again|sign-in ran out/i.test(await page.textContent('#banner'))) errors.push('Rejected token did not ask to sign in again: ' + await page.textContent('#banner'));
 
   // ── coach role: one sport, no Grades, today strip ──
   await page.goto(preview + '?role=coach');

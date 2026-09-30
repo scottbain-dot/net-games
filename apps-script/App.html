@@ -24,8 +24,14 @@ const Auth = {
   get() { try { return sessionStorage.getItem(this.key) || ''; } catch (e) { return this._mem || ''; } },
   set(t) { this._mem = t; try { sessionStorage.setItem(this.key, t); } catch (e) {} },
   clear() { this._mem = ''; try { sessionStorage.removeItem(this.key); } catch (e) {} },
-  email() { try { return JSON.parse(atob(this.get().split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email || ''; } catch (e) { return ''; } }
+  claims() { try { return JSON.parse(atob(this.get().split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) || {}; } catch (e) { return {}; } },
+  email() { return this.claims().email || ''; },
+  secondsLeft() { const exp = +this.claims().exp || 0; return exp ? exp - Math.floor(Date.now() / 1000) : 0; }
 };
+// A Google sign-in lasts an hour; a lesson can be longer. Five minutes before
+// it runs out, ask Google for a fresh one silently (auto-select), so a save at
+// the end of the lesson does not bounce on an expired token.
+setInterval(() => { if (pagesMode() && Auth.get() && Auth.secondsLeft() > 0 && Auth.secondsLeft() < 300 && window.google && google.accounts && google.accounts.id) { google.accounts.id.initialize(gsiOptions(true)); google.accounts.id.prompt(); } }, 60000);
 function rawCall(fn, args, attempt) {
   if (pagesMode()) return apiCall(fn, args, attempt);
   return new Promise((resolve, reject) => {
@@ -94,20 +100,25 @@ function apiFrame(fn, args, timeoutMs) {
 async function apiCall(fn, args, attempt) {
   // Frame first, POST on the next attempt, and so on: whichever route Google is
   // serving well today gets the request through within a retry or two.
-  const useFrame = frameOk() && (attempt || 0) % 2 === 0;
+  const isRead = READ_FNS.indexOf(fn) !== -1;
+  // a write waits longer than a read: on a busy server it may be queued behind
+  // the Sheet lock (25 s at most) and abandoning it would only add another to the queue
+  const writeMs = 30000;
+  const tooLongForUrl = JSON.stringify(args || []).length > 6000;   // the frame route carries the request in the URL
+  const useFrame = frameOk() && !tooLongForUrl && (attempt || 0) % 2 === 0;
   LoadTicker.route = useFrame ? 'frame' : 'post';
   let out;
   if (useFrame) {
     const proven = Frame.get() === 'ok';
-    try { out = await apiFrame(fn, args, proven ? 15000 : 8000); Frame.set('ok'); }
+    try { out = await apiFrame(fn, args, isRead ? (proven ? 15000 : 8000) : writeMs); Frame.set('ok'); }
     catch (e) { if (!proven) Frame.set('off'); throw e; }
-  } else out = await (READ_FNS.indexOf(fn) !== -1 ? apiHedged(fn, args) : apiOnce(fn, args, 20000));
+  } else out = await (isRead ? apiHedged(fn, args) : apiOnce(fn, args, writeMs));
   if (out && out.ok) { Auth.fresh = false; return out.result; }
   if (out && (out.code === 'auth' || out.code === 'server')) {
     // A token Google issued a moment ago and the server still refused: signing in
     // again would fail the same way, so stop and show the reason instead.
     if (Auth.fresh || out.code === 'server') { Auth.clear(); const e = new Error(out.error || 'Sign-in refused'); e.signIn = true; throw e; }
-    Auth.clear(); needSignIn(); throw new Error('Signed out — sign in again to continue');  // expired mid-session: the outbox keeps the work
+    Auth.clear(); needSignIn(); const p = new Error('Signed out — sign in again to continue'); p.pause = true; throw p;  // expired mid-session: the outbox keeps the work and waits
   }
   throw new Error(out && out.error ? out.error : 'No reply from the server');
 }
@@ -125,7 +136,7 @@ async function call(fn, ...args) {
   for (let attempt = 0; ; attempt++) {
     try { const r = await rawCall(fn, args, attempt); LoadTicker.attempt = 0; return r; }
     catch (e) {
-      if (PERMANENT.test(e.message) || attempt >= (fast ? 5 : 7)) throw e;
+      if (e.pause || PERMANENT.test(e.message) || attempt >= (fast ? 5 : 7)) throw e;
       LoadTicker.attempt = attempt + 2; LoadTicker.reason = e.message;
       // a dropped reply is not the server being busy: ask again almost at once
       const wait = e.transient ? 300 + Math.random() * 600 : delay + Math.random() * delay * 1.5;
@@ -159,7 +170,7 @@ const LoadTicker = {
 // never loses work.
 const OUTBOX_KEY = 'mfs_outbox_v1';
 const Outbox = {
-  items: [], draining: false, failed: false, lastError: '', waiters: {},
+  items: [], draining: false, failed: false, paused: false, sendingSince: 0, lastError: '', waiters: {},
   load() { try { this.items = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]'); } catch (e) { this.items = []; } },
   volatile: false,
   persist() { try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(this.items)); this.volatile = false; } catch (e) { this.volatile = true; } },
@@ -178,12 +189,14 @@ const Outbox = {
     let item, sentOrphan = false;
     while ((item = this.mine()[0])) {
       try {
+        this.sendingSince = Date.now(); updateSaveState();
         const res = await call(item.fn, item.payload);
         if (!res || res.ok !== true) throw new Error('No confirmation from the server');
         this.items = this.items.filter(i => i.id !== item.id); this.persist(); this.failed = false;
         if (this.waiters[item.id]) { this.waiters[item.id].res(); delete this.waiters[item.id]; } else sentOrphan = true;
       } catch (e) {
         this.lastError = e.message;
+        if (e.pause) { this.paused = true; break; }   // sign-in expired: keep everything, send after the next sign-in
         if (PERMANENT.test(e.message)) {
           this.items = this.items.filter(i => i.id !== item.id); this.persist();
           banner('err', `<b>Not saved:</b> ${esc(item.label || 'a change')} — ${esc(e.message)}. Open it and save again, or tell your teacher.`);
@@ -200,8 +213,11 @@ const Outbox = {
     this.draining = false; updateSaveState();
     if (sentOrphan) refreshAfterOutbox();
   },
-  retry() { clearTimeout(this.retryTimer); this.failed = false; updateSaveState(); this.drain(); }
+  retry() { clearTimeout(this.retryTimer); this.failed = false; this.paused = false; updateSaveState(); this.drain(); }
 };
+// The save pill ticks while something is in flight, so a slow reply reads as
+// progress rather than a stuck page.
+setInterval(() => { if (Outbox.mine().length || Pending.count()) updateSaveState(); }, 1000);
 async function refreshAfterOutbox() {
   try {
     if (studentMode() && !S.demo) { S.me = await call('getStudent', S.me.section, S.me.id); if (S.view === 'dash') render(); toast('Earlier changes sent ✓'); }
@@ -245,10 +261,13 @@ window.addEventListener('beforeunload', e => { if (Outbox.mine().length || Pendi
 function updateSaveState() {
   const el = $('#savestate'); if (!el) return;
   const n = Outbox.mine().length + Pending.count();
-  if (Outbox.failed) { el.className = 'savestate failed'; el.innerHTML = `${n} change${n === 1 ? '' : 's'} not saved · <a href="#" data-act="retry">retry</a>`; }
-  else if (n > 0) { el.className = 'savestate pending'; el.textContent = Outbox.volatile ? 'Saving… keep this page open' : 'Saving…'; }
+  const first = Outbox.mine()[0]; const secs = first && Outbox.draining ? Math.round((Date.now() - (Outbox.sendingSince || first.ts)) / 1000) : 0;
+  if (Outbox.paused) { el.className = 'savestate failed'; el.innerHTML = `${n} change${n === 1 ? '' : 's'} waiting · <a href="#" data-act="sign-in">sign in to send</a>`; }
+  else if (Outbox.failed) { el.className = 'savestate failed'; el.innerHTML = `${n} change${n === 1 ? '' : 's'} not saved · <a href="#" data-act="retry">retry</a>`; }
+  else if (n > 0) { el.className = 'savestate pending'; el.textContent = (Outbox.volatile ? 'Saving… keep this page open' : 'Saving…') + (secs >= 4 ? ` ${secs} s` : '') + (LoadTicker.attempt ? ' · asking again' : ''); }
   else { el.className = 'savestate'; el.textContent = 'All saved ✓'; }
-  if (Outbox.failed) banner('warn', `Busy server — your work is saved on this device and will be sent automatically. You can carry on. <span class="tiny">${esc(Outbox.lastError)}</span><button data-act="retry">Retry now</button>`);
+  if (Outbox.paused) banner('warn', `Your Google sign-in ran out. Your work is kept on this device: <button data-act="sign-in">Sign in</button> and it is sent straight away.`);
+  else if (Outbox.failed) banner('warn', `Busy server — your work is saved on this device and will be sent automatically. You can carry on. <span class="tiny">${esc(Outbox.lastError)}</span><button data-act="retry">Retry now</button>`);
   else banner();
 }
 
@@ -320,7 +339,7 @@ function renderSignIn(refused) {
 }
 function onCredential(resp) {
   if (!resp || !resp.credential) return;
-  Auth.set(resp.credential); Auth.fresh = true; signInShown = false; banner();
+  Auth.set(resp.credential); Auth.fresh = true; signInShown = false; banner(); Outbox.paused = false;
   if (S.cfg) { Outbox.retry(); render(); } else boot();
 }
 function signInAgain() {
