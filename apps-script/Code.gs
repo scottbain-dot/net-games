@@ -394,6 +394,7 @@ function resolveStudent_(cfg, section, ref) {
 // embedded here so there is only one thing to paste into Apps Script.
 var EMBEDDED_HTML = {};
 function doGet(e) {
+  if (e && e.parameter && e.parameter.api === '1') return apiFrame_(e.parameter);
   var t = EMBEDDED_HTML.Index ? HtmlService.createTemplate(EMBEDDED_HTML.Index) : HtmlService.createTemplateFromFile('Index');
   t.sectionParam = (e && e.parameter && e.parameter.section) || '';
   t.viewParam = (e && e.parameter && e.parameter.view) || '';
@@ -409,9 +410,26 @@ function doGet(e) {
 // unchanged. Deploy as "Execute as Me" + "Anyone"; the token check is the gate.
 var API_FUNCTIONS = ['bootstrap', 'getStudent', 'getSectionData', 'getOverview', 'saveCheckin', 'saveTeacherCheckin', 'saveRegister', 'saveSkillTests', 'saveGrades', 'saveOutcomes'];
 function doPost(e) {
+  var body; try { body = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (err) { body = {}; }
+  return ContentService.createTextOutput(JSON.stringify(apiRun_(body))).setMimeType(ContentService.MimeType.JSON);
+}
+// Same API over GET, answered as an HtmlService page whose only job is to post
+// the JSON to the page that embedded it in a hidden iframe. HtmlService replies
+// are served in one hop; ContentService replies go through a second Google hop
+// (script.googleusercontent.com) that, on a bad day, stalls or drops replies.
+// The request id is a random string the page made, so only that page can match
+// the reply to its request.
+function apiFrame_(p) {
+  var body = { token: p.token, fn: p.fn };
+  try { body.args = JSON.parse(p.args || '[]'); } catch (err) { body.args = []; }
+  var out = apiRun_(body);
+  var msg = JSON.stringify({ mfs: 1, id: str_(p.id).slice(0, 40), out: out });
+  var html = '<!doctype html><meta charset="utf-8"><script>window.parent.postMessage(' + msg.replace(/<\//g, '<\\/') + ', "*");<\/script>';
+  return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+function apiRun_(body) {
   var out;
   try {
-    var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     var cfg = getConfig_();
     var email = verifyIdToken_(str_(body.token), cfg);
     if (!email) { out = { ok: false, code: VERIFY_FAILED_.code, error: 'Sign-in refused: ' + VERIFY_FAILED_.reason }; }
@@ -423,7 +441,7 @@ function doPost(e) {
       finally { REQUEST_EMAIL_ = null; }
     }
   } catch (err) { out = { ok: false, error: String(err && err.message || err) }; }
-  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+  return out;
 }
 // Returns the lower-cased email for a valid Google ID token issued to our client
 // ID and an allowed domain, or '' if it is not acceptable — with the reason in

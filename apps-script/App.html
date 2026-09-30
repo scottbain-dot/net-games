@@ -26,8 +26,8 @@ const Auth = {
   clear() { this._mem = ''; try { sessionStorage.removeItem(this.key); } catch (e) {} },
   email() { try { return JSON.parse(atob(this.get().split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email || ''; } catch (e) { return ''; } }
 };
-function rawCall(fn, ...args) {
-  if (pagesMode()) return apiCall(fn, args);
+function rawCall(fn, args, attempt) {
+  if (pagesMode()) return apiCall(fn, args, attempt);
   return new Promise((resolve, reject) => {
     if (!window.google || !google.script || !google.script.run) return reject(new Error('Not running inside the Apps Script web app'));
     google.script.run.withSuccessHandler(resolve).withFailureHandler(e => reject(new Error(e && e.message ? e.message : String(e))))[fn](...args);
@@ -66,8 +66,42 @@ function apiHedged(fn, args) {
     fire();
   });
 }
-async function apiCall(fn, args) {
-  const out = await (READ_FNS.indexOf(fn) !== -1 ? apiHedged(fn, args) : apiOnce(fn, args, 20000));
+// Frame transport: the same request as a GET inside a hidden iframe; the reply
+// is an HtmlService page (one Google hop, the fast one) that posts the JSON
+// back to this page. Falls back to the POST path when frames are blocked.
+const Frame = {
+  key: 'mfs_frame',
+  get() { try { return sessionStorage.getItem(this.key) || ''; } catch (e) { return this._m || ''; } },
+  set(v) { this._m = v; try { sessionStorage.setItem(this.key, v); } catch (e) {} }
+};
+// Frames are used when the API is a real Apps Script address, config.js has not
+// turned them off, and this tab has not seen the first frame try go unanswered
+// (an older Code.gs without the frame route would otherwise cost 20 s a call).
+const frameOk = () => /^https:\/\/script\.google\.com\//.test(window.MFS_CONFIG.api) && window.MFS_CONFIG.transport !== 'post' && Frame.get() !== 'off';
+function apiFrame(fn, args, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const id = 'r' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const url = window.MFS_CONFIG.api + '?api=1&id=' + id + '&fn=' + encodeURIComponent(fn) + '&args=' + encodeURIComponent(JSON.stringify(args || [])) + '&token=' + encodeURIComponent(Auth.get());
+    const fr = document.createElement('iframe'); fr.style.cssText = 'position:absolute;width:0;height:0;border:0;visibility:hidden'; fr.setAttribute('aria-hidden', 'true');
+    let done = false;
+    const finish = (ok, v) => { if (done) return; done = true; clearTimeout(timer); window.removeEventListener('message', onMsg); setTimeout(() => fr.remove(), 0); (ok ? resolve : reject)(v); };
+    const onMsg = ev => { const d = ev.data; if (d && d.mfs === 1 && d.id === id) finish(true, d.out); };
+    const timer = setTimeout(() => { const e = new Error('Google did not hand the reply back in time'); e.transient = true; finish(false, e); }, timeoutMs);
+    window.addEventListener('message', onMsg);
+    fr.src = url; document.body.appendChild(fr);
+  });
+}
+async function apiCall(fn, args, attempt) {
+  // Frame first, POST on the next attempt, and so on: whichever route Google is
+  // serving well today gets the request through within a retry or two.
+  const useFrame = frameOk() && (attempt || 0) % 2 === 0;
+  LoadTicker.route = useFrame ? 'frame' : 'post';
+  let out;
+  if (useFrame) {
+    const proven = Frame.get() === 'ok';
+    try { out = await apiFrame(fn, args, proven ? 15000 : 8000); Frame.set('ok'); }
+    catch (e) { if (!proven) Frame.set('off'); throw e; }
+  } else out = await (READ_FNS.indexOf(fn) !== -1 ? apiHedged(fn, args) : apiOnce(fn, args, 20000));
   if (out && out.ok) { Auth.fresh = false; return out.result; }
   if (out && (out.code === 'auth' || out.code === 'server')) {
     // A token Google issued a moment ago and the server still refused: signing in
@@ -89,7 +123,7 @@ async function call(fn, ...args) {
   const fast = window.__preview && window.__preview.fastRetry;
   let delay = fast ? 40 : 500;
   for (let attempt = 0; ; attempt++) {
-    try { const r = await rawCall(fn, ...args); LoadTicker.attempt = 0; return r; }
+    try { const r = await rawCall(fn, args, attempt); LoadTicker.attempt = 0; return r; }
     catch (e) {
       if (PERMANENT.test(e.message) || attempt >= (fast ? 5 : 7)) throw e;
       LoadTicker.attempt = attempt + 2; LoadTicker.reason = e.message;

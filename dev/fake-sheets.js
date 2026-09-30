@@ -108,7 +108,7 @@
   g.Utilities.computeDigest = (alg, str) => { let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0; return [h & 255, (h >> 8) & 255, (h >> 16) & 255, (h >> 24) & 255]; };
   g.Utilities.DigestAlgorithm = { SHA_256: 'SHA_256' }; g.Utilities.Charset = { UTF_8: 'UTF_8' };
   g.HtmlService = {
-    createHtmlOutput: () => { const o = { setWidth() { return o; }, setHeight() { return o; } }; return o; },
+    createHtmlOutput: (html) => { const o = { _h: html || '', setWidth() { return o; }, setHeight() { return o; }, setXFrameOptionsMode() { return o; }, getContent() { return o._h; } }; return o; },
     createHtmlOutputFromFile: () => ({ getContent: () => '' }),
     createTemplateFromFile: () => ({ evaluate: () => ({ setTitle() { return this; }, addMetaTag() { return this; }, setXFrameOptionsMode() { return this; } }) }),
     XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' }
