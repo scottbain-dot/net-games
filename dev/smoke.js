@@ -208,7 +208,7 @@ async function main() {
     const spSheets = await page.$$eval('.sheet', els => els.length);  // a back page counts as a sheet
     if (spPages !== spSheets) errors.push(`${sp} student log: ${spSheets} sheet(s) printed on ${spPages} pages`);
     if (sp === 'Handball' && spSheets !== 2) errors.push('Handball back page from the BackPage tab did not print');
-    if (sp === 'Net Games' && spSheets !== 1) errors.push('Net Games printed a back page it should not have');
+    if (sp === 'Net Games' && spSheets !== 2) errors.push('Net Games back page (the drill stages) did not print');
     await page.click('[data-act="print-mode"][data-v="unit"]');
     await page.waitForSelector('.sheet.unit');
     await page.emulateMedia({ media: 'print' });
