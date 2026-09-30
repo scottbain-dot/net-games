@@ -23,7 +23,7 @@ vm.runInContext(`
   FakeSheets.user = 'ann@example.edu';
   const b = bootstrap();
   if (b.identity.section !== '7' || b.config.sections[0] !== '7') throw new Error('student section ' + JSON.stringify(b.identity));
-  saveCheckin({ checkpoint: 'Early', scores: { 'Serve accuracy': 4 }, focusSkill: 'Serve accuracy', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'section seven', nextGoal: '' });
+  saveCheckin({ checkpoint: 'Early', scores: { 'Badminton · Serve': 4 }, focusSkill: 'Badminton · Serve', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'section seven', nextGoal: '' });
   // the section-8 Ann Lee must not see or touch it
   FakeSheets.user = 'ann2@example.edu';
   const b8 = bootstrap();
@@ -48,16 +48,16 @@ vm.runInContext(`
   if (!/2 different students called/.test(msg)) throw new Error('duplicate name in a section not flagged: ' + msg);
   // a teacher who blanks a score cell hands the skill back to the student
   FakeSheets.user = FakeSheets.owner;
-  saveTeacherCheckin({ section: '7', checkpoint: 'Early', entries: [{ student: 'Ann Lee', scores: { 'Serve accuracy': 9 } }] });
+  saveTeacherCheckin({ section: '7', checkpoint: 'Early', entries: [{ student: 'Ann Lee', scores: { 'Badminton · Serve': 9 } }] });
   FakeSheets.user = 'ann@example.edu';
-  saveCheckin({ checkpoint: 'Early', scores: { 'Serve accuracy': 1 }, focusSkill: 'Serve accuracy', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'w', nextGoal: '' });
-  let t = getStudent('7', 'Ann Lee').tests.find(x => x.skill === 'Serve accuracy');
+  saveCheckin({ checkpoint: 'Early', scores: { 'Badminton · Serve': 1 }, focusSkill: 'Badminton · Serve', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'w', nextGoal: '' });
+  let t = getStudent('7', 'Ann Lee').tests.find(x => x.skill === 'Badminton · Serve');
   if (t.score !== 9 || t.by !== 'teacher') throw new Error('student overwrote a teacher score: ' + JSON.stringify(t));
   FakeSheets.user = FakeSheets.owner;
-  saveTeacherCheckin({ section: '7', checkpoint: 'Early', entries: [{ student: 'Ann Lee', scores: { 'Serve accuracy': '' } }] });
+  saveTeacherCheckin({ section: '7', checkpoint: 'Early', entries: [{ student: 'Ann Lee', scores: { 'Badminton · Serve': '' } }] });
   FakeSheets.user = 'ann@example.edu';
-  saveCheckin({ checkpoint: 'Early', scores: { 'Serve accuracy': 5 }, focusSkill: 'Serve accuracy', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'w', nextGoal: '' });
-  t = getStudent('7', 'Ann Lee').tests.find(x => x.skill === 'Serve accuracy');
+  saveCheckin({ checkpoint: 'Early', scores: { 'Badminton · Serve': 5 }, focusSkill: 'Badminton · Serve', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'w', nextGoal: '' });
+  t = getStudent('7', 'Ann Lee').tests.find(x => x.skill === 'Badminton · Serve');
   if (t.score !== 5 || t.by !== 'student') throw new Error('blanked teacher cell still blocks the student: ' + JSON.stringify(t));
   // roster sport typed in a different case still maps to the Skills tab
   FakeSheets.user = FakeSheets.owner;

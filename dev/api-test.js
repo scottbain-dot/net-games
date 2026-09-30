@@ -22,7 +22,7 @@ vm.runInContext(`
   if (!r.ok || r.result.identity.role !== 'student' || r.result.identity.name !== 'Ann Lee') throw new Error('token identity failed: ' + JSON.stringify(r).slice(0, 300));
   if (r.result.config.roster.length !== 1) throw new Error('student got the class list over the API');
   // student can save and the row is theirs
-  r = post({ token: 'good-token:ann@example.edu', fn: 'saveCheckin', args: [{ checkpoint: 'Early', scores: { 'Serve accuracy': 4 }, focusSkill: 'Serve accuracy', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'via api', nextGoal: '' }] });
+  r = post({ token: 'good-token:ann@example.edu', fn: 'saveCheckin', args: [{ checkpoint: 'Early', scores: { 'Badminton · Serve': 4 }, focusSkill: 'Badminton · Serve', goal: 'g', drillStep: 0, selfStages: {}, selfOutcomes: {}, wentWell: 'via api', nextGoal: '' }] });
   if (!r.ok) throw new Error('save over API failed: ' + r.error);
   // teacher (the owner) over the API
   r = post({ token: 'good-token:teacher@example.edu', fn: 'getSectionData', args: ['7'] });
