@@ -55,6 +55,6 @@ vm.runInContext(`
   const row = readTab_('Checkins')[0];
   if (row.GamePlay !== 3) throw new Error('date-formatted score read as ' + JSON.stringify(row.GamePlay));
   const later = new Date(2026, 8, 30); ck.getRange(2, 12, 1, 1).setValues([[later]]);
-  if (readTab_('Checkins')[0].Updated !== '2026-09-30') throw new Error('real date mangled: ' + readTab_('Checkins')[0].Updated);
+  if (readTab_('Checkins')[0].Updated !== '2026-09-30 00:00') throw new Error('real date mangled: ' + readTab_('Checkins')[0].Updated);
   console.log('SETUP TABS OK');
 `, ctx);
