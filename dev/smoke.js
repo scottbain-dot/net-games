@@ -242,6 +242,22 @@ async function main() {
   await page.click('[data-act="t-tab"][data-tab="checkins"]');
   await page.waitForSelector('.ok-btn');
 
+  // View as student: a sample student for the projector; walking through a check-in saves nothing
+  await page.click('[data-act="demo-on"]');
+  await page.waitForSelector('.demo-banner');
+  if (!/Sample Student/.test(await page.textContent('#app'))) errors.push('demo view did not show the sample student');
+  await page.click('[data-act="open-cp"][data-cp="Early"]');
+  await page.waitForSelector('input[data-in="score"]');
+  const demoIn = (await page.$$('input[data-in="score"]')).length;
+  for (let i = 0; i < demoIn; i++) { const inp = page.locator('input[data-in="score"]').nth(i); await inp.fill(String(2 + i)); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
+  await page.click('.focus-grid >> nth=0 >> .focus-btn >> nth=0');
+  await page.fill('textarea[data-in="wentWell"]', 'demo text');
+  await page.click('[data-act="cp-save"]');
+  await page.waitForSelector('.cp-card:nth-child(1).done');
+  if (await page.evaluate(() => FakeSheets.book.getSheetByName('Checkins').getDataRange().getValues().some(r => String(r[2]) === 'Sample Student'))) errors.push('demo check-in reached the Sheet');
+  await shot('14a-view-as-student');
+  await page.click('[data-act="test-as-off"]');
+  await page.waitForSelector('.ok-btn');
   // teacher who is also on the roster: Test as student round trip
   await page.click('[data-act="test-as-on"]');
   await page.waitForSelector('.cp-strip');

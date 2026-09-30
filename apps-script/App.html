@@ -204,7 +204,7 @@ const Outbox = {
 };
 async function refreshAfterOutbox() {
   try {
-    if (studentMode()) { S.me = await call('getStudent', S.me.section, S.me.id); if (S.view === 'dash') render(); toast('Earlier changes sent ✓'); }
+    if (studentMode() && !S.demo) { S.me = await call('getStudent', S.me.section, S.me.id); if (S.view === 'dash') render(); toast('Earlier changes sent ✓'); }
     else if (S.T.section) { S.T.data = await call('getSectionData', S.T.section); S.T.overview = null; if (['register', 'checkins', 'students'].indexOf(S.T.tab) !== -1) render(); toast('Earlier changes sent ✓'); }
   } catch (e) {}
 }
@@ -254,7 +254,7 @@ function updateSaveState() {
 
 // ═══════════════════════ state & helpers ═══════════════════════
 const S = {
-  cfg: null, id: null, me: null, view: 'dash', cp: null, form: null, testAs: false,
+  cfg: null, id: null, me: null, view: 'dash', cp: null, form: null, testAs: false, demo: false,
   T: { section: '', sport: '', tab: 'checkins', lesson: null, cpName: '', data: null, overview: null, viewing: null, printMode: 'all', expanded: {} }
 };
 if (window.__preview) window.__S = S;  // preview/test hook only
@@ -392,7 +392,8 @@ function renderStudentPage(me, asTeacher) {
       ${S.testAs ? `<button class="pill-btn" data-act="test-as-off">&larr; Back to teacher view</button>` : ''}
       ${avatar(me.student)}
       <div><div class="title">${esc(me.student)}</div><div class="sub">${esc(cfg.unitName)} &middot; ${esc(me.sport)} &middot; ${esc(me.section)}${asTeacher ? ' &middot; <b>teacher view</b>' : ''}</div></div>
-      <div class="grow"></div><div class="savestate" id="savestate"></div>${pagesMode() && !asTeacher && !S.testAs ? `<button class="pill-btn small" data-act="switch-account" title="${esc(Auth.email())}">Sign out</button>` : ''}</div>`;
+      <div class="grow"></div><div class="savestate" id="savestate"></div>${pagesMode() && !asTeacher && !S.testAs ? `<button class="pill-btn small" data-act="switch-account" title="${esc(Auth.email())}">Sign out</button>` : ''}</div>
+    ${S.demo ? `<div class="demo-banner"><b>Demo view</b> — a sample student with no real data. Nothing you enter here is saved. Sport: ${cfg.sports.map(sp => `<button type="button" class="${sp === me.sport ? 'on' : ''}" data-act="demo-sport" data-v="${esc(sp)}">${esc(sp)}</button>`).join('')} <button type="button" data-act="demo-reset">Start over</button></div>` : ''}`;
 
   const strip = `<div class="cp-strip">${cps.map(cp => { const done = cpDone(me, cp), isNext = next && next.name === cp.name; const ci = checkinOf(me, cp.name); return `<div class="cp-card ${done ? 'done' : ''} ${isNext ? 'next' : ''}">
       <div class="cp-name">${esc(cp.name)} check-in</div>
@@ -572,7 +573,7 @@ function renderCpForm(me, cp, asTeacher) {
   const st = cfg.starters || ['', ''];
   const prompts = mode === 'early' ? [['wentWell', cfg.earlyPrompt, cfg.starterEarly]] : mode === 'middle' ? [['wentWell', cfg.reflectionPrompts[0], st[0]]] : [['wentWell', cfg.reflectionPrompts[0], st[0]], ['nextGoal', cfg.reflectionPrompts[1], st[1]]];
   const reflCard = `<div class="card">${sec('Reflection', 'purple')}<div class="card-body">
-      ${prompts.map(([k, label, starter]) => `<div class="field"><label>${esc(label)}</label>${starter ? `<div class="starter">Start with: <em>${esc(starter)}</em></div>` : ''}<textarea data-in="${k}" maxlength="600" placeholder="${esc(starter || (mode === 'early' ? 'One or two sentences…' : 'Two or three sentences…'))}">${esc(f[k])}</textarea></div>`).join('')}
+      ${prompts.map(([k, label, starter]) => `<div class="field"><label>${esc(label)}${starter ? ` <span class="starter">(if it helps: ${esc(starter)})</span>` : ''}</label><textarea data-in="${k}" maxlength="600" placeholder="${mode === 'early' ? 'One or two sentences…' : 'Two or three sentences…'}">${esc(f[k])}</textarea></div>`).join('')}
       ${mode === 'end' && cfg.outcomes.length ? `<div class="field"><label>Personal skills — where are you honestly?</label><div class="tbl-wrap"><table class="tbl"><tbody>${cfg.outcomes.map(o => { const v = f.selfOutcomes[o.outcome] || 0; return `<tr><td class="skill">${esc(o.outcome)}<span class="cue">${esc(o.looksLike)}</span></td><td><div class="seg3">${[1, 2, 3].map(k => `<button type="button" class="${v === k ? 'on st' + k : ''}" data-act="self-outcome" data-outcome="${esc(o.outcome)}" data-n="${k}">${esc(cfg.outcomeLabels[k - 1])}</button>`).join('')}</div></td></tr>`; }).join('')}</tbody></table></div></div>` : ''}
       <div class="form-actions"><button class="pill-btn primary" data-act="cp-save" ${f.sending ? 'disabled' : ''}>${f.sending ? 'Saving…' : 'Save check-in'}</button><button class="pill-btn" data-act="cp-cancel">Cancel</button><span class="status" id="cp-status"></span></div>
     </div></div>`;
@@ -605,6 +606,7 @@ async function saveCpForm() {
   Object.keys(scores).forEach(k => { let t = me.tests.find(x => x.checkpoint === cp.name && x.skill === k); if (!t) { t = { checkpoint: cp.name, skill: k, score: null, by: asTeacher ? 'teacher' : 'student' }; me.tests.push(t); } t.score = scores[k]; });
   me.outcomes = me.outcomes || [];
   Object.keys(f.selfOutcomes).forEach(k => { let r = outcomeRow(me, cp.name, k); if (!r) { r = { checkpoint: cp.name, outcome: k, self: null, teacher: null }; me.outcomes.push(r); } r.self = f.selfOutcomes[k]; });
+  if (S.demo) { S.view = 'dash'; renderTop(); toast('Demo — nothing saved'); return; }   // the local update above is all the projector needs
   f.sending = true; render();
   const goBack = () => { if (studentMode()) S.view = 'dash'; else { S.T.tab = 'student'; syncTeacherCache(me); } renderTop(); };
   let settled = false;
@@ -613,6 +615,7 @@ async function saveCpForm() {
   try { await Outbox.add('saveCheckin', payload, 'check-in ' + cp.name); if (settled) return; settled = true; f.sending = false; goBack(); toast('Check-in saved ✓'); }
   catch (e) { if (settled) return; settled = true; f.sending = false; render(); const st = $('#cp-status'); if (st) st.textContent = 'Not saved: ' + e.message; }
 }
+function demoStudent(sport) { return { section: S.T.section || (S.cfg.sections[0] || ''), sport: sport || S.cfg.sports[0] || '', student: 'Sample Student', id: 'demo', lessonsRun: 0, register: [], tests: [], checkins: [], outcomes: [], grades: [] }; }
 function syncTeacherCache(me) {
   const d = S.T.data; if (!d || d.section !== me.section) return;
   const tag = r => Object.assign({ id: me.id, student: me.student }, r);
@@ -673,6 +676,7 @@ function renderTeacher() {
       <div class="grow"></div>
       ${cfg.sections.length > 1 ? `<div class="seg-tabs">${cfg.sections.map(c => `<button class="${c === T.section ? 'on' : ''}" data-act="t-section" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
       ${sports.length > 1 && !(isCoach() && T.sport) ? `<div class="seg-tabs">${sports.map(sp => `<button class="${sp === T.sport ? 'on' : ''}" data-act="t-sport" data-v="${esc(sp)}">${esc(sp)}</button>`).join('')}<button class="${!T.sport ? 'on' : ''}" data-act="t-sport" data-v="">All</button></div>` : ''}
+      <button class="pill-btn small" data-act="demo-on" title="A sample student with no data, for walking the class through the screens. Nothing is saved.">View as student &rsaquo;</button>
       ${S.id.alsoStudent && !isCoach() ? `<button class="pill-btn small" data-act="test-as-on">Test as student &rsaquo;</button>` : ''}
       <div class="savestate" id="savestate"></div>${pagesMode() ? `<button class="pill-btn small" data-act="switch-account" title="${esc(Auth.email())}">Sign out</button>` : ''}</div>
     <div class="tabs main">${TABS().map(([k, l]) => `<button class="tab ${T.tab === k ? 'active' : ''}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</div>${T.data ? todayStrip() : ''}`;
@@ -1017,7 +1021,12 @@ const actions = {
     try { S.me = await call('getStudent', a.section, a.id); S.testAs = true; S.view = 'dash'; renderTop(); }
     catch (e) { render(); toast('Could not load: ' + e.message); }
   },
-  'test-as-off'() { S.testAs = false; S.me = null; S.view = 'dash'; S.T.overview = null; loadSection(S.T.section); },
+  'test-as-off'() { const wasDemo = S.demo; S.demo = false; S.testAs = false; S.me = null; S.view = 'dash'; if (wasDemo && S.T.data) { renderTop(); return; } S.T.overview = null; loadSection(S.T.section); },
+  // View as student: a sample student with the group's sport and no data, for
+  // walking the class through the screens. No server calls, nothing saved.
+  'demo-on'() { S.demo = true; S.testAs = true; S.me = demoStudent(S.T.sport || S.cfg.sports[0]); S.view = 'dash'; renderTop(); },
+  'demo-sport'(t) { S.me = demoStudent(t.dataset.v); S.view = 'dash'; renderTop(); },
+  'demo-reset'() { S.me = demoStudent(S.me.sport); S.view = 'dash'; renderTop(); },
   self(t) { const sk = t.dataset.skill, n = parseInt(t.dataset.n, 10); if (S.form.selfStages[sk] === n) delete S.form.selfStages[sk]; else S.form.selfStages[sk] = n; Array.from(t.parentElement.children).forEach(b => { b.className = ''; }); if (S.form.selfStages[sk]) t.className = 'on st' + n; },
   'self-outcome'(t) { const k = t.dataset.outcome, n = parseInt(t.dataset.n, 10); if (S.form.selfOutcomes[k] === n) delete S.form.selfOutcomes[k]; else S.form.selfOutcomes[k] = n; Array.from(t.parentElement.children).forEach(b => { b.className = ''; }); if (S.form.selfOutcomes[k]) t.className = 'on st' + n; },
   'focus-skill'(t) { const v = t.dataset.v; const changed = S.form.focusSkill !== v; S.form.focusSkill = v; S.form.showFocusPick = false; if (changed) { S.form.drillStep = 0; if (S.form.mode === 'early' && !S.form.goalTouched) { const sc = num(S.form.scores[v]); S.form.goal = sc === null ? '' : draftGoal(S.me, v, S.cp.name, sc); } } render(); },
