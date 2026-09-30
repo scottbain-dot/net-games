@@ -900,6 +900,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('PE Tracker')
     .addItem('1. Set up tabs (safe to re-run)', 'setupTabs')
     .addItem('1b. Replace unit tabs with the draft (Skills, Drills, Lessons…)', 'resetUnitTabs')
+    .addItem('1c. Replace one sport with the draft (other sports kept)…', 'resetSportTabs')
     .addItem('2. Check roster & config', 'checkConfig')
     .addItem('3. Show app link', 'showAppLink')
     .addSeparator()
@@ -920,32 +921,73 @@ var UNIT_TABS = ['Lessons', 'Skills', 'Drills', 'Outcomes', 'Criteria', 'BackPag
 function seedUnitTab_(n, replace) {
   var t = tab_(n);
   if (!EXAMPLE[n]) return;
-  if (t.getLastRow() >= 2) {
-    if (!replace) return;
-    t.getRange(2, 1, t.getLastRow() - 1, Math.max(1, t.getLastColumn())).clearContent();
-  }
-  var hdrs = t.getRange(1, 1, 1, Math.max(1, t.getLastColumn())).getValues()[0].map(String);
-  var names = CONFIG_TABS[n];
-  var rows = EXAMPLE[n].map(function(r) {
+  if (t.getLastRow() >= 2 && !replace) return;
+  writeRows_(t, draftRows_(n));
+}
+// The draft rows of a unit tab laid out under the tab's own headers (by NAME,
+// not position). With a sport, only that sport's rows.
+function draftRows_(n, sport) {
+  var t = tab_(n), hdrs = t.getRange(1, 1, 1, Math.max(1, t.getLastColumn())).getValues()[0].map(String);
+  var names = CONFIG_TABS[n], cSport = names.indexOf('Sport');
+  return (EXAMPLE[n] || []).filter(function(r) { return !sport || (cSport !== -1 && r[cSport] === sport); }).map(function(r) {
     var line = hdrs.map(function() { return ''; });
     names.forEach(function(h, i) { var c = hdrs.indexOf(h); if (c !== -1) line[c] = r[i]; });
     return line;
   });
-  if (rows.length) t.getRange(2, 1, rows.length, hdrs.length).setValues(rows);
 }
+// Replace every data row of a tab in ONE write: the new rows, padded with
+// blank rows to cover whatever was there before. A student loading the app
+// while this runs sees the old rows or the new ones, never an empty tab.
+function writeRows_(t, rows) {
+  var width = Math.max(1, t.getLastColumn()), old = Math.max(0, t.getLastRow() - 1), n = Math.max(old, rows.length);
+  if (!n) return;
+  var out = rows.map(function(r) { var line = r.slice(0, width); while (line.length < width) line.push(''); return line; });
+  while (out.length < n) out.push(hdrsBlank_(width));
+  t.getRange(2, 1, n, width).setValues(out);
+}
+function hdrsBlank_(width) { var l = []; for (var i = 0; i < width; i++) l.push(''); return l; }
 // Menu: replace the unit tabs (Lessons, Skills, Drills, Outcomes, Criteria) with
 // the current draft. Roster, Teachers, Config and every data tab are untouched.
 function resetUnitTabs() {
   var ui = null; try { ui = SpreadsheetApp.getUi(); } catch (e) {}
   if (ui) {
     var ans = ui.alert('Replace unit tabs with the draft?',
-      'This overwrites the rows on: ' + UNIT_TABS.join(', ') + '.\n\nRoster, Teachers, Config and all student data are kept. Any tests or drills you have edited by hand on those five tabs will be replaced.',
+      'This overwrites the rows on: ' + UNIT_TABS.join(', ') + '.\n\nRoster, Teachers, Config and all student data are kept. Any tests or drills you have edited by hand on those tabs will be replaced.\n\nTo touch one sport only, cancel and use 1c.',
       ui.ButtonSet.OK_CANCEL);
     if (ans !== ui.Button.OK) return;
   }
-  UNIT_TABS.forEach(function(n) { ensureTab_(n, CONFIG_TABS[n]); seedUnitTab_(n, true); });
+  var n = withLock_(function() {
+    UNIT_TABS.forEach(function(n) { ensureTab_(n, CONFIG_TABS[n]); seedUnitTab_(n, true); });
+    return relabelSkills_(buildConfig_());
+  });
   clearConfigCache();
-  if (ui) ui.alert('Done. ' + UNIT_TABS.join(', ') + ' now hold the draft. Reload the app to see it.');
+  if (ui) ui.alert('Done. ' + UNIT_TABS.join(', ') + ' now hold the draft.' + (n ? ' ' + n + ' saved record(s) moved to the renamed skills.' : '') + ' Reload the app to see it.');
+}
+// Menu: replace ONE sport's rows on Skills, Drills and BackPage with the draft.
+// The other sports' rows, Lessons, Outcomes, Criteria and all data stay, so a
+// teacher can take a new draft for their game while colleagues keep theirs.
+var SPORT_TABS_ = ['Skills', 'Drills', 'BackPage'];
+function resetSportTabs(sport) {
+  var ui = null; try { ui = SpreadsheetApp.getUi(); } catch (e) {}
+  var sports = []; EXAMPLE.Skills.forEach(function(r) { if (sports.indexOf(r[0]) === -1) sports.push(r[0]); });
+  if (ui && !sport) {
+    var res = ui.prompt('Replace one sport with the draft', 'Type the sport exactly as on the Skills tab:\n' + sports.join(' · ') + '\n\nOnly that sport\'s rows on Skills, Drills and BackPage change. Other sports, Lessons, Outcomes, Criteria and all student data stay.', ui.ButtonSet.OK_CANCEL);
+    if (res.getSelectedButton() !== ui.Button.OK) return;
+    sport = str_(res.getResponseText());
+  }
+  if (sports.indexOf(sport) === -1) { if (ui) ui.alert('No draft for "' + sport + '". Sports in the draft: ' + sports.join(', ')); return; }
+  var n = withLock_(function() {
+    SPORT_TABS_.forEach(function(tabName) {
+      ensureTab_(tabName, CONFIG_TABS[tabName]);
+      var t = tab_(tabName), width = Math.max(1, t.getLastColumn());
+      var hdr = t.getRange(1, 1, 1, width).getValues()[0].map(function(h) { return String(h).trim(); }), cSport = hdr.indexOf('Sport');
+      var keep = t.getLastRow() >= 2 ? t.getRange(2, 1, t.getLastRow() - 1, width).getValues().filter(function(r) { return r.some(function(v) { return String(v) !== ''; }) && str_(r[cSport]) !== sport; }) : [];
+      writeRows_(t, keep.concat(draftRows_(tabName, sport)));
+    });
+    return relabelSkills_(buildConfig_());
+  });
+  clearConfigCache();
+  if (ui) ui.alert('Done. ' + sport + ' now holds the draft on ' + SPORT_TABS_.join(', ') + '.' + (n ? ' ' + n + ' saved record(s) moved to the renamed skills.' : '') + ' Reload the app to see it.');
 }
 // Menu: clear every data tab (Register, SkillTests, Checkins, OutcomeRatings,
 // Grades) at the end of a unit. Config, Roster and Teachers stay. Make a copy
