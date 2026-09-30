@@ -42,6 +42,8 @@ window.MFS_CONFIG = {
   api: '',
   // Google Cloud console → APIs & Services → Credentials → OAuth client ID (Web application)
   clientId: '',
+  // School Google Workspace domain, e.g. 'school.edu': the sign-in offers only these accounts
+  domain: '',
   unitName: 'Move for Skills'
 };
 `);

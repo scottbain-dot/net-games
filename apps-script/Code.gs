@@ -450,7 +450,7 @@ function verifyIdToken_(token, cfg) {
   if (exp <= now) return fail('auth', 'the sign-in has expired. Please sign in again.');
   var domain = cfg.allowedDomain || lower_(Session.getEffectiveUser().getEmail()).split('@')[1] || '';
   if (domain && email.split('@')[1] !== domain) return fail('auth', 'only ' + domain + ' accounts can use this page; you signed in with a ' + email.split('@')[1] + ' account. Choose your school account.');
-  try { cache.put(key, email, Math.min(300, Math.max(30, exp - now))); } catch (err) {}
+  try { cache.put(key, email, Math.min(3600, Math.max(30, exp - now))); } catch (err) {}   // one Google call per sign-in, not one per five minutes
   return email;
 }
 function hashOf_(str) {
@@ -475,7 +475,7 @@ function bootstrap() {
     // Data minimisation: a student's browser gets their own roster row only, never the class list.
     out.config.roster = out.config.roster.filter(function(r) { return r.id === id.id; });
     out.config.sections = [id.section];
-    out.student = studentData_(cfg, id.section, id.id);
+    out.student = studentData_(cfg, id.section, id.id, true);
   }
   return out;
 }
@@ -491,9 +491,11 @@ function mapCheckin_(r) { return { id: studentId_(lower_(r.Email)), student: str
 function mapOutcome_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), checkpoint: str_(r.Checkpoint), outcome: str_(r.Outcome), self: num_(r.Self), teacher: num_(r.Teacher) }; }
 function mapGrade_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), criterion: str_(r.Criterion), score: num_(r.Score), comment: str_(r.Comment) }; }
 
-function studentData_(cfg, section, ref) {
+// lite = the student's own page: tabs the page will not show are not read
+// (each tab is a round trip to Sheets, and a whole class loads at once).
+function studentData_(cfg, section, ref, lite) {
   var r = rosterEntry_(cfg, section, ref) || { sport: '', student: '', email: '', id: '' };
-  var classRegister = rowsFor_('Register', section);
+  var classRegister = cfg.dailyRegister ? rowsFor_('Register', section) : [];
   var lessonsRun = {};
   classRegister.forEach(function(x) { if (num_(x.Participation) && str_(x.Sport) === r.sport) lessonsRun[num_(x.Lesson)] = true; });
   return {
@@ -503,13 +505,13 @@ function studentData_(cfg, section, ref) {
     tests: rowsFor_('SkillTests', section, r.email).map(mapTest_),
     checkins: rowsFor_('Checkins', section, r.email).map(mapCheckin_),
     outcomes: rowsFor_('OutcomeRatings', section, r.email).map(mapOutcome_),
-    grades: rowsFor_('Grades', section, r.email).map(mapGrade_)
+    grades: (lite && !cfg.showGradesToStudents) ? [] : rowsFor_('Grades', section, r.email).map(mapGrade_)
   };
 }
 function getStudent(section, ref) {
   var cfg = getConfig_();
   var who = resolveStudent_(cfg, section, ref);
-  return studentData_(cfg, who.section, who.id);
+  return studentData_(cfg, who.section, who.id, !who.byTeacher);
 }
 // Teacher: everything for one section (all sport groups) in one call.
 function getSectionData(section) {
