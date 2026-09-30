@@ -20,7 +20,7 @@ vm.runInContext(`
   const early = { checkpoint: 'Early', focusSkill: '', goal: '', drillStep: 0, selfStages: {}, selfOutcomes: {}, nextGoal: '' };
   FakeSheets.user = 'jiwoo_lim@example.edu';
   let b1 = bootstrap();
-  saveCheckin(Object.assign({ section: b1.identity.section, id: b1.identity.id, student: b1.identity.name, scores: { 'Serve accuracy': 4 }, wentWell: 'first jiwoo' }, early));
+  saveCheckin(Object.assign({ section: b1.identity.section, id: b1.identity.id, student: b1.identity.name, scores: { 'Badminton · Serve': 4 }, wentWell: 'first jiwoo' }, early));
   FakeSheets.user = 'jiwoo_lim2@example.edu';
   let b2 = bootstrap();
   saveCheckin(Object.assign({ section: b2.identity.section, id: b2.identity.id, student: b2.identity.name, scores: { 'Passing': 8 }, wentWell: 'second jiwoo' }, early));

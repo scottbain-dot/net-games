@@ -47,13 +47,15 @@ async function main() {
   if (!/Extension · Backhand smash/.test(focusText || '')) errors.push('Extension skill not shown on dashboard');
   await shot('03-student-after-save');
 
+  // a sport with two games (Net Games) has one focus grid per game: pick the first skill in every grid
+  const pickFocusAll = async () => { const n = await page.$$eval('.focus-grid', e => e.length); for (let i = 0; i < n; i++) await page.click(`.focus-grid >> nth=${i} >> .focus-btn >> nth=0`); };   // each click re-renders, so re-query
   // ── student 2 (no check-in yet): Early with own scores → focus recommended, goal drafted ──
   await page.goto(preview + '?role=student2');
   await page.waitForSelector('.cp-strip');
   await page.click('[data-act="open-cp"][data-cp="Early"]');
   await page.waitForSelector('input[data-in="score"]');
-  await page.click('.focus-grid >> .focus-btn >> nth=0');   // choose focus before any score exists
-  if (/\(\?\//.test(await page.inputValue('textarea[data-in="goal"]'))) errors.push('Goal drafted with ? before a score existed');
+  await pickFocusAll();   // choose focus before any score exists
+  if (/\(\?\//.test(await page.inputValue('textarea[data-in="goal"] >> nth=0'))) errors.push('Goal drafted with ? before a score existed');
   // typing a score then Tab must land in the next box with the keystrokes intact
   await page.locator('input[data-in="score"]').nth(0).click();
   await page.keyboard.type('2'); await page.keyboard.press('Tab'); await page.keyboard.type('7');
@@ -65,13 +67,13 @@ async function main() {
   // type into the last box and go straight to a focus button: the native change fires on blur mid-click
   await page.locator('input[data-in="score"]').nth(0).fill('2');
   await page.click('.focus-grid >> .focus-btn >> nth=1');
-  if ((await page.evaluate(() => __S.form.focusSkill)) !== (await page.getAttribute('.focus-grid >> .focus-btn >> nth=1', 'data-v'))) errors.push('Focus button click swallowed after typing a score');
+  if ((await page.evaluate(() => __S.form.tracks[0].focusSkill)) !== (await page.getAttribute('.focus-grid >> .focus-btn >> nth=1', 'data-v'))) errors.push('Focus button click swallowed after typing a score');
   await page.click('.focus-grid >> .focus-btn >> nth=0');
   const recText = await page.textContent('.focus-grid >> .focus-btn >> nth=0');
   if (!/recommended/.test(recText)) errors.push('Lowest score not marked recommended: ' + recText);
   await page.click('.focus-grid >> .focus-btn >> nth=0');
   await page.waitForSelector('textarea[data-in="goal"]');
-  const goal = await page.inputValue('textarea[data-in="goal"]');
+  const goal = await page.inputValue('textarea[data-in="goal"] >> nth=0');
   if (!/\(2\/10\).*by the Middle check-in/.test(goal)) errors.push('Goal not drafted from typed score: ' + goal);
   await page.fill('textarea[data-in="wentWell"]', 'It is my lowest score.');
   await shot('04-student-early-checkin');
@@ -208,14 +210,15 @@ async function main() {
     const spSheets = await page.$$eval('.sheet', els => els.length);  // a back page counts as a sheet
     if (spPages !== spSheets) errors.push(`${sp} student log: ${spSheets} sheet(s) printed on ${spPages} pages`);
     if (sp === 'Handball' && spSheets !== 2) errors.push('Handball back page from the BackPage tab did not print');
-    if (sp === 'Net Games' && spSheets !== 2) errors.push('Net Games back page (the drill stages) did not print');
+    if (sp === 'Net Games' && spSheets !== 3) errors.push('Net Games should print a badminton sheet, a volleyball sheet and the back page, got ' + spSheets);
     await page.click('[data-act="print-mode"][data-v="unit"]');
     await page.waitForSelector('.sheet.unit');
     await page.emulateMedia({ media: 'print' });
     await page.pdf({ path: spPdf, format: 'A4', printBackground: true });
     await page.emulateMedia({ media: 'screen' });
     const upPages = (fs.readFileSync(spPdf, 'latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
-    if (upPages !== 1) errors.push(`${sp} unit plan prints on ${upPages} pages`);
+    const upSheets = await page.$$eval('.sheet.unit', els => els.length);
+    if (upPages !== upSheets) errors.push(`${sp} unit plan: ${upSheets} sheet(s) printed on ${upPages} pages`);
   }
   await page.click('[data-act="t-sport"][data-v="Net Games"]');
   await page.click('[data-act="print-mode"][data-v="all"]');
@@ -250,7 +253,7 @@ async function main() {
   await page.waitForSelector('input[data-in="score"]');
   const demoIn = (await page.$$('input[data-in="score"]')).length;
   for (let i = 0; i < demoIn; i++) { const inp = page.locator('input[data-in="score"]').nth(i); await inp.fill(String(2 + i)); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
-  await page.click('.focus-grid >> nth=0 >> .focus-btn >> nth=0');
+  await pickFocusAll();
   await page.fill('textarea[data-in="wentWell"]', 'demo text');
   await page.click('[data-act="cp-save"]');
   await page.waitForSelector('.cp-card:nth-child(1).done');
@@ -272,7 +275,7 @@ async function main() {
   await page.click('[data-act="cp-save"]');
   await page.waitForTimeout(300);
   if (await page.$('.cp-card:nth-child(1).done')) errors.push('Early check-in saved with no focus skill');
-  await page.click('.focus-grid >> nth=0 >> .focus-btn >> nth=0');
+  await pickFocusAll();
   await page.click('[data-act="cp-save"]');
   await page.waitForSelector('.cp-card:nth-child(1).done');
   await saved();
@@ -328,7 +331,7 @@ async function main() {
   await page.waitForSelector('input[data-in="score"]');
   const pgIn = (await page.$$('input[data-in="score"]')).length;
   for (let i = 0; i < pgIn; i++) { const inp = page.locator('input[data-in="score"]').nth(i); if (await inp.isDisabled()) continue; await inp.fill(String(1 + i)); await inp.dispatchEvent('change'); await page.waitForTimeout(50); }
-  await page.click('.focus-grid >> .focus-btn >> nth=0');
+  await pickFocusAll();
   await page.fill('textarea[data-in="wentWell"]', 'Saved through the Pages API.');
   await page.click('[data-act="cp-save"]');
   await page.waitForSelector('.cp-card:nth-child(1).done');
