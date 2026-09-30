@@ -37,14 +37,19 @@ function rawCall(fn, ...args) {
 async function apiCall(fn, args) {
   const res = await fetch(window.MFS_CONFIG.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: Auth.get(), fn, args }), redirect: 'follow' });
   const out = await res.json();
-  if (out && out.ok) return out.result;
-  if (out && out.code === 'auth') { Auth.clear(); needSignIn(); throw new Error('Signed out — sign in again to continue'); }  // transient: the outbox keeps the work
+  if (out && out.ok) { Auth.fresh = false; return out.result; }
+  if (out && (out.code === 'auth' || out.code === 'server')) {
+    // A token Google issued a moment ago and the server still refused: signing in
+    // again would fail the same way, so stop and show the reason instead.
+    if (Auth.fresh || out.code === 'server') { Auth.clear(); const e = new Error(out.error || 'Sign-in refused'); e.signIn = true; throw e; }
+    Auth.clear(); needSignIn(); throw new Error('Signed out — sign in again to continue');  // expired mid-session: the outbox keeps the work
+  }
   throw new Error(out && out.error ? out.error : 'No reply from the server');
 }
 // Apps Script serialises writes and caps simultaneous runs, so a whole class
 // saving at once produces "Busy", "too many simultaneous" or timeout errors
 // that clear on their own. Transient failures retry with backoff and jitter.
-const PERMANENT = /Teachers only|not on roster|Unknown checkpoint|Missing|not signed in/i;
+const PERMANENT = /Teachers only|not on roster|Unknown checkpoint|Missing|not signed in|Sign-in refused/i;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function call(fn, ...args) {
   let delay = (window.__preview && window.__preview.fastRetry) ? 40 : 1500;
@@ -199,21 +204,25 @@ function needSignIn() {
   if (signInShown) return; signInShown = true;
   banner('warn', 'Please sign in again with your school Google account. <button data-act="sign-in">Sign in</button>');
 }
-function renderSignIn() {
+// refused: the server's reason for turning the last sign-in away. Shown on the
+// card, and the automatic account pick is off so the page does not loop.
+function renderSignIn(refused) {
   $('#app').innerHTML = `<div class="notice"><h2>${esc((window.MFS_CONFIG && window.MFS_CONFIG.unitName) || 'Move for Skills')}</h2>
-    <p>Sign in with your <b>school Google account</b> to open your page.</p><div id="gsi-btn" style="margin:14px 0"></div>
+    <p>Sign in with your <b>school Google account</b> to open your page.</p>
+    ${refused ? `<p class="refused" id="signin-refused">${esc(refused)}</p>` : ''}
+    <div id="gsi-btn" style="margin:14px 0"></div>
     <p class="tiny muted">Only accounts from the school can get in. Nothing is stored on this website; your work is saved to the school's own sheet.</p></div>`;
   const tryInit = () => {
     if (!(window.google && google.accounts && google.accounts.id)) { setTimeout(tryInit, 150); return; }
-    google.accounts.id.initialize({ client_id: window.MFS_CONFIG.clientId, callback: onCredential, auto_select: true, itp_support: true });
+    google.accounts.id.initialize({ client_id: window.MFS_CONFIG.clientId, callback: onCredential, auto_select: !refused, itp_support: true });
     const el = $('#gsi-btn'); if (el) google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill' });
-    google.accounts.id.prompt();
+    if (!refused) google.accounts.id.prompt();
   };
   tryInit();
 }
 function onCredential(resp) {
   if (!resp || !resp.credential) return;
-  Auth.set(resp.credential); signInShown = false; banner();
+  Auth.set(resp.credential); Auth.fresh = true; signInShown = false; banner();
   if (S.cfg) { Outbox.retry(); render(); } else boot();
 }
 function signInAgain() {
@@ -248,6 +257,7 @@ async function boot() {
     render(); Pending.restore(); Outbox.drain();
     if (S.id.role === 'teacher' && S.T.section) loadSection(S.T.section);
   } catch (e) {
+    if (e.signIn && pagesMode()) { renderSignIn(e.message); return; }
     $('#app').innerHTML = `<div class="notice"><h2>Could not load</h2><p>${esc(e.message)}</p><p><button class="pill-btn primary" data-act="reload">Try again</button></p></div>`;
   }
 }

@@ -12,7 +12,7 @@ vm.runInContext(`
   const post = (body) => JSON.parse(doPost({ postData: { contents: JSON.stringify(body) } }).getContent());
   // no client id configured → every token refused
   let r = post({ token: 'good-token:ann@example.edu', fn: 'bootstrap', args: [] });
-  if (r.ok || r.code !== 'auth') throw new Error('accepted a token with no client id configured: ' + JSON.stringify(r));
+  if (r.ok || r.code !== 'server' || !/oauth_client_id is blank/.test(r.error)) throw new Error('accepted a token with no client id configured: ' + JSON.stringify(r));
   const cfgTab = FakeSheets.book.getSheetByName('Config');
   const vals = cfgTab.getDataRange().getValues(); const row = vals.findIndex(v => v[0] === 'oauth_client_id') + 1;
   cfgTab.getRange(row, 2).setValue('test-client'); clearConfigCache();
@@ -31,9 +31,16 @@ vm.runInContext(`
   r = post({ token: 'good-token:ann@example.edu', fn: 'getSectionData', args: ['7'] });
   if (r.ok) throw new Error('student read section data over the API');
   // wrong audience, wrong domain, bad token, unknown function
-  r = post({ token: 'other-client:ann@example.edu', fn: 'bootstrap', args: [] }); if (r.ok || r.code !== 'auth') throw new Error('token for another client accepted');
-  r = post({ token: 'good-token:ann@gmail.com', fn: 'bootstrap', args: [] }); if (r.ok || r.code !== 'auth') throw new Error('token from another domain accepted');
-  r = post({ token: 'nonsense', fn: 'bootstrap', args: [] }); if (r.ok || r.code !== 'auth') throw new Error('bad token accepted');
+  r = post({ token: 'other-client:ann@example.edu', fn: 'bootstrap', args: [] }); if (r.ok || r.code !== 'server' || !/different client ID/.test(r.error)) throw new Error('token for another client accepted: ' + JSON.stringify(r));
+  r = post({ token: 'good-token:ann@gmail.com', fn: 'bootstrap', args: [] }); if (r.ok || r.code !== 'auth' || !/only example.edu accounts/.test(r.error) || /ann@/.test(r.error)) throw new Error('token from another domain: ' + JSON.stringify(r));
+  r = post({ token: 'nonsense', fn: 'bootstrap', args: [] }); if (r.ok || r.code !== 'auth' || !/HTTP 400/.test(r.error)) throw new Error('bad token: ' + JSON.stringify(r));
+  // the script has not been allowed to contact Google: an owner-side problem, named as such, not a sign-in loop
+  const realFetch = UrlFetchApp.fetch; UrlFetchApp.fetch = () => { throw new Error('You do not have permission to call UrlFetchApp.fetch'); };
+  r = post({ token: 'good-token:ben@example.edu', fn: 'bootstrap', args: [] });   // a token not yet in the verified cache
+  if (r.ok || r.code !== 'server' || !/2\. Check roster & config/.test(r.error)) throw new Error('fetch permission failure not surfaced: ' + JSON.stringify(r));
+  if (!/not allowed to contact Google/.test(checkConfig())) throw new Error('checkConfig did not report the fetch permission');
+  UrlFetchApp.fetch = realFetch;
+  if (!/Sign-in check can reach Google/.test(checkConfig())) throw new Error('checkConfig probe missing');
   r = post({ token: 'good-token:ann@example.edu', fn: 'setupTabs', args: [] }); if (r.ok) throw new Error('non-whitelisted function ran');
   r = post({ token: 'good-token:ann@example.edu', fn: 'clearStudentData', args: [] }); if (r.ok) throw new Error('destructive function ran over the API');
   // identity does not leak into the next (session) request
