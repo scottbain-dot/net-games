@@ -414,7 +414,7 @@ function doPost(e) {
     var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     var cfg = getConfig_();
     var email = verifyIdToken_(str_(body.token), cfg);
-    if (!email) { out = { ok: false, code: 'auth', error: 'Please sign in again with your school Google account' }; }
+    if (!email) { out = { ok: false, code: VERIFY_FAILED_.code, error: 'Sign-in refused: ' + VERIFY_FAILED_.reason }; }
     else {
       var fn = str_(body.fn);
       if (API_FUNCTIONS.indexOf(fn) === -1) throw new Error('Unknown function');
@@ -426,24 +426,30 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
 // Returns the lower-cased email for a valid Google ID token issued to our client
-// ID and an allowed domain, or '' if it is not acceptable. Verified tokens are
-// cached for a few minutes so a class saving at once does not re-verify each call.
+// ID and an allowed domain, or '' if it is not acceptable — with the reason in
+// VERIFY_FAILED_ so the page can say what is wrong instead of asking for another
+// sign-in that will fail the same way. code 'auth' = a fresh sign-in may help;
+// 'server' = the Sheet owner has something to fix. Verified tokens are cached
+// for a few minutes so a class saving at once does not re-verify each call.
+var VERIFY_FAILED_ = { code: 'auth', reason: '' };
 function verifyIdToken_(token, cfg) {
-  if (!token || !cfg.oauthClientId) return '';
+  var fail = function(code, reason) { VERIFY_FAILED_ = { code: code, reason: reason }; return ''; };
+  if (!token) return fail('auth', 'no sign-in token was sent. Please sign in.');
+  if (!cfg.oauthClientId) return fail('server', 'oauth_client_id is blank on the Config tab of the Sheet.');
   var cache = CacheService.getScriptCache(), key = 'tok|' + hashOf_(token);
   var hit = cache.get(key); if (hit) return hit;
   var res;
   try { res = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token), { muteHttpExceptions: true }); }
-  catch (err) { return ''; }
-  if (res.getResponseCode() !== 200) return '';
-  var info; try { info = JSON.parse(res.getContentText()); } catch (err) { return ''; }
+  catch (err) { return fail('server', 'the Sheet owner has not yet allowed the script to contact Google to check sign-ins. Owner: open the Sheet, run PE Tracker → 2. Check roster & config and approve the permission. (' + String(err && err.message || err) + ')'); }
+  if (res.getResponseCode() !== 200) return fail('auth', 'Google did not accept the sign-in token (HTTP ' + res.getResponseCode() + '). Please sign in again.');
+  var info; try { info = JSON.parse(res.getContentText()); } catch (err) { return fail('auth', 'Google sent an unreadable reply. Please try again.'); }
   var email = lower_(info.email);
-  if (!email || String(info.email_verified) !== 'true') return '';
-  if (str_(info.aud) !== cfg.oauthClientId) return '';
+  if (!email || String(info.email_verified) !== 'true') return fail('auth', 'that Google account has no verified email address.');
+  if (str_(info.aud) !== cfg.oauthClientId) return fail('server', 'this page signs in with a different client ID from the oauth_client_id on the Sheet\'s Config tab. Owner: make config.js and the Config tab match.');
   var exp = parseInt(info.exp, 10) || 0, now = Math.floor(Date.now() / 1000);
-  if (exp <= now) return '';
+  if (exp <= now) return fail('auth', 'the sign-in has expired. Please sign in again.');
   var domain = cfg.allowedDomain || lower_(Session.getEffectiveUser().getEmail()).split('@')[1] || '';
-  if (domain && email.split('@')[1] !== domain) return '';
+  if (domain && email.split('@')[1] !== domain) return fail('auth', 'only ' + domain + ' accounts can use this page; you signed in with a ' + email.split('@')[1] + ' account. Choose your school account.');
   try { cache.put(key, email, Math.min(300, Math.max(30, exp - now))); } catch (err) {}
   return email;
 }
@@ -981,7 +987,14 @@ function checkConfig() {
   OBSOLETE_TABS.forEach(function(n) { var t = tab_(n); if (t && t.getLastRow() >= 2) problems.push('Tab "' + n + '" is from the first version and is not read any more — delete it once you no longer need its rows.'); });
   if (!cfg.criteria.length) problems.push('Criteria tab is empty.');
   cfg.criteria.forEach(function(c) { if (c.evidence === 'none') problems.push('Criterion ' + c.code + ' has no Evidence type (test / reflection / participation / skills / outcomes).'); });
-  var msg = problems.length ? problems.join('\n') : 'Looks good: ' + cfg.sections.length + ' sections, ' + cfg.roster.length + ' students, ' + cfg.sports.length + ' sports, ' + cfg.checkpoints.length + ' checkpoints.';
+  var signin = '';
+  if (cfg.oauthClientId) {
+    // Running this from the menu is also what grants the script permission to
+    // contact Google, so the GitHub Pages sign-in check works for students.
+    try { var probe = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=probe', { muteHttpExceptions: true }); signin = ' Sign-in check can reach Google (HTTP ' + probe.getResponseCode() + ').'; }
+    catch (e) { problems.push('The script is not allowed to contact Google to verify sign-ins, so the GitHub Pages front end refuses everyone. Approve the permission prompt when it appears and run this again. (' + String(e && e.message || e) + ')'); }
+  }
+  var msg = problems.length ? problems.join('\n') + signin : 'Looks good: ' + cfg.sections.length + ' sections, ' + cfg.roster.length + ' students, ' + cfg.sports.length + ' sports, ' + cfg.checkpoints.length + ' checkpoints.' + signin;
   Logger.log(problems.length ? problems.length + ' problem(s) found — see the dialog' : 'Config looks good');  // names and emails stay out of the script log
   try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
   return msg;
