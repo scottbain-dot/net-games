@@ -93,7 +93,7 @@
     getEffectiveUser: () => ({ getEmail: () => FakeSheets.owner }),
     getScriptTimeZone: () => 'Europe/Berlin'
   };
-  g.Utilities = { formatDate: (d) => { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; } };
+  g.Utilities = { formatDate: (d, tz, pattern) => { const p = n => String(n).padStart(2, '0'); const day = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; return /HH:mm/.test(pattern || '') ? day + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) : day; } };
   g.Logger = { log: (...a) => { if (g.console) console.log('[Logger]', ...a); } };
   g.ScriptApp = { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/PREVIEW/exec' }) };
   // Fake token verification: a token of the form "good-token:<email>" is valid for

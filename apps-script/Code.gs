@@ -64,6 +64,9 @@ var CONFIG_DEFAULTS = {
   reflection_prompt_early: ['Why this skill, and what will you do first?', 'The one question at the Early check-in'],
   reflection_prompt_1:  ['What went well and what has improved?', 'First reflection question at each check-in'],
   reflection_prompt_2:  ['What will I do differently in the next lessons?', 'Second reflection question at each check-in'],
+  starter_early:        ['I will focus on ____ because it will help me to ____.', 'Sentence starter shown under the Early reflection'],
+  starter_1:            ['____ went well because ____. I have improved at ____.', 'Sentence starter shown under the first reflection question'],
+  starter_2:            ['Next lesson I will ____ so that ____.', 'Sentence starter shown under the second reflection question'],
   show_grades_to_students: ['FALSE', 'TRUE to show final grades and comments on the student dashboard'],
   oauth_client_id:      ['', 'GitHub Pages front end only: the Google OAuth client ID the page signs in with (see the guide)'],
   allowed_domain:       ['', 'GitHub Pages front end only: Google Workspace domain allowed to sign in (blank = the Sheet owner\'s domain)'],
@@ -191,7 +194,7 @@ function readTab_(name) {
     for (var c = 0; c < headers.length; c++) {
       if (!headers[c]) continue;
       var v = row[c];
-      if (v instanceof Date) v = v.getFullYear() < 1905 ? serialOf_(v) : Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      if (v instanceof Date) v = v.getFullYear() < 1905 ? serialOf_(v) : Utilities.formatDate(v, Session.getScriptTimeZone(), headers[c] === 'Updated' ? 'yyyy-MM-dd HH:mm' : 'yyyy-MM-dd');
       obj[headers[c]] = v;
       if (v !== '' && v !== null && v !== undefined) empty = false;
     }
@@ -331,6 +334,7 @@ function buildConfig_() {
     gameLevelScores: (function() { var l = splitList_(kv.game_level_scores).map(num_); while (l.length < 4) l.push(null); return l.slice(0, 4); })(),
     goalTemplate: kv.goal_template,
     reflectionPrompts: [kv.reflection_prompt_1, kv.reflection_prompt_2], earlyPrompt: kv.reflection_prompt_early,
+    starterEarly: str_(kv.starter_early), starters: [str_(kv.starter_1), str_(kv.starter_2)],
     showGradesToStudents: bool_(kv.show_grades_to_students), dailyRegister: bool_(kv.daily_register),
     oauthClientId: str_(kv.oauth_client_id), allowedDomain: lower_(kv.allowed_domain),
     lessons: lessons, sports: sports, skills: skills, checkpoints: checkpoints,
@@ -424,7 +428,10 @@ function apiFrame_(p) {
   try { body.args = JSON.parse(p.args || '[]'); } catch (err) { body.args = []; }
   var out = apiRun_(body);
   var msg = JSON.stringify({ mfs: 1, id: str_(p.id).slice(0, 40), out: out });
-  var html = '<!doctype html><meta charset="utf-8"><script>window.parent.postMessage(' + msg.replace(/<\//g, '<\\/') + ', "*");<\/script>';
+  // Our page sits inside Google's sandbox frame, which sits inside the teacher's
+  // or student's page: post to the top window (and to the parent, harmlessly).
+  var js = 'var m=' + msg.replace(/<\//g, '<\\/') + ';try{window.top.postMessage(m,"*")}catch(e){}try{if(window.parent!==window.top)window.parent.postMessage(m,"*")}catch(e){}';
+  var html = '<!doctype html><meta charset="utf-8"><script>' + js + '<\/script>';
   return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 function apiRun_(body) {
@@ -510,7 +517,7 @@ function rowsFor_(name, section, email) {
 function parseSelf_(s) { try { var o = JSON.parse(s || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; } }
 function mapRegister_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), lesson: num_(r.Lesson), participation: num_(r.Participation), note: str_(r.Note) }; }
 function mapTest_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), checkpoint: str_(r.Checkpoint), skill: str_(r.Skill), score: num_(r.Score), by: str_(r.By) || 'teacher' }; }
-function mapCheckin_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), extensionSkill: str_(r.ExtensionSkill), extensionDrill: str_(r.ExtensionDrill), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal), gamePlay: num_(r.GamePlay), gameNote: str_(r.GameNote), engagement: num_(r.Engagement), personal: num_(r.Personal), confirmed: bool_(r.Confirmed) }; }
+function mapCheckin_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), checkpoint: str_(r.Checkpoint), focusSkill: str_(r.FocusSkill), goal: str_(r.Goal), drillStep: num_(r.DrillStep), extensionSkill: str_(r.ExtensionSkill), extensionDrill: str_(r.ExtensionDrill), selfStages: parseSelf_(r.SelfStages), wentWell: str_(r.WentWell), nextGoal: str_(r.NextGoal), gamePlay: num_(r.GamePlay), gameNote: str_(r.GameNote), engagement: num_(r.Engagement), personal: num_(r.Personal), confirmed: bool_(r.Confirmed), updated: str_(r.Updated) }; }
 function mapOutcome_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), checkpoint: str_(r.Checkpoint), outcome: str_(r.Outcome), self: num_(r.Self), teacher: num_(r.Teacher) }; }
 function mapGrade_(r) { return { id: studentId_(lower_(r.Email)), student: str_(r.Student), criterion: str_(r.Criterion), score: num_(r.Score), comment: str_(r.Comment) }; }
 
@@ -574,14 +581,17 @@ function saveCheckin(payload) {
     ExtensionSkill: str_(payload.extensionSkill).slice(0, 80), ExtensionDrill: str_(payload.extensionDrill).slice(0, 300),
     SelfStages: JSON.stringify(self),
     WentWell: str_(payload.wentWell).slice(0, 600), NextGoal: str_(payload.nextGoal).slice(0, 600) };
-  // Scores the student typed from their paper log. Never overwrite a score
-  // the teacher entered or corrected.
+  // Scores the student typed from their paper log. A student can change them
+  // until the teacher ticks the check-in; after that, and for any score the
+  // teacher entered or corrected, the student's value is ignored.
   var scores = payload.scores || {};
-  // Which scores the teacher owns is decided INSIDE the lock, so a teacher
-  // correction that lands while this request queues is never overwritten.
+  var lockedScores = false;
+  // Decided INSIDE the lock, so a tick or correction that lands while this
+  // request queues is never overwritten.
   var buildTestRows = function() {
     var testRows = [];
     if (!Object.keys(scores).length) return testRows;
+    if (!who.byTeacher && rowsFor_('Checkins', who.section, who.email).some(function(c) { return str_(c.Checkpoint) === cp && bool_(c.Confirmed); })) { lockedScores = true; return testRows; }
     var teacherSet = {};
     rowsFor_('SkillTests', who.section, who.email).forEach(function(t) { if (str_(t.Checkpoint) === cp && str_(t.By) === 'teacher' && str_(t.Score) !== '') teacherSet[str_(t.Skill)] = true; });
     Object.keys(scores).forEach(function(k) {
@@ -592,8 +602,7 @@ function saveCheckin(payload) {
     });
     return testRows;
   };
-  // A student re-saving their check-in un-confirms it so the teacher looks again.
-  if (!who.byTeacher) row.Confirmed = '';
+  // The teacher's tick stays: reflections may be edited afterwards, scores may not.
   var outcomeRows = [];
   Object.keys(payload.selfOutcomes || {}).forEach(function(k) {
     if (!cfg.outcomes.some(function(o) { return o.outcome === k; })) return;
@@ -605,7 +614,7 @@ function saveCheckin(payload) {
     upsert_('Checkins', [row]);
     if (testRows.length) upsert_('SkillTests', testRows);
     if (outcomeRows.length) upsert_('OutcomeRatings', outcomeRows);
-    return { ok: true };
+    return { ok: true, lockedScores: lockedScores };
   });
 }
 // Teacher's one-page check-in. entries: [{student, confirmed, engagement, personal,
