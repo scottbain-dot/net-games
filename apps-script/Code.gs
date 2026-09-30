@@ -215,12 +215,14 @@ function splitList_(s) { return str_(s).split('|').map(function(x) { return x.tr
 
 // Insert-or-update rows keyed on DATA_KEYS[name]. Columns the caller does not
 // send keep their existing value.
+var TAB_MEMO_ = {};   // per execution: sheet + headers, so a save's several upserts check each tab once
 function upsert_(name, rows) {
   if (!rows || !rows.length) return 0;
-  var s = ensureTab_(name, DATA_TABS[name]);
-  var keys = DATA_KEYS[name];
-  var lastRow = s.getLastRow(), lastCol = s.getLastColumn();
-  var sheetHeaders = s.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) { return String(h).trim(); });
+  var memo = TAB_MEMO_[name];
+  if (!memo) { var sh = ensureTab_(name, DATA_TABS[name]); var lc = Math.max(1, sh.getLastColumn()); memo = TAB_MEMO_[name] = { s: sh, lastCol: lc, headers: sh.getRange(1, 1, 1, lc).getValues()[0].map(function(h) { return String(h).trim(); }) }; }
+  var s = memo.s, keys = DATA_KEYS[name];
+  var lastRow = s.getLastRow(), lastCol = memo.lastCol;
+  var sheetHeaders = memo.headers;
   var existing = lastRow > 1 ? s.getRange(2, 1, lastRow - 1, lastCol).getValues() : [];
   var index = {};
   existing.forEach(function(row, i) {
@@ -256,7 +258,10 @@ function upsert_(name, rows) {
 
 function withLock_(fn) {
   var lock = LockService.getScriptLock();
-  lock.waitLock(90000);  // a whole class saving at once queues here; the client retries on failure
+  // Shorter than the page's 30 s write timeout: a request either gets the lock
+  // and finishes or fails with 'Lock timeout' and the page retries later,
+  // instead of the page giving up on a request that then runs anyway.
+  lock.waitLock(25000);
   try { return fn(); } finally { lock.releaseLock(); }
 }
 
