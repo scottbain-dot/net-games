@@ -29,11 +29,12 @@ vm.runInContext(`
   if (!r.ok || r.result.checkins.length !== 1 || r.result.checkins[0].wentWell !== 'via api') throw new Error('teacher read failed: ' + JSON.stringify(r).slice(0, 200));
   // the same API over GET, answered as a page that posts the JSON to its parent (the one-hop route)
   const fr = doGet({ parameter: { api: '1', id: 'req42', fn: 'bootstrap', args: '[]', token: 'good-token:ann@example.edu' } }).getContent();
-  const m = /postMessage\((.*), "\*"\);/.exec(fr); if (!m) throw new Error('frame reply has no postMessage: ' + fr.slice(0, 200));
+  const pick = h => { const a = h.indexOf('postMessage(') + 12, b = h.lastIndexOf(', "*")'); return a > 11 && b > a ? h.slice(a, b) : ''; };
+  const m = [null, pick(fr)]; if (!m[1]) throw new Error('frame reply has no postMessage: ' + fr.slice(0, 200));
   const posted = JSON.parse(m[1]);
   if (posted.mfs !== 1 || posted.id !== 'req42' || !posted.out.ok || posted.out.result.identity.name !== 'Ann Lee') throw new Error('frame reply wrong: ' + JSON.stringify(posted).slice(0, 200));
-  if (/<\/script>/.test(m[1])) throw new Error('unescaped </script> inside the frame reply');
-  const frBad = JSON.parse(/postMessage\((.*), "\*"\);/.exec(doGet({ parameter: { api: '1', id: 'x', fn: 'bootstrap', args: 'not json', token: 'nonsense' } }).getContent())[1]);
+  if (m[1].indexOf('</scr' + 'ipt>') !== -1) throw new Error('unescaped </script> inside the frame reply');
+  const frBad = JSON.parse(pick(doGet({ parameter: { api: '1', id: 'x', fn: 'bootstrap', args: 'not json', token: 'nonsense' } }).getContent()));
   if (frBad.out.ok || frBad.out.code !== 'auth') throw new Error('frame route accepted a bad token: ' + JSON.stringify(frBad));
   // a student cannot call teacher functions
   r = post({ token: 'good-token:ann@example.edu', fn: 'getSectionData', args: ['7'] });
