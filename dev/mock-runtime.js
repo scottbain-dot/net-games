@@ -104,12 +104,18 @@
       renderButton(el) { el.innerHTML = '<button type="button" id="fake-gsi" class="pill-btn primary">Sign in with Google (fake)</button>'; el.firstChild.onclick = () => cb({ credential: 'good-token:' + who }); },
       prompt() {}, disableAutoSelect() {}
     } } };
+    // ?flaky=N: the first N replies come back as Google's error page instead of
+    // JSON (what the googleusercontent hop does on a bad day); ?hang=N: the first
+    // N requests never answer. The page must still load.
+    let flaky = parseInt(q.get('flaky') || '0', 10), hang = parseInt(q.get('hang') || '0', 10);
     window.fetch = async (url, opts) => {
       if (url !== 'mock://api') throw new Error('unexpected fetch ' + url);
+      if (hang > 0) { hang--; await new Promise((r, rej) => { if (opts && opts.signal) opts.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' }))); }); }
       await new Promise(r => setTimeout(r, latency));
       if (failWrites && isWrite((JSON.parse(opts.body) || {}).fn)) throw new Error('Simulated network failure');
+      if (flaky > 0) { flaky--; const html = '<!DOCTYPE html><html><body>Sorry, unable to open the file at this time.</body></html>'; return { ok: false, text: async () => html, json: async () => JSON.parse(html) }; }
       const out = doPost({ postData: { contents: opts.body } }).getContent();
-      return { ok: true, json: async () => JSON.parse(out) };
+      return { ok: true, text: async () => out, json: async () => JSON.parse(out) };
     };
   } else {
     window.google = { script: { run: makeRunner() } };

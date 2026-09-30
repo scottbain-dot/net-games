@@ -321,6 +321,17 @@ async function main() {
   await page.click('[data-act="switch-account"]');
   await page.waitForSelector('#fake-gsi');
   if (await page.evaluate(() => sessionStorage.getItem('mfs_id_token'))) errors.push('Sign out left the token in the tab');
+  // the Google reply hop drops the first two replies and hangs the third: the page still loads, by retry and by the parallel request
+  const signInIfAsked = async () => { await page.waitForSelector('.cp-strip, #fake-gsi', { timeout: 15000 }); const btn = page.locator('#fake-gsi'); if (await btn.count()) await btn.click({ timeout: 5000 }).catch(() => {}); };
+  await page.goto(preview + '?pages=1&role=student2&flaky=2');
+  await signInIfAsked();
+  await page.waitForSelector('.cp-strip', { timeout: 15000 });
+  await page.goto(preview + '?pages=1&role=student2&hang=1');
+  const tHang = Date.now();
+  await signInIfAsked();
+  await page.waitForSelector('.cp-strip', { timeout: 15000 });
+  if (Date.now() - tHang > 12000) errors.push('a hung first request was not overtaken by the parallel one (' + (Date.now() - tHang) + ' ms)');
+  await page.evaluate(() => sessionStorage.removeItem('mfs_id_token'));   // leave the tab signed out for the teacher step
   await page.goto(preview + '?pages=1&role=teacher');
   await page.waitForSelector('#fake-gsi'); await page.click('#fake-gsi');
   await page.waitForSelector('.ok-btn');

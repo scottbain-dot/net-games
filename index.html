@@ -496,17 +496,40 @@ function rawCall(fn, ...args) {
   });
 }
 // text/plain keeps the browser from sending a CORS preflight, which Apps Script cannot answer.
+// Every Apps Script reply comes back through a second Google hop
+// (script.googleusercontent.com). That hop is the flaky part: it can hand back
+// an error page instead of our JSON, or hang for half a minute, while the
+// script itself answered in a few seconds. So: one attempt never waits more
+// than 20 s, a dropped reply is asked for again almost at once, and a page
+// load sends a second request after 6 s and takes whichever reply lands first.
+const READ_FNS = ['bootstrap', 'getStudent', 'getSectionData', 'getOverview'];
+function apiOnce(fn, args, timeoutMs, controllers) {
+  const ac = new AbortController(); if (controllers) controllers.push(ac);
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  const transient = msg => { const e = new Error(msg); e.transient = true; return e; };
+  return (async () => {
+    let text;
+    try {
+      const res = await fetch(window.MFS_CONFIG.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: Auth.get(), fn, args }), redirect: 'follow', signal: ac.signal });
+      text = await res.text();
+    } catch (e) {
+      throw transient(e && e.name === 'AbortError' ? 'Google did not hand the reply back in time' : 'Could not reach the server');
+    } finally { clearTimeout(timer); }
+    try { return JSON.parse(text); } catch (e) { throw transient('Google dropped the reply on the way back'); }
+  })();
+}
+// Two requests in flight at most; the first JSON reply wins and the other is abandoned.
+function apiHedged(fn, args) {
+  return new Promise((resolve, reject) => {
+    const controllers = []; let settled = false, inFlight = 0, hedgeTimer = null;
+    const finish = (ok, v) => { if (settled) return; settled = true; clearTimeout(hedgeTimer); controllers.forEach(c => { try { c.abort(); } catch (e) {} }); (ok ? resolve : reject)(v); };
+    const fire = () => { inFlight++; apiOnce(fn, args, 20000, controllers).then(o => finish(true, o)).catch(e => { inFlight--; if (inFlight === 0) finish(false, e); }); };
+    hedgeTimer = setTimeout(() => { if (!settled) { LoadTicker.hedged = true; fire(); } }, 6000);
+    fire();
+  });
+}
 async function apiCall(fn, args) {
-  // One attempt never waits longer than 25 s: a hung request looks exactly like a
-  // dead page, and a retry usually lands on a free server.
-  const ac = new AbortController(); const timer = setTimeout(() => ac.abort(), 25000);
-  let res, out;
-  try {
-    res = await fetch(window.MFS_CONFIG.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: Auth.get(), fn, args }), redirect: 'follow', signal: ac.signal });
-    out = await res.json();
-  } catch (e) {
-    throw new Error(e && e.name === 'AbortError' ? 'The server took too long to answer' : 'The server is busy (unreadable reply)');
-  } finally { clearTimeout(timer); }
+  const out = await (READ_FNS.indexOf(fn) !== -1 ? apiHedged(fn, args) : apiOnce(fn, args, 20000));
   if (out && out.ok) { Auth.fresh = false; return out.result; }
   if (out && (out.code === 'auth' || out.code === 'server')) {
     // A token Google issued a moment ago and the server still refused: signing in
@@ -532,7 +555,9 @@ async function call(fn, ...args) {
     catch (e) {
       if (PERMANENT.test(e.message) || attempt >= (fast ? 5 : 7)) throw e;
       LoadTicker.attempt = attempt + 2; LoadTicker.reason = e.message;
-      await sleep(delay + Math.random() * delay * 1.5); delay = Math.min(delay * 2, 12000);
+      // a dropped reply is not the server being busy: ask again almost at once
+      const wait = e.transient ? 300 + Math.random() * 600 : delay + Math.random() * delay * 1.5;
+      await sleep(fast ? delay : wait); if (!e.transient) delay = Math.min(delay * 2, 12000);
     }
   }
 }
@@ -542,14 +567,15 @@ async function call(fn, ...args) {
 // slow or retrying load never looks like a dead page.
 function loadingHtml(label) { return `<div class="loading"><div class="spinner"></div><div class="load-box"><div class="load-label">${esc(label)}</div><div class="load-status tiny muted" id="load-status">${esc(LoadTicker.text())}</div></div></div>`; }
 const LoadTicker = {
-  t0: 0, timer: null, attempt: 0, reason: '',
-  start() { this.t0 = Date.now(); this.attempt = 0; this.reason = ''; clearInterval(this.timer); this.timer = setInterval(() => { const el = $('#load-status'); if (el) el.textContent = this.text(); }, 1000); },
+  t0: 0, timer: null, attempt: 0, reason: '', hedged: false,
+  start() { this.t0 = Date.now(); this.attempt = 0; this.reason = ''; this.hedged = false; clearInterval(this.timer); this.timer = setInterval(() => { const el = $('#load-status'); if (el) el.textContent = this.text(); }, 1000); },
   stop() { clearInterval(this.timer); this.timer = null; this.attempt = 0; },
   text() {
     if (!this.timer) return '';
     const s = Math.round((Date.now() - this.t0) / 1000);
-    if (this.attempt) return `Server busy — trying again automatically (attempt ${this.attempt} of 8, ${s} s). Keep this tab open; refreshing starts over.`;
+    if (this.attempt) return `${this.reason || 'No reply'} — asking again (attempt ${this.attempt} of 8, ${s} s). Keep this tab open; refreshing starts over.`;
     if (s < 4) return 'Talking to the school\'s sheet…';
+    if (this.hedged) return `Google is slow handing the reply back (${s} s) — a second request is already on its way.`;
     if (s < 15) return `Still working (${s} s) — the sheet can take a moment when a class opens it together.`;
     return `Taking longer than usual (${s} s). Keep this tab open — it will get there. No need to refresh.`;
   }
