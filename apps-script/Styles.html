@@ -16,7 +16,10 @@ input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--blue); }
 
 #app { max-width: 1120px; margin: 0 auto; padding: 18px 16px 60px; }
-.loading { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 60vh; color: var(--muted); }
+.loading { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 60vh; color: var(--muted); padding: 0 16px; }
+.loading .load-box { text-align: left; max-width: 420px; }
+.loading .load-label { font-weight: 600; color: var(--ink, #222); }
+.loading .load-status { margin-top: 4px; line-height: 1.4; min-height: 1.2em; }
 .spinner { width: 26px; height: 26px; border: 3px solid #e0e0e0; border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
