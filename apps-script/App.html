@@ -211,6 +211,13 @@ function needSignIn() {
   if (signInShown) return; signInShown = true;
   banner('warn', 'Please sign in again with your school Google account. <button data-act="sign-in">Sign in</button>');
 }
+// hd = the school domain from config.js: Google then offers only school
+// accounts, so a personal Gmail in the same browser is never auto-picked.
+function gsiOptions(autoSelect) {
+  const o = { client_id: window.MFS_CONFIG.clientId, callback: onCredential, auto_select: autoSelect, itp_support: true };
+  if (window.MFS_CONFIG.domain) o.hd = window.MFS_CONFIG.domain;
+  return o;
+}
 // refused: the server's reason for turning the last sign-in away. Shown on the
 // card, and the automatic account pick is off so the page does not loop.
 function renderSignIn(refused) {
@@ -221,7 +228,7 @@ function renderSignIn(refused) {
     <p class="tiny muted">Only accounts from the school can get in. Nothing is stored on this website; your work is saved to the school's own sheet.</p></div>`;
   const tryInit = () => {
     if (!(window.google && google.accounts && google.accounts.id)) { setTimeout(tryInit, 150); return; }
-    google.accounts.id.initialize({ client_id: window.MFS_CONFIG.clientId, callback: onCredential, auto_select: !refused, itp_support: true });
+    google.accounts.id.initialize(gsiOptions(!refused));
     const el = $('#gsi-btn'); if (el) google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill' });
     if (!refused) google.accounts.id.prompt();
   };
@@ -234,7 +241,7 @@ function onCredential(resp) {
 }
 function signInAgain() {
   if (!(window.google && google.accounts && google.accounts.id)) { renderSignIn(); return; }
-  google.accounts.id.initialize({ client_id: window.MFS_CONFIG.clientId, callback: onCredential, auto_select: true, itp_support: true });
+  google.accounts.id.initialize(gsiOptions(true));
   google.accounts.id.prompt(n => { if (n && n.isNotDisplayed && n.isNotDisplayed() || n && n.isSkippedMoment && n.isSkippedMoment()) renderSignIn(); });
 }
 

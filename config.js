@@ -6,5 +6,7 @@ window.MFS_CONFIG = {
   // The FIS portals' Google OAuth client ID (already authorised for https://scottbain-dot.github.io).
   // The same value goes on the Sheet's Config tab as oauth_client_id.
   clientId: '701639243214-ud6m1qtmc6ma0pq6v24tk39afbuhcblv.apps.googleusercontent.com',
+  // School Google Workspace domain: the sign-in offers only these accounts, never a personal Gmail.
+  domain: 'fis.edu',
   unitName: 'Move for Skills'
 };
