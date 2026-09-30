@@ -70,7 +70,7 @@ var CONFIG_DEFAULTS = {
   daily_register:       ['FALSE', 'TRUE to add a per-lesson participation register for teachers (otherwise engagement is rated at each check-in)']
 };
 var CACHE_KEY_CONFIG = 'mfs_config_v2';
-var CACHE_SECONDS = 180;
+var CACHE_SECONDS = 600;   // unit set-up + roster; PE Tracker → Refresh app config now clears it early
 var EVIDENCE_TYPES = ['test', 'reflection', 'participation', 'skills', 'outcomes', 'none'];
 
 // ---------- Example unit (seeded only into EMPTY tabs — edit freely) ----------
@@ -467,7 +467,9 @@ function publicConfig_(cfg) {
   return c;
 }
 
-function bootstrap() {
+// section (optional): a teacher's page also gets that section's data in the
+// same round trip, so the first screen needs one call, not two.
+function bootstrap(section) {
   var cfg = getConfig_();
   var id = identity_(cfg);
   var out = { config: publicConfig_(cfg), identity: id, appUrl: appUrl_(), switchUrl: chooserUrl_(appUrl_() || ScriptApp.getService().getUrl() || '') };
@@ -476,6 +478,9 @@ function bootstrap() {
     out.config.roster = out.config.roster.filter(function(r) { return r.id === id.id; });
     out.config.sections = [id.section];
     out.student = studentData_(cfg, id.section, id.id, true);
+  } else if (id.role === 'teacher' && cfg.sections.length) {
+    var sec = cfg.sections.indexOf(str_(section)) !== -1 ? str_(section) : cfg.sections[0];
+    out.sectionData = sectionData_(sec);
   }
   return out;
 }
@@ -517,6 +522,9 @@ function getStudent(section, ref) {
 function getSectionData(section) {
   var cfg = getConfig_();
   requireTeacher_(cfg);
+  return sectionData_(section);
+}
+function sectionData_(section) {
   return {
     section: section,
     register: rowsFor_('Register', section).map(mapRegister_),

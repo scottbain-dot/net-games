@@ -35,8 +35,16 @@ function rawCall(fn, ...args) {
 }
 // text/plain keeps the browser from sending a CORS preflight, which Apps Script cannot answer.
 async function apiCall(fn, args) {
-  const res = await fetch(window.MFS_CONFIG.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: Auth.get(), fn, args }), redirect: 'follow' });
-  const out = await res.json();
+  // One attempt never waits longer than 25 s: a hung request looks exactly like a
+  // dead page, and a retry usually lands on a free server.
+  const ac = new AbortController(); const timer = setTimeout(() => ac.abort(), 25000);
+  let res, out;
+  try {
+    res = await fetch(window.MFS_CONFIG.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: Auth.get(), fn, args }), redirect: 'follow', signal: ac.signal });
+    out = await res.json();
+  } catch (e) {
+    throw new Error(e && e.name === 'AbortError' ? 'The server took too long to answer' : 'The server is busy (unreadable reply)');
+  } finally { clearTimeout(timer); }
   if (out && out.ok) { Auth.fresh = false; return out.result; }
   if (out && (out.code === 'auth' || out.code === 'server')) {
     // A token Google issued a moment ago and the server still refused: signing in
@@ -56,18 +64,34 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // so 70 loads spread themselves over a minute or so instead of failing.
 async function call(fn, ...args) {
   const fast = window.__preview && window.__preview.fastRetry;
-  let delay = fast ? 40 : 800;
+  let delay = fast ? 40 : 500;
   for (let attempt = 0; ; attempt++) {
-    try { return await rawCall(fn, ...args); }
+    try { const r = await rawCall(fn, ...args); LoadTicker.attempt = 0; return r; }
     catch (e) {
       if (PERMANENT.test(e.message) || attempt >= (fast ? 5 : 7)) throw e;
-      if (attempt === 1) slowNote(true);
-      await sleep(delay + Math.random() * delay * 1.5); delay = Math.min(delay * 2, 15000);
+      LoadTicker.attempt = attempt + 2; LoadTicker.reason = e.message;
+      await sleep(delay + Math.random() * delay * 1.5); delay = Math.min(delay * 2, 12000);
     }
   }
 }
-// Shown while a load is being retried: the student knows to wait, not refresh.
-function slowNote(on) { const el = document.querySelector('.loading'); if (!el) return; let n = el.querySelector('.slow'); if (!on) { if (n) n.remove(); return; } if (!n) { n = document.createElement('div'); n.className = 'slow tiny muted'; n.textContent = 'Busy — the whole class is loading at once. Hang on, no need to refresh.'; el.appendChild(n); } }
+
+// ═══════════════════════ visible loading ═══════════════════════
+// A spinner that says what it is doing and how long it has been at it, so a
+// slow or retrying load never looks like a dead page.
+function loadingHtml(label) { return `<div class="loading"><div class="spinner"></div><div class="load-box"><div class="load-label">${esc(label)}</div><div class="load-status tiny muted" id="load-status">${esc(LoadTicker.text())}</div></div></div>`; }
+const LoadTicker = {
+  t0: 0, timer: null, attempt: 0, reason: '',
+  start() { this.t0 = Date.now(); this.attempt = 0; this.reason = ''; clearInterval(this.timer); this.timer = setInterval(() => { const el = $('#load-status'); if (el) el.textContent = this.text(); }, 1000); },
+  stop() { clearInterval(this.timer); this.timer = null; this.attempt = 0; },
+  text() {
+    if (!this.timer) return '';
+    const s = Math.round((Date.now() - this.t0) / 1000);
+    if (this.attempt) return `Server busy — trying again automatically (attempt ${this.attempt} of 8, ${s} s). Keep this tab open; refreshing starts over.`;
+    if (s < 4) return 'Talking to the school\'s sheet…';
+    if (s < 15) return `Still working (${s} s) — the sheet can take a moment when a class opens it together.`;
+    return `Taking longer than usual (${s} s). Keep this tab open — it will get there. No need to refresh.`;
+  }
+};
 
 // ═══════════════════════ outbox ═══════════════════════
 // Every write goes through here and is kept in localStorage (tagged with the
@@ -257,8 +281,10 @@ function renderPagesSetup() {
 async function boot() {
   if (pagesMode() && !window.MFS_CONFIG.clientId) { renderPagesSetup(); return; }
   if (pagesMode() && !Auth.get()) { renderSignIn(); return; }
+  LoadTicker.start(); $('#app').innerHTML = loadingHtml('Loading your page…');
   try {
-    const b = await call('bootstrap');
+    const b = await call('bootstrap', URL_SECTION || '');
+    LoadTicker.stop();
     S.cfg = b.config; S.id = b.identity; S.switchUrl = b.switchUrl || '';
     Outbox.load();
     if (S.id.role === 'student') S.me = b.student;
@@ -268,9 +294,12 @@ async function boot() {
       S.T.sport = S.id.sport && S.cfg.sports.indexOf(S.id.sport) !== -1 ? S.id.sport : '';
       if (!S.id.sport) { try { const last = localStorage.getItem('mfs_sport|' + S.id.email); if (last && S.cfg.sports.indexOf(last) !== -1) S.T.sport = last; } catch (e) {} }
     }
+    if (S.id.role === 'teacher' && b.sectionData && b.sectionData.section === S.T.section) applySectionData(S.T.section, b.sectionData);
     render(); Pending.restore(); Outbox.drain();
-    if (S.id.role === 'teacher' && S.T.section) loadSection(S.T.section);
+    if (S.id.role === 'teacher' && S.T.section && !S.T.data) loadSection(S.T.section);
+    else if (S.id.role === 'teacher' && S.T.tab === 'overview') loadOverview();
   } catch (e) {
+    LoadTicker.stop();
     if (e.signIn && pagesMode()) { renderSignIn(e.message); return; }
     $('#app').innerHTML = `<div class="notice"><h2>Could not load</h2><p>${esc(e.message)}</p><p><button class="pill-btn primary" data-act="reload">Try again</button></p></div>`;
   }
@@ -537,10 +566,16 @@ async function loadSection(section) {
   S.T.section = section; S.T.data = null; S.T.overview = null; S.T.viewing = null;
   if (S.T.tab === 'student' || S.T.tab === 'cpform') S.T.tab = 'students';
   if (!S.cfg.dailyRegister && S.T.tab === 'register') S.T.tab = 'checkins';
-  render();
+  LoadTicker.start(); render();
   try {
     const d = await call('getSectionData', section);
     if (S.T.section !== section) return;
+    LoadTicker.stop();
+    applySectionData(section, d);
+    if (S.T.tab === 'overview') loadOverview();
+  } catch (e) { LoadTicker.stop(); banner('err', 'Could not load section: ' + esc(e.message) + ' <button data-act="reload">Reload</button>'); }
+}
+function applySectionData(section, d) {
     S.T.data = d;
     if (sportsInSection().indexOf(S.T.sport) === -1) S.T.sport = '';
     if (S.T.lesson === null) { const done = d.register.filter(r => r.participation).map(r => r.lesson); const last = done.length ? Math.max(...done) : 0; const nextL = S.cfg.lessons.find(l => l.number > last) || S.cfg.lessons[S.cfg.lessons.length - 1]; S.T.lesson = nextL ? nextL.number : null; }
@@ -551,8 +586,6 @@ async function loadSection(section) {
       S.T.cpName = (open || CPS()[CPS().length - 1]).name;
     }
     render();
-    if (S.T.tab === 'overview') loadOverview();
-  } catch (e) { banner('err', 'Could not load section: ' + esc(e.message) + ' <button data-act="reload">Reload</button>'); }
 }
 // Re-fetch the section without losing sport, sub-tab or scroll; skipped while taps are still being sent.
 let lastRefresh = 0;
@@ -579,7 +612,7 @@ function renderTeacher() {
       <div class="savestate" id="savestate"></div>${pagesMode() ? `<button class="pill-btn small" data-act="switch-account" title="${esc(Auth.email())}">Sign out</button>` : ''}</div>
     <div class="tabs main">${TABS().map(([k, l]) => `<button class="tab ${T.tab === k ? 'active' : ''}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</div>${T.data ? todayStrip() : ''}`;
   if (!cfg.sections.length) return head + `<div class="notice"><h2>No students yet</h2><p>Add students to the <b>Roster</b> tab of the Sheet (Section, Sport, Student, Email), then reload.</p></div>`;
-  if (!T.data) return head + `<div class="loading"><div class="spinner"></div> Loading…</div>`;
+  if (!T.data) return head + loadingHtml('Loading ' + (T.section || '') + '…');
   const body = { register: renderRegister, checkins: renderTeacherCheckin, students: renderStudents, overview: renderOverview, print: renderPrint }[T.tab] || renderTeacherCheckin;
   return head + body();
 }

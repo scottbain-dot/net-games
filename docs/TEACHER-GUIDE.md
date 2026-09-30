@@ -106,7 +106,7 @@ Everything stays inside the school's Google Workspace. There is no server of our
 
 - The Sheet holds: student name, school email, section, sport; test scores; check-in choices and the two short reflections; teacher confirmations, ratings, game-play level and note; grades and comments. Nothing else is collected.
 - The app runs as an Apps Script web app in the school Workspace. It executes as the Sheet owner, so students never get access to the Sheet itself.
-- A copy of the unit set-up (including the roster with emails) sits in Apps Script's cache for up to a few minutes so pages load quickly. That cache is Google-internal to this script.
+- A copy of the unit set-up (including the roster with emails) sits in Apps Script's cache for up to ten minutes so pages load quickly (PE Tracker → *Refresh app config now* clears it after a Roster or unit change). That cache is Google-internal to this script.
 - While a change is being sent, it is held in that browser's local storage and deleted the moment the server confirms. On a shared laptop nothing remains after a successful save. If a save is still pending when a student walks away, the entry stays on that device until the next time that same login opens the app.
 
 **Who sees what**
